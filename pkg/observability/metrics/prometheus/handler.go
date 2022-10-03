@@ -7,10 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package prometheus
 
 import (
+	"net/http"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
-	"net/http"
 )
 
 // Handler implements a Prometheus /metrics endpoint.

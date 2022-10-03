@@ -3,59 +3,60 @@ package prometheus
 import (
 	"context"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/trustbloc/edge-core/pkg/log"
-	"github.com/trustbloc/orb/pkg/httpserver"
-	. "github.com/trustbloc/orb/pkg/observability/metrics"
 	"sync"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+
+	"github.com/trustbloc/orb/pkg/httpserver"
+	"github.com/trustbloc/orb/pkg/observability/metrics"
 )
 
-var logger = log.New("prometheus-metrics-provider")
+var logger = metrics.Logger
 
 var (
-	createOnce sync.Once //nolint:gochecknoglobals
-	instance   Metrics   //nolint:gochecknoglobals
+	createOnce sync.Once       //nolint:gochecknoglobals
+	instance   metrics.Metrics //nolint:gochecknoglobals
 )
 
-type PromProvider struct {
+type promProvider struct {
 	httpServer *httpserver.Server
 }
 
-func NewPrometheusProvider(httpServer *httpserver.Server) Provider {
-	return &PromProvider{httpServer: httpServer}
+// NewPrometheusProvider creates new instance of Prometheus Metrics Provider.
+func NewPrometheusProvider(httpServer *httpserver.Server) metrics.Provider {
+	return &promProvider{httpServer: httpServer}
 }
 
-type PromProviderParams struct {
-	httpServer *httpserver.Server
-}
-
-func (pp *PromProvider) Create() error {
+// Create creates/initializes the prometheus metrics provider.
+func (pp *promProvider) Create() error {
 	if pp.httpServer != nil {
 		return nil
-	} else {
-		err := pp.httpServer.Start()
-		if err != nil {
-			return fmt.Errorf("start metrics HTTP server: %w", err)
-		}
-		return nil
 	}
+
+	if err := pp.httpServer.Start(); err != nil {
+		return fmt.Errorf("start metrics HTTP server: %w", err)
+	}
+
+	return nil
 }
 
-func (pp *PromProvider) Metrics() Metrics {
+// Metrics returns supported metrics.
+func (pp *promProvider) Metrics() metrics.Metrics {
 	return GetMetrics()
 }
 
-func (pp *PromProvider) Destroy() error {
+// Destroy destroys the prometheus metrics provider.
+func (pp *promProvider) Destroy() error {
 	if pp.httpServer != nil {
 		return pp.httpServer.Stop(context.Background())
-	} else {
-		return nil
 	}
+
+	return nil
 }
 
 // GetMetrics returns metrics implementation.
-func GetMetrics() Metrics {
+func GetMetrics() metrics.Metrics {
 	createOnce.Do(func() {
 		instance = NewMetrics()
 	})
@@ -161,7 +162,8 @@ type PromMetrics struct {
 	awsVerifyTime           prometheus.Histogram
 }
 
-func NewMetrics() Metrics { //nolint:funlen,gocyclo,cyclop
+// NewMetrics creates instance of prometheus metrics.
+func NewMetrics() metrics.Metrics { //nolint:funlen
 	activityTypes := []string{"Create", "Announce", "Offer", "Like", "Follow", "InviteWitness", "Accept", "Reject"}
 	dbTypes := []string{"CouchDB", "MongoDB"}
 	modelTypes := []string{"core index", "core proof", "provisional proof", "chunk", "provisional index"}
@@ -255,8 +257,7 @@ func NewMetrics() Metrics { //nolint:funlen,gocyclo,cyclop
 	return pm
 }
 
-func registerMetrics(pm *PromMetrics) {
-
+func registerMetrics(pm *PromMetrics) { //nolint:funlen,gocyclo,cyclop
 	prometheus.MustRegister(
 		pm.apOutboxPostTime, pm.apOutboxResolveInboxesTime,
 		pm.anchorWriteTime, pm.anchorWitnessTime, pm.anchorProcessWitnessedTime, pm.anchorWriteBuildCredTime,
@@ -908,7 +909,7 @@ func (pm *PromMetrics) VerifyTime(value time.Duration) {
 
 func newCounter(subsystem, name, help string, labels prometheus.Labels) prometheus.Counter {
 	return prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace:   Namespace,
+		Namespace:   metrics.Namespace,
 		Subsystem:   subsystem,
 		Name:        name,
 		Help:        help,
@@ -918,7 +919,7 @@ func newCounter(subsystem, name, help string, labels prometheus.Labels) promethe
 
 func newGauge(subsystem, name, help string, labels prometheus.Labels) prometheus.Gauge {
 	return prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace:   Namespace,
+		Namespace:   metrics.Namespace,
 		Subsystem:   subsystem,
 		Name:        name,
 		Help:        help,
@@ -928,7 +929,7 @@ func newGauge(subsystem, name, help string, labels prometheus.Labels) prometheus
 
 func newHistogram(subsystem, name, help string, labels prometheus.Labels) prometheus.Histogram {
 	return prometheus.NewHistogram(prometheus.HistogramOpts{
-		Namespace:   Namespace,
+		Namespace:   metrics.Namespace,
 		Subsystem:   subsystem,
 		Name:        name,
 		Help:        help,
@@ -938,7 +939,7 @@ func newHistogram(subsystem, name, help string, labels prometheus.Labels) promet
 
 func newOutboxPostTime() prometheus.Histogram {
 	return newHistogram(
-		ActivityPub, ApPostTimeMetric,
+		metrics.ActivityPub, metrics.ApPostTimeMetric,
 		"The time (in seconds) that it takes to post a message to the outbox.",
 		nil,
 	)
@@ -946,7 +947,7 @@ func newOutboxPostTime() prometheus.Histogram {
 
 func newOutboxResolveInboxesTime() prometheus.Histogram {
 	return newHistogram(
-		ActivityPub, ApResolveInboxesTimeMetric,
+		metrics.ActivityPub, metrics.ApResolveInboxesTimeMetric,
 		"The time (in seconds) that it takes to resolve the inboxes of the destinations when posting to the outbox.",
 		nil,
 	)
@@ -957,7 +958,7 @@ func newInboxHandlerTimes(activityTypes []string) map[string]prometheus.Histogra
 
 	for _, activityType := range activityTypes {
 		counters[activityType] = newHistogram(
-			ActivityPub, ApInboxHandlerTimeMetric,
+			metrics.ActivityPub, metrics.ApInboxHandlerTimeMetric,
 			"The time (in seconds) that it takes to handle an activity posted to the inbox.",
 			prometheus.Labels{"type": activityType},
 		)
@@ -971,7 +972,7 @@ func newOutboxActivityCounts(activityTypes []string) map[string]prometheus.Count
 
 	for _, activityType := range activityTypes {
 		counters[activityType] = newCounter(
-			ActivityPub, ApOutboxActivityCounterMetric,
+			metrics.ActivityPub, metrics.ApOutboxActivityCounterMetric,
 			"The number of activities posted to the outbox.",
 			prometheus.Labels{"type": activityType},
 		)
@@ -982,7 +983,7 @@ func newOutboxActivityCounts(activityTypes []string) map[string]prometheus.Count
 
 func newAnchorWriteTime() prometheus.Histogram {
 	return newHistogram(
-		Anchor, AnchorWriteTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteTimeMetric,
 		"The time (in seconds) that it takes to write an anchor credential and post an 'Offer' activity.",
 		nil,
 	)
@@ -990,7 +991,7 @@ func newAnchorWriteTime() prometheus.Histogram {
 
 func newAnchorWitnessTime() prometheus.Histogram {
 	return newHistogram(
-		Anchor, AnchorWitnessMetric,
+		metrics.Anchor, metrics.AnchorWitnessMetric,
 		"The time (in seconds) that it takes for a verifiable credential to gather proofs from all required "+
 			"witnesses (according to witness policy). The start time is when the verifiable credential is issued "+
 			"and the end time is the time that the witness policy is satisfied.",
@@ -1000,7 +1001,7 @@ func newAnchorWitnessTime() prometheus.Histogram {
 
 func newAnchorProcessWitnessedTime() prometheus.Histogram {
 	return newHistogram(
-		Anchor, AnchorProcessWitnessedMetric,
+		metrics.Anchor, metrics.AnchorProcessWitnessedMetric,
 		"The time (in seconds) that it takes to process a witnessed anchor credential by publishing it to "+
 			"the Observer and posting a 'Create' activity.",
 		nil,
@@ -1009,7 +1010,7 @@ func newAnchorProcessWitnessedTime() prometheus.Histogram {
 
 func newAnchorWriteBuildCredTime() prometheus.Histogram {
 	return newHistogram(
-		Anchor, AnchorWriteBuildCredTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteBuildCredTimeMetric,
 		"The time (in seconds) that it takes to build credential inside write anchor.",
 		nil,
 	)
@@ -1017,7 +1018,7 @@ func newAnchorWriteBuildCredTime() prometheus.Histogram {
 
 func newAnchorWriteGetWitnessesTime() prometheus.Histogram {
 	return newHistogram(
-		Anchor, AnchorWriteGetWitnessesTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteGetWitnessesTimeMetric,
 		"The time (in seconds) that it takes to get witnesses inside write anchor.",
 		nil,
 	)
@@ -1025,7 +1026,7 @@ func newAnchorWriteGetWitnessesTime() prometheus.Histogram {
 
 func newAnchorWriteSignCredTime() prometheus.Histogram {
 	return newHistogram(
-		Anchor, AnchorWriteSignCredTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteSignCredTimeMetric,
 		"The time (in seconds) that it takes to sign credential inside write anchor.",
 		nil,
 	)
@@ -1033,7 +1034,7 @@ func newAnchorWriteSignCredTime() prometheus.Histogram {
 
 func newAnchorWritePostOfferActivityTime() prometheus.Histogram {
 	return newHistogram(
-		Anchor, AnchorWritePostOfferActivityTimeMetric,
+		metrics.Anchor, metrics.AnchorWritePostOfferActivityTimeMetric,
 		"The time (in seconds) that it takes to post offer activity inside write anchor.",
 		nil,
 	)
@@ -1041,7 +1042,7 @@ func newAnchorWritePostOfferActivityTime() prometheus.Histogram {
 
 func newAnchorWriteGetPreviousAnchorsGetBulkTime() prometheus.Histogram {
 	return newHistogram(
-		Anchor, AnchorWriteGetPreviousAnchorsGetBulkTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteGetPreviousAnchorsGetBulkTimeMetric,
 		"The time (in seconds) that it takes to get bulk inside get previous anchor.",
 		nil,
 	)
@@ -1049,7 +1050,7 @@ func newAnchorWriteGetPreviousAnchorsGetBulkTime() prometheus.Histogram {
 
 func newAnchorWriteGetPreviousAnchorsTime() prometheus.Histogram {
 	return newHistogram(
-		Anchor, AnchorWriteGetPreviousAnchorsTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteGetPreviousAnchorsTimeMetric,
 		"The time (in seconds) that it takes to get previous anchor.",
 		nil,
 	)
@@ -1057,7 +1058,7 @@ func newAnchorWriteGetPreviousAnchorsTime() prometheus.Histogram {
 
 func newAnchorWriteSignWithLocalWitnessTime() prometheus.Histogram {
 	return newHistogram(
-		Anchor, AnchorWriteSignWithLocalWitnessTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteSignWithLocalWitnessTimeMetric,
 		"The time (in seconds) that it takes to sign with local witness.",
 		nil,
 	)
@@ -1065,7 +1066,7 @@ func newAnchorWriteSignWithLocalWitnessTime() prometheus.Histogram {
 
 func newAnchorWriteSignWithServerKeyTime() prometheus.Histogram {
 	return newHistogram(
-		Anchor, AnchorWriteSignWithServerKeyTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteSignWithServerKeyTimeMetric,
 		"The time (in seconds) that it takes to sign with server key.",
 		nil,
 	)
@@ -1073,7 +1074,7 @@ func newAnchorWriteSignWithServerKeyTime() prometheus.Histogram {
 
 func newAnchorWriteSignLocalWitnessLogTime() prometheus.Histogram {
 	return newHistogram(
-		Anchor, AnchorWriteSignLocalWitnessLogTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteSignLocalWitnessLogTimeMetric,
 		"The time (in seconds) that it takes to witness log inside sign local.",
 		nil,
 	)
@@ -1081,7 +1082,7 @@ func newAnchorWriteSignLocalWitnessLogTime() prometheus.Histogram {
 
 func newAnchorWriteStoreTime() prometheus.Histogram {
 	return newHistogram(
-		Anchor, AnchorWriteStoreTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteStoreTimeMetric,
 		"The time (in seconds) that it takes to store an anchor event.",
 		nil,
 	)
@@ -1089,7 +1090,7 @@ func newAnchorWriteStoreTime() prometheus.Histogram {
 
 func newAnchorWriteSignLocalWatchTime() prometheus.Histogram {
 	return newHistogram(
-		Anchor, AnchorWriteSignLocalWatchTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteSignLocalWatchTimeMetric,
 		"The time (in seconds) that it takes to watxch inside sign local.",
 		nil,
 	)
@@ -1097,7 +1098,7 @@ func newAnchorWriteSignLocalWatchTime() prometheus.Histogram {
 
 func newAnchorWriteResolveHostMetaLinkTime() prometheus.Histogram {
 	return newHistogram(
-		Anchor, AnchorWriteResolveHostMetaLinkTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteResolveHostMetaLinkTimeMetric,
 		"The time (in seconds) that it takes to resolve host meta link.",
 		nil,
 	)
@@ -1105,7 +1106,7 @@ func newAnchorWriteResolveHostMetaLinkTime() prometheus.Histogram {
 
 func newOpQueueAddOperationTime() prometheus.Histogram {
 	return newHistogram(
-		OperationQueue, OpQueueAddOperationTimeMetric,
+		metrics.OperationQueue, metrics.OpQueueAddOperationTimeMetric,
 		"The time (in seconds) that it takes to add an operation to the queue.",
 		nil,
 	)
@@ -1113,7 +1114,7 @@ func newOpQueueAddOperationTime() prometheus.Histogram {
 
 func newOpQueueBatchCutTime() prometheus.Histogram {
 	return newHistogram(
-		OperationQueue, OpQueueBatchCutTimeMetric,
+		metrics.OperationQueue, metrics.OpQueueBatchCutTimeMetric,
 		"The time (in seconds) that it takes to cut an operation batch. The duration is from the time that the first "+
 			"operation was added to the time that the batch was cut.",
 		nil,
@@ -1122,7 +1123,7 @@ func newOpQueueBatchCutTime() prometheus.Histogram {
 
 func newOpQueueBatchRollbackTime() prometheus.Histogram {
 	return newHistogram(
-		OperationQueue, OpQueueBatchRollbackTimeMetric,
+		metrics.OperationQueue, metrics.OpQueueBatchRollbackTimeMetric,
 		"The time (in seconds) that it takes to roll back an operation batch (in case of a transient error). "+
 			"The duration is from the time that the first operation was added to the time that the batch was cut.",
 		nil,
@@ -1131,7 +1132,7 @@ func newOpQueueBatchRollbackTime() prometheus.Histogram {
 
 func newOpQueueBatchSize() prometheus.Gauge {
 	return newGauge(
-		OperationQueue, OpQueueBatchSizeMetric,
+		metrics.OperationQueue, metrics.OpQueueBatchSizeMetric,
 		"The size of a cut batch.",
 		nil,
 	)
@@ -1139,7 +1140,7 @@ func newOpQueueBatchSize() prometheus.Gauge {
 
 func newObserverProcessAnchorTime() prometheus.Histogram {
 	return newHistogram(
-		Observer, ObserverProcessAnchorTimeMetric,
+		metrics.Observer, metrics.ObserverProcessAnchorTimeMetric,
 		"The time (in seconds) that it takes for the Observer to process an anchor credential.",
 		nil,
 	)
@@ -1147,7 +1148,7 @@ func newObserverProcessAnchorTime() prometheus.Histogram {
 
 func newObserverProcessDIDTime() prometheus.Histogram {
 	return newHistogram(
-		Observer, ObserverProcessDIDTimeMetric,
+		metrics.Observer, metrics.ObserverProcessDIDTimeMetric,
 		"The time (in seconds) that it takes for the Observer to process a DID.",
 		nil,
 	)
@@ -1155,7 +1156,7 @@ func newObserverProcessDIDTime() prometheus.Histogram {
 
 func newCASWriteTime() prometheus.Histogram {
 	return newHistogram(
-		Cas, CasWriteTimeMetric,
+		metrics.Cas, metrics.CasWriteTimeMetric,
 		"The time (in seconds) that it takes to write a document to CAS.",
 		nil,
 	)
@@ -1163,7 +1164,7 @@ func newCASWriteTime() prometheus.Histogram {
 
 func newCASResolveTime() prometheus.Histogram {
 	return newHistogram(
-		Cas, CasResolveTimeMetric,
+		metrics.Cas, metrics.CasResolveTimeMetric,
 		"The time (in seconds) that it takes to resolve a document from CAS.",
 		nil,
 	)
@@ -1171,7 +1172,7 @@ func newCASResolveTime() prometheus.Histogram {
 
 func newCASCacheHitCount() prometheus.Counter {
 	return newCounter(
-		Cas, CasCacheHitCountMetric,
+		metrics.Cas, metrics.CasCacheHitCountMetric,
 		"The number of times a CAS document was retrieved from the cache.",
 		nil,
 	)
@@ -1182,7 +1183,7 @@ func newCASReadTimes() map[string]prometheus.Histogram {
 
 	for _, casType := range []string{"local", "ipfs"} {
 		times[casType] = newHistogram(
-			Cas, CasReadTimeMetric,
+			metrics.Cas, metrics.CasReadTimeMetric,
 			"The time (in seconds) that it takes to read a document from the CAS storage.",
 			prometheus.Labels{"type": casType},
 		)
@@ -1193,7 +1194,7 @@ func newCASReadTimes() map[string]prometheus.Histogram {
 
 func newDocCreateUpdateTime() prometheus.Histogram {
 	return newHistogram(
-		Document, DocCreateUpdateTimeMetric,
+		metrics.Document, metrics.DocCreateUpdateTimeMetric,
 		"The time (in seconds) it takes the REST handler to process a create/update operation.",
 		nil,
 	)
@@ -1201,7 +1202,7 @@ func newDocCreateUpdateTime() prometheus.Histogram {
 
 func newDocResolveTime() prometheus.Histogram {
 	return newHistogram(
-		Document, DocResolveTimeMetric,
+		metrics.Document, metrics.DocResolveTimeMetric,
 		"The time (in seconds) it takes the REST handler to resolve a document.",
 		nil,
 	)
@@ -1212,7 +1213,7 @@ func newDBPutTime(dbTypes []string) map[string]prometheus.Histogram {
 
 	for _, dbType := range dbTypes {
 		counters[dbType] = newHistogram(
-			Db, DbPutTimeMetric,
+			metrics.DB, metrics.DBPutTimeMetric,
 			"The time (in seconds) it takes the DB to store data.",
 			prometheus.Labels{"type": dbType},
 		)
@@ -1226,7 +1227,7 @@ func newDBGetTime(dbTypes []string) map[string]prometheus.Histogram {
 
 	for _, dbType := range dbTypes {
 		counters[dbType] = newHistogram(
-			Db, DbGetTimeMetric,
+			metrics.DB, metrics.DBGetTimeMetric,
 			"The time (in seconds) it takes the DB to get data.",
 			prometheus.Labels{"type": dbType},
 		)
@@ -1240,7 +1241,7 @@ func newDBGetTagsTime(dbTypes []string) map[string]prometheus.Histogram {
 
 	for _, dbType := range dbTypes {
 		counters[dbType] = newHistogram(
-			Db, DbGetTagsTimeMetric,
+			metrics.DB, metrics.DBGetTagsTimeMetric,
 			"The time (in seconds) it takes the DB to get tags.",
 			prometheus.Labels{"type": dbType},
 		)
@@ -1254,7 +1255,7 @@ func newDBGetBulkTime(dbTypes []string) map[string]prometheus.Histogram {
 
 	for _, dbType := range dbTypes {
 		counters[dbType] = newHistogram(
-			Db, DbGetBulkTimeMetric,
+			metrics.DB, metrics.DBGetBulkTimeMetric,
 			"The time (in seconds) it takes the DB to get bulk.",
 			prometheus.Labels{"type": dbType},
 		)
@@ -1268,7 +1269,7 @@ func newDBQueryTime(dbTypes []string) map[string]prometheus.Histogram {
 
 	for _, dbType := range dbTypes {
 		counters[dbType] = newHistogram(
-			Db, DbQueryTimeMetric,
+			metrics.DB, metrics.DBQueryTimeMetric,
 			"The time (in seconds) it takes the DB to query.",
 			prometheus.Labels{"type": dbType},
 		)
@@ -1282,7 +1283,7 @@ func newDBDeleteTime(dbTypes []string) map[string]prometheus.Histogram {
 
 	for _, dbType := range dbTypes {
 		counters[dbType] = newHistogram(
-			Db, DbDeleteTimeMetric,
+			metrics.DB, metrics.DBDeleteTimeMetric,
 			"The time (in seconds) it takes the DB to delete.",
 			prometheus.Labels{"type": dbType},
 		)
@@ -1296,7 +1297,7 @@ func newDBBatchTime(dbTypes []string) map[string]prometheus.Histogram {
 
 	for _, dbType := range dbTypes {
 		counters[dbType] = newHistogram(
-			Db, DbBatchTimeMetric,
+			metrics.DB, metrics.DBBatchTimeMetric,
 			"The time (in seconds) it takes the DB to batch.",
 			prometheus.Labels{"type": dbType},
 		)
@@ -1307,7 +1308,7 @@ func newDBBatchTime(dbTypes []string) map[string]prometheus.Histogram {
 
 func newVCTWitnessAddProofVCTNilTime() prometheus.Histogram {
 	return newHistogram(
-		Vct, VctWitnessAddProofVCTNilTimeMetric,
+		metrics.Vct, metrics.VctWitnessAddProofVCTNilTimeMetric,
 		"The time (in seconds) it takes the add proof when vct is nil in witness.",
 		nil,
 	)
@@ -1315,7 +1316,7 @@ func newVCTWitnessAddProofVCTNilTime() prometheus.Histogram {
 
 func newVCTWitnessAddVCTime() prometheus.Histogram {
 	return newHistogram(
-		Vct, VctWitnessAddVCTimeMetric,
+		metrics.Vct, metrics.VctWitnessAddVCTimeMetric,
 		"The time (in seconds) it takes the add vc in witness.",
 		nil,
 	)
@@ -1323,7 +1324,7 @@ func newVCTWitnessAddVCTime() prometheus.Histogram {
 
 func newVCTWitnessAddProofTime() prometheus.Histogram {
 	return newHistogram(
-		Vct, VctWitnessAddProofTimeMetric,
+		metrics.Vct, metrics.VctWitnessAddProofTimeMetric,
 		"The time (in seconds) it takes the add proof in witness.",
 		nil,
 	)
@@ -1331,7 +1332,7 @@ func newVCTWitnessAddProofTime() prometheus.Histogram {
 
 func newVCTWitnessWebFingerTime() prometheus.Histogram {
 	return newHistogram(
-		Vct, VctWitnessWebFingerTimeMetric,
+		metrics.Vct, metrics.VctWitnessWebFingerTimeMetric,
 		"The time (in seconds) it takes web finger in witness.",
 		nil,
 	)
@@ -1339,7 +1340,7 @@ func newVCTWitnessWebFingerTime() prometheus.Histogram {
 
 func newVCTWitnessVerifyVCTTime() prometheus.Histogram {
 	return newHistogram(
-		Vct, VctWitnessVerifyVCTTimeMetric,
+		metrics.Vct, metrics.VctWitnessVerifyVCTTimeMetric,
 		"The time (in seconds) it takes verify vct signature in witness.",
 		nil,
 	)
@@ -1347,7 +1348,7 @@ func newVCTWitnessVerifyVCTTime() prometheus.Histogram {
 
 func newVCTAddProofParseCredentialTime() prometheus.Histogram {
 	return newHistogram(
-		Vct, VctAddProofParseCredentialTimeMetric,
+		metrics.Vct, metrics.VctAddProofParseCredentialTimeMetric,
 		"The time (in seconds) it takes the parse credential in add proof.",
 		nil,
 	)
@@ -1355,7 +1356,7 @@ func newVCTAddProofParseCredentialTime() prometheus.Histogram {
 
 func newVCTAddProofSignTime() prometheus.Histogram {
 	return newHistogram(
-		Vct, VctAddProofSignTimeMetric,
+		metrics.Vct, metrics.VctAddProofSignTimeMetric,
 		"The time (in seconds) it takes the sign in add proof.",
 		nil,
 	)
@@ -1363,7 +1364,7 @@ func newVCTAddProofSignTime() prometheus.Histogram {
 
 func newSignerGetKeyTime() prometheus.Histogram {
 	return newHistogram(
-		Signer, SignerGetKeyTimeMetric,
+		metrics.Signer, metrics.SignerGetKeyTimeMetric,
 		"The time (in seconds) it takes the signer to get key.",
 		nil,
 	)
@@ -1371,7 +1372,7 @@ func newSignerGetKeyTime() prometheus.Histogram {
 
 func newSignerSignTime() prometheus.Histogram {
 	return newHistogram(
-		Signer, SignerSignMetric,
+		metrics.Signer, metrics.SignerSignMetric,
 		"The time (in seconds) it takes the signer to sign.",
 		nil,
 	)
@@ -1379,7 +1380,7 @@ func newSignerSignTime() prometheus.Histogram {
 
 func newSignerAddLinkedDataProofTime() prometheus.Histogram {
 	return newHistogram(
-		Signer, SignerAddLinkedDataProofMetric,
+		metrics.Signer, metrics.SignerAddLinkedDataProofMetric,
 		"The time (in seconds) it takes the signer to add data linked prrof.",
 		nil,
 	)
@@ -1387,7 +1388,7 @@ func newSignerAddLinkedDataProofTime() prometheus.Histogram {
 
 func newWebResolverResolveDocument() prometheus.Histogram {
 	return newHistogram(
-		WebResolver, WebResolverResolveDocument,
+		metrics.WebResolver, metrics.WebResolverResolveDocument,
 		"The time (in seconds) it takes the web resolver to resolve document.",
 		nil,
 	)
@@ -1395,7 +1396,7 @@ func newWebResolverResolveDocument() prometheus.Histogram {
 
 func newResolverResolveDocumentLocallyTime() prometheus.Histogram {
 	return newHistogram(
-		Resolver, ResolverResolveDocumentLocallyTimeMetric,
+		metrics.Resolver, metrics.ResolverResolveDocumentLocallyTimeMetric,
 		"The time (in seconds) it takes the resolver to resolve document locally.",
 		nil,
 	)
@@ -1403,7 +1404,7 @@ func newResolverResolveDocumentLocallyTime() prometheus.Histogram {
 
 func newResolverGetAnchorOriginEndpointTime() prometheus.Histogram {
 	return newHistogram(
-		Resolver, ResolverGetAnchorOriginEndpointTimeMetric,
+		metrics.Resolver, metrics.ResolverGetAnchorOriginEndpointTimeMetric,
 		"The time (in seconds) it takes the resolver to get endpoint information from anchor origin.",
 		nil,
 	)
@@ -1411,7 +1412,7 @@ func newResolverGetAnchorOriginEndpointTime() prometheus.Histogram {
 
 func newResolverResolveDocumentFromAnchorOriginTime() prometheus.Histogram {
 	return newHistogram(
-		Resolver, ResolverResolveDocumentFromAnchorOriginTimeMetric,
+		metrics.Resolver, metrics.ResolverResolveDocumentFromAnchorOriginTimeMetric,
 		"The time (in seconds) it takes the resolver to resolve document from anchor origin.",
 		nil,
 	)
@@ -1419,7 +1420,7 @@ func newResolverResolveDocumentFromAnchorOriginTime() prometheus.Histogram {
 
 func newResolverResolveDocumentFromCreateStoreTime() prometheus.Histogram {
 	return newHistogram(
-		Resolver, ResolverResolveDocumentFromCreateStoreTimeMetric,
+		metrics.Resolver, metrics.ResolverResolveDocumentFromCreateStoreTimeMetric,
 		"The time (in seconds) it takes the resolver to resolve document from create document store.",
 		nil,
 	)
@@ -1427,7 +1428,7 @@ func newResolverResolveDocumentFromCreateStoreTime() prometheus.Histogram {
 
 func newResolverDeleteDocumentFromCreateStoreTime() prometheus.Histogram {
 	return newHistogram(
-		Resolver, ResolverDeleteDocumentFromCreateStoreTimeMetric,
+		metrics.Resolver, metrics.ResolverDeleteDocumentFromCreateStoreTimeMetric,
 		"The time (in seconds) it takes the resolver to delete document from create document store.",
 		nil,
 	)
@@ -1435,7 +1436,7 @@ func newResolverDeleteDocumentFromCreateStoreTime() prometheus.Histogram {
 
 func newResolverVerifyCIDTime() prometheus.Histogram {
 	return newHistogram(
-		Resolver, ResolverVerifyCIDTimeMetric,
+		metrics.Resolver, metrics.ResolverVerifyCIDTimeMetric,
 		"The time (in seconds) it takes the resolver to verify CID in anchor graph.",
 		nil,
 	)
@@ -1443,7 +1444,7 @@ func newResolverVerifyCIDTime() prometheus.Histogram {
 
 func newResolverRequestDiscoveryTime() prometheus.Histogram {
 	return newHistogram(
-		Resolver, ResolverRequestDiscoveryTimeMetric,
+		metrics.Resolver, metrics.ResolverRequestDiscoveryTimeMetric,
 		"The time (in seconds) it takes the resolver to request DID discovery.",
 		nil,
 	)
@@ -1451,7 +1452,7 @@ func newResolverRequestDiscoveryTime() prometheus.Histogram {
 
 func newDecoratorDecorateTime() prometheus.Histogram {
 	return newHistogram(
-		Decorator, DecoratorDecorateTimeMetric,
+		metrics.Decorator, metrics.DecoratorDecorateTimeMetric,
 		"The time (in seconds) it takes the decorator to pre-process document operation.",
 		nil,
 	)
@@ -1459,7 +1460,7 @@ func newDecoratorDecorateTime() prometheus.Histogram {
 
 func newDecoratorProcessorResolveTime() prometheus.Histogram {
 	return newHistogram(
-		Decorator, DecoratorProcessorResolveTimeMetric,
+		metrics.Decorator, metrics.DecoratorProcessorResolveTimeMetric,
 		"The time (in seconds) it takes the processor to resolve document before accepting document operation.",
 		nil,
 	)
@@ -1467,7 +1468,7 @@ func newDecoratorProcessorResolveTime() prometheus.Histogram {
 
 func newDecoratorGetAOEndpointAndResolveFromAOTime() prometheus.Histogram {
 	return newHistogram(
-		Decorator, DecoratorGetAOEndpointAndResolveFromAOTimeMetric,
+		metrics.Decorator, metrics.DecoratorGetAOEndpointAndResolveFromAOTimeMetric,
 		"The time (in seconds) it takes to resolve document from anchor origin before accepting document operation.",
 		nil,
 	)
@@ -1475,7 +1476,7 @@ func newDecoratorGetAOEndpointAndResolveFromAOTime() prometheus.Histogram {
 
 func newUnpublishedPutOperationTime() prometheus.Histogram {
 	return newHistogram(
-		Operations, UnpublishedPutOperationTimeMetric,
+		metrics.Operations, metrics.UnpublishedPutOperationTimeMetric,
 		"The time (in seconds) it takes to store unpublished operation.",
 		nil,
 	)
@@ -1483,7 +1484,7 @@ func newUnpublishedPutOperationTime() prometheus.Histogram {
 
 func newUnpublishedGetOperationsTime() prometheus.Histogram {
 	return newHistogram(
-		Operations, UnpublishedGetOperationsTimeMetric,
+		metrics.Operations, metrics.UnpublishedGetOperationsTimeMetric,
 		"The time (in seconds) it takes to get unpublished operations for suffix.",
 		nil,
 	)
@@ -1491,7 +1492,7 @@ func newUnpublishedGetOperationsTime() prometheus.Histogram {
 
 func newUnpublishedCalculateKeyTime() prometheus.Histogram {
 	return newHistogram(
-		Operations, UnpublishedCalculateOperationKeyTimeMetric,
+		metrics.Operations, metrics.UnpublishedCalculateOperationKeyTimeMetric,
 		"The time (in seconds) it takes to calculate key for unpublished operation.",
 		nil,
 	)
@@ -1499,7 +1500,7 @@ func newUnpublishedCalculateKeyTime() prometheus.Histogram {
 
 func newPublishedPutOperationsTime() prometheus.Histogram {
 	return newHistogram(
-		Operations, PublishedPutOperationsTimeMetric,
+		metrics.Operations, metrics.PublishedPutOperationsTimeMetric,
 		"The time (in seconds) it takes to store published operations.",
 		nil,
 	)
@@ -1507,7 +1508,7 @@ func newPublishedPutOperationsTime() prometheus.Histogram {
 
 func newPublishedGetOperationsTime() prometheus.Histogram {
 	return newHistogram(
-		Operations, PublishedGetOperationsTimeMetric,
+		metrics.Operations, metrics.PublishedGetOperationsTimeMetric,
 		"The time (in seconds) it takes to get published operations for suffix.",
 		nil,
 	)
@@ -1515,7 +1516,7 @@ func newPublishedGetOperationsTime() prometheus.Histogram {
 
 func newCoreProcessOperationTime() prometheus.Histogram {
 	return newHistogram(
-		CoreOperations, CoreProcessOperationTimeMetrics,
+		metrics.CoreOperations, metrics.CoreProcessOperationTimeMetrics,
 		"The time (in seconds) it takes to process did operation(core).",
 		nil,
 	)
@@ -1523,7 +1524,7 @@ func newCoreProcessOperationTime() prometheus.Histogram {
 
 func newCoreGetProtocolVersionTime() prometheus.Histogram {
 	return newHistogram(
-		CoreOperations, CoreGetProtocolVersionTimeMetrics,
+		metrics.CoreOperations, metrics.CoreGetProtocolVersionTimeMetrics,
 		"The time (in seconds) it takes to get protocol version in process operation(core).",
 		nil,
 	)
@@ -1531,7 +1532,7 @@ func newCoreGetProtocolVersionTime() prometheus.Histogram {
 
 func newCoreParseOperationTime() prometheus.Histogram {
 	return newHistogram(
-		CoreOperations, CoreParseOperationTimeMetrics,
+		metrics.CoreOperations, metrics.CoreParseOperationTimeMetrics,
 		"The time (in seconds) it takes to parse operation in process operation(core).",
 		nil,
 	)
@@ -1539,7 +1540,7 @@ func newCoreParseOperationTime() prometheus.Histogram {
 
 func newCoreValidateOperationTime() prometheus.Histogram {
 	return newHistogram(
-		CoreOperations, CoreValidateOperationTimeMetrics,
+		metrics.CoreOperations, metrics.CoreValidateOperationTimeMetrics,
 		"The time (in seconds) it takes to validate operation in process operation(core).",
 		nil,
 	)
@@ -1547,7 +1548,7 @@ func newCoreValidateOperationTime() prometheus.Histogram {
 
 func newCoreDecorateOperationTime() prometheus.Histogram {
 	return newHistogram(
-		CoreOperations, CoreDecorateOperationTimeMetrics,
+		metrics.CoreOperations, metrics.CoreDecorateOperationTimeMetrics,
 		"The time (in seconds) it takes to decorate operation in process operation(core).",
 		nil,
 	)
@@ -1555,7 +1556,7 @@ func newCoreDecorateOperationTime() prometheus.Histogram {
 
 func newCoreAddUnpublishedOperationTime() prometheus.Histogram {
 	return newHistogram(
-		CoreOperations, CoreAddUnpublishedOperationTimeMatrix,
+		metrics.CoreOperations, metrics.CoreAddUnpublishedOperationTimeMatrix,
 		"The time (in seconds) it takes to add unpublished operation to store in process operation(core).",
 		nil,
 	)
@@ -1563,7 +1564,7 @@ func newCoreAddUnpublishedOperationTime() prometheus.Histogram {
 
 func newCoreAddOperationToBatchTime() prometheus.Histogram {
 	return newHistogram(
-		CoreOperations, CoreAddOperationToBatchTimeMatrix,
+		metrics.CoreOperations, metrics.CoreAddOperationToBatchTimeMatrix,
 		"The time (in seconds) it takes to add operation to batch in process operation(core).",
 		nil,
 	)
@@ -1571,7 +1572,7 @@ func newCoreAddOperationToBatchTime() prometheus.Histogram {
 
 func newCoreGetCreateOperationResultTime() prometheus.Histogram {
 	return newHistogram(
-		CoreOperations, CoreGetCreateOperationResult,
+		metrics.CoreOperations, metrics.CoreGetCreateOperationResult,
 		"The time (in seconds) it takes to get create operation result in process operation(core).",
 		nil,
 	)
@@ -1579,7 +1580,7 @@ func newCoreGetCreateOperationResultTime() prometheus.Histogram {
 
 func newCoreHTTPCreateUpdateTime() prometheus.Histogram {
 	return newHistogram(
-		CoreOperations, CoreHTTPCreateUpdateTimeMetrics,
+		metrics.CoreOperations, metrics.CoreHTTPCreateUpdateTimeMetrics,
 		"The time (in seconds) it takes for create update http call.",
 		nil,
 	)
@@ -1587,7 +1588,7 @@ func newCoreHTTPCreateUpdateTime() prometheus.Histogram {
 
 func newCoreHTTPResolveTime() prometheus.Histogram {
 	return newHistogram(
-		CoreOperations, CoreHTTPResolveTimeMetrics,
+		metrics.CoreOperations, metrics.CoreHTTPResolveTimeMetrics,
 		"The time (in seconds) it takes for resolve http call.",
 		nil,
 	)
@@ -1598,7 +1599,7 @@ func newCoreCASWriteSize(modelTypes []string) map[string]prometheus.Gauge {
 
 	for _, modelType := range modelTypes {
 		gauges[modelType] = newGauge(
-			CoreOperations, CoreCASWriteSizeMetrics,
+			metrics.CoreOperations, metrics.CoreCASWriteSizeMetrics,
 			"The size (in bytes) of written CAS data.",
 			prometheus.Labels{"type": modelType},
 		)
@@ -1609,7 +1610,7 @@ func newCoreCASWriteSize(modelTypes []string) map[string]prometheus.Gauge {
 
 func newAWSSignCount() prometheus.Counter {
 	return newCounter(
-		Aws, AwsSignCountMetric,
+		metrics.Aws, metrics.AwsSignCountMetric,
 		"The number of times sign called.",
 		nil,
 	)
@@ -1617,7 +1618,7 @@ func newAWSSignCount() prometheus.Counter {
 
 func newAWSSignTime() prometheus.Histogram {
 	return newHistogram(
-		Aws, AwsSignTimeMetric,
+		metrics.Aws, metrics.AwsSignTimeMetric,
 		"The time (in seconds) it takes for sign.",
 		nil,
 	)
@@ -1625,7 +1626,7 @@ func newAWSSignTime() prometheus.Histogram {
 
 func newAWSExportPublicKeyCount() prometheus.Counter {
 	return newCounter(
-		Aws, AwsExportPublicKeyCountMetric,
+		metrics.Aws, metrics.AwsExportPublicKeyCountMetric,
 		"The number of times export public key called.",
 		nil,
 	)
@@ -1633,7 +1634,7 @@ func newAWSExportPublicKeyCount() prometheus.Counter {
 
 func newAWSExportPublicKeyTime() prometheus.Histogram {
 	return newHistogram(
-		Aws, AwsExportPublicKeyTimeMetric,
+		metrics.Aws, metrics.AwsExportPublicKeyTimeMetric,
 		"The time (in seconds) it takes for export public key.",
 		nil,
 	)
@@ -1641,7 +1642,7 @@ func newAWSExportPublicKeyTime() prometheus.Histogram {
 
 func newAWSVerifyCount() prometheus.Counter {
 	return newCounter(
-		Aws, AwsVerifyCountMetric,
+		metrics.Aws, metrics.AwsVerifyCountMetric,
 		"The number of times verify called.",
 		nil,
 	)
@@ -1649,7 +1650,7 @@ func newAWSVerifyCount() prometheus.Counter {
 
 func newAWSVerifyTime() prometheus.Histogram {
 	return newHistogram(
-		Aws, AwsVerifyTimeMetric,
+		metrics.Aws, metrics.AwsVerifyTimeMetric,
 		"The time (in seconds) it takes for verify.",
 		nil,
 	)

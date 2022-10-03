@@ -8,8 +8,9 @@ package factory
 
 import (
 	"fmt"
+	"strings"
+
 	"github.com/hyperledger/aries-framework-go/spi/storage"
-	metricsProvider "github.com/trustbloc/orb/pkg/observability/metrics"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/compression"
@@ -19,12 +20,12 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/operationapplier"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/operationparser"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/txnprovider"
-	"strings"
 
 	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/config"
 	ctxcommon "github.com/trustbloc/orb/pkg/context/common"
 	"github.com/trustbloc/orb/pkg/hashlink"
+	metricsProvider "github.com/trustbloc/orb/pkg/observability/metrics"
 	vcommon "github.com/trustbloc/orb/pkg/protocolversion/versions/common"
 	protocolcfg "github.com/trustbloc/orb/pkg/protocolversion/versions/v1_0/config"
 	orboperationparser "github.com/trustbloc/orb/pkg/versions/1_0/operationparser"
