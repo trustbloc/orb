@@ -1,11 +1,20 @@
 package metrics
 
-import "time"
+import (
+	"time"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
+)
+
+// Logger used by different metrics provider.
+var Logger = log.New("metrics-provider")
+
+// Constants used by different metrics provider.
 const (
+	// Namespace Organization namespace.
 	Namespace = "orb"
 
-	// ActivityPub ActivityPub
+	// ActivityPub ActivityPub.
 	ActivityPub                   = "activitypub"
 	ApPostTimeMetric              = "outbox_post_seconds"
 	ApResolveInboxesTimeMetric    = "outbox_resolve_inboxes_seconds"
@@ -54,15 +63,15 @@ const (
 	DocCreateUpdateTimeMetric = "create_update_seconds"
 	DocResolveTimeMetric      = "resolve_seconds"
 
-	// Db DB.
-	Db                  = "db"
-	DbPutTimeMetric     = "put_seconds"
-	DbGetTimeMetric     = "get_seconds"
-	DbGetTagsTimeMetric = "get_tags_seconds"
-	DbGetBulkTimeMetric = "get_bulk_seconds"
-	DbQueryTimeMetric   = "query_seconds"
-	DbDeleteTimeMetric  = "delete_seconds"
-	DbBatchTimeMetric   = "batch_seconds"
+	// DB DB.
+	DB                  = "db"
+	DBPutTimeMetric     = "put_seconds"
+	DBGetTimeMetric     = "get_seconds"
+	DBGetTagsTimeMetric = "get_tags_seconds"
+	DBGetBulkTimeMetric = "get_bulk_seconds"
+	DBQueryTimeMetric   = "query_seconds"
+	DBDeleteTimeMetric  = "delete_seconds"
+	DBBatchTimeMetric   = "batch_seconds"
 
 	// Vct VCT.
 	Vct                                  = "vct"
@@ -137,6 +146,7 @@ const (
 	AwsVerifyTimeMetric           = "Verify_seconds"
 )
 
+// Provider is an interface for metrics provider.
 type Provider interface {
 	// Create creates a metrics provider instance
 	Create() error
@@ -146,6 +156,7 @@ type Provider interface {
 	Metrics() Metrics
 }
 
+// Metrics is an interface for the metrics to be supported by the provider.
 type Metrics interface {
 	CASIncrementCacheHitCount()
 	CASWriteTime(value time.Duration)

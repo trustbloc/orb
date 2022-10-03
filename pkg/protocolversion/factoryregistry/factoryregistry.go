@@ -8,7 +8,6 @@ package factoryregistry
 
 import (
 	"fmt"
-	metricsProvider "github.com/trustbloc/orb/pkg/observability/metrics"
 	"sync"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
@@ -18,6 +17,7 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/config"
 	ctxcommon "github.com/trustbloc/orb/pkg/context/common"
+	metricsProvider "github.com/trustbloc/orb/pkg/observability/metrics"
 	versioncommon "github.com/trustbloc/orb/pkg/protocolversion/common"
 )
 
@@ -49,7 +49,8 @@ func New() *Registry {
 // CreateProtocolVersion creates a new protocol version using the given version and providers.
 func (r *Registry) CreateProtocolVersion(version string, casClient cas.Client, casResolver ctxcommon.CASResolver,
 	opStore ctxcommon.OperationStore, provider storage.Provider,
-	sidetreeCfg *config.Sidetree, metrics metricsProvider.Metrics) (protocol.Version, error) {
+	sidetreeCfg *config.Sidetree, metrics metricsProvider.Metrics,
+) (protocol.Version, error) {
 	v, err := r.resolveFactory(version)
 	if err != nil {
 		return nil, err

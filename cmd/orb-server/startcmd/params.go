@@ -892,8 +892,6 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	var prometheusMetricsProviderParams *prometheusMetricsProviderParams
 	if metricsProviderName == "prometheus" {
 		prometheusMetricsProviderParams, err = getPrometheusMetricsProviderParams(cmd)
-	} else {
-		prometheusMetricsProviderParams, err = nil, nil
 	}
 	if err != nil {
 		return nil, err
