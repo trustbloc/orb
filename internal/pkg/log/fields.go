@@ -27,10 +27,12 @@ const (
 	FieldServiceIRI             = "service-iri"
 	FieldServiceEndpoint        = "service-endpoint"
 	FieldActorID                = "actor-id"
+	FieldOriginActorID          = "origin-actor-id"
 	FieldActivityType           = "activity-type"
 	FieldActivityID             = "activity-id"
 	FieldMessageID              = "message-id"
 	FieldData                   = "data"
+	FieldMetadata               = "metadata"
 	FieldRequestURL             = "request-url"
 	FieldRequestHeaders         = "request-headers"
 	FieldRequestBody            = "request-body"
@@ -38,8 +40,10 @@ const (
 	FieldSize                   = "size"
 	FieldCacheExpiration        = "cache-expiration"
 	FieldTarget                 = "target"
+	FieldTargets                = "targets"
 	FieldQueue                  = "queue"
 	FieldHTTPStatus             = "http-status"
+	FieldHTTPMethod             = "http-method"
 	FieldParameter              = "parameter"
 	FieldAcceptListType         = "accept-list-type"
 	FieldAdditions              = "additions"
@@ -60,10 +64,12 @@ const (
 	FieldType                   = "type"
 	FieldQuery                  = "query"
 	FieldSuffix                 = "suffix"
+	FieldSuffixes               = "suffixes"
 	FieldVerifiableCredential   = "vc"
 	FieldVerifiableCredentialID = "vc-id"
 	FieldHash                   = "hash"
 	FieldHashlink               = "hashlink"
+	FieldLocalHashlink          = "local-hashlink"
 	FieldParent                 = "parent"
 	FieldParents                = "parents"
 	FieldProof                  = "proof"
@@ -96,6 +102,7 @@ const (
 	FieldTaskOwnerID            = "task-owner-id"
 	FieldTimeSinceLastUpdate    = "time-since-last-update"
 	FieldGenesisTime            = "genesis-time"
+	FieldSidetreeProtocol       = "sidetree-protocol"
 	FieldDID                    = "did"
 	FieldHRef                   = "href"
 	FieldID                     = "id"
@@ -103,6 +110,12 @@ const (
 	FieldResolutionResult       = "resolution-result"
 	FieldResolutionModel        = "resolution-model"
 	FieldResolutionEndpoints    = "resolution-endpoints"
+	FieldAuthToken              = "auth-token"
+	FieldAuthTokens             = "auth-tokens" //nolint:gosec
+	FieldAddress                = "address"
+	FieldAttributedTo           = "attributed-to"
+	FieldAnchorLinkset          = "anchor-linkset"
+	FieldVersion                = "version"
 )
 
 // WithError sets the error field.
@@ -118,6 +131,11 @@ func WithMessageID(value string) zap.Field {
 // WithData sets the data field.
 func WithData(value []byte) zap.Field {
 	return zap.String(FieldData, string(value))
+}
+
+// WithMetadata sets the metadata field.
+func WithMetadata(value interface{}) zap.Field {
+	return zap.Inline(NewObjectMarshaller(FieldMetadata, value))
 }
 
 // WithRequestURL sets the request-url field.
@@ -180,6 +198,11 @@ func WithActorID(value string) zap.Field {
 	return zap.String(FieldActorID, value)
 }
 
+// WithOriginActorID sets the origin-actor-id field.
+func WithOriginActorID(value string) zap.Field {
+	return zap.String(FieldOriginActorID, value)
+}
+
 // WithConfig sets the config field. The value of the field is
 // encoded as JSON.
 func WithConfig(value interface{}) zap.Field {
@@ -206,6 +229,11 @@ func WithTargetIRI(value fmt.Stringer) zap.Field {
 	return zap.Stringer(FieldTarget, value)
 }
 
+// WithTargetIRIs sets the targets field.
+func WithTargetIRIs(value ...*url.URL) zap.Field {
+	return zap.Array(FieldTargets, NewURLArrayMarshaller(value))
+}
+
 // WithQueue sets the queue field.
 func WithQueue(value string) zap.Field {
 	return zap.String(FieldQueue, value)
@@ -214,6 +242,11 @@ func WithQueue(value string) zap.Field {
 // WithHTTPStatus sets the http-status field.
 func WithHTTPStatus(value int) zap.Field {
 	return zap.Int(FieldHTTPStatus, value)
+}
+
+// WithHTTPMethod sets the http-method field.
+func WithHTTPMethod(value string) zap.Field {
+	return zap.String(FieldHTTPMethod, value)
 }
 
 // WithParameter sets the parameter field.
@@ -352,6 +385,11 @@ func WithSuffix(value string) zap.Field {
 	return zap.String(FieldSuffix, value)
 }
 
+// WithSuffixes sets the suffixes field.
+func WithSuffixes(value ...string) zap.Field {
+	return zap.Array(FieldSuffixes, NewStringArrayMarshaller(value))
+}
+
 // WithVerifiableCredential sets the vc field.
 func WithVerifiableCredential(value []byte) zap.Field {
 	return zap.String(FieldVerifiableCredential, string(value))
@@ -370,6 +408,11 @@ func WithHash(value string) zap.Field {
 // WithHashlink sets the hashlink field.
 func WithHashlink(value string) zap.Field {
 	return zap.String(FieldHashlink, value)
+}
+
+// WithLocalHashlink sets the local-hashlink field.
+func WithLocalHashlink(value string) zap.Field {
+	return zap.String(FieldLocalHashlink, value)
 }
 
 // WithHashlinkURI sets the hashlink field.
@@ -557,6 +600,11 @@ func WithGenesisTime(value uint64) zap.Field {
 	return zap.Uint64(FieldGenesisTime, value)
 }
 
+// WithSidetreeProtocol sets the sidetree-protocol field.
+func WithSidetreeProtocol(value interface{}) zap.Field {
+	return zap.Inline(NewObjectMarshaller(FieldSidetreeProtocol, value))
+}
+
 // WithDID sets the did field.
 func WithDID(value string) zap.Field {
 	return zap.String(FieldDID, value)
@@ -590,6 +638,36 @@ func WithResolutionModel(value interface{}) zap.Field {
 // WithResolutionEndpoints sets the resolution-endpoints field.
 func WithResolutionEndpoints(value ...string) zap.Field {
 	return zap.Array(FieldResolutionEndpoints, NewStringArrayMarshaller(value))
+}
+
+// WithAuthToken sets the auth-token field.
+func WithAuthToken(value string) zap.Field {
+	return zap.String(FieldAuthToken, value)
+}
+
+// WithAuthTokens sets the auth-tokens field.
+func WithAuthTokens(value ...string) zap.Field {
+	return zap.Array(FieldAuthTokens, NewStringArrayMarshaller(value))
+}
+
+// WithAddress sets the address field.
+func WithAddress(value string) zap.Field {
+	return zap.String(FieldAddress, value)
+}
+
+// WithAttributedTo sets the attributed-to field.
+func WithAttributedTo(value string) zap.Field {
+	return zap.String(FieldAttributedTo, value)
+}
+
+// WithAnchorLinkset sets the anchor-linkset field.
+func WithAnchorLinkset(value []byte) zap.Field {
+	return zap.String(FieldAnchorLinkset, string(value))
+}
+
+// WithVersion sets the version field.
+func WithVersion(value string) zap.Field {
+	return zap.String(FieldVersion, value)
 }
 
 type jsonMarshaller struct {

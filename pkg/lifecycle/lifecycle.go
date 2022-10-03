@@ -14,7 +14,7 @@ import (
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
-var logger = log.New("lifecycle")
+const loggerModule = "lifecycle"
 
 // ErrNotStarted indicates that an attempt was made to invoke a service that has not been started
 // or is still in the process of starting.
@@ -42,8 +42,9 @@ type options struct {
 // Lifecycle implements the lifecycle of a service, i.e. Start and Stop.
 type Lifecycle struct {
 	*options
-	name  string
-	state uint32
+	name   string
+	state  uint32
+	logger *log.StructuredLog
 }
 
 // Opt sets a Lifecycle option.
@@ -77,22 +78,23 @@ func New(name string, opts ...Opt) *Lifecycle {
 	return &Lifecycle{
 		options: options,
 		name:    name,
+		logger:  log.NewStructured(loggerModule, log.WithFields(log.WithServiceName(name))),
 	}
 }
 
 // Start starts the service.
 func (h *Lifecycle) Start() {
 	if !atomic.CompareAndSwapUint32(&h.state, StateNotStarted, StateStarting) {
-		logger.Debugf("[%s] Service already started", h.name)
+		h.logger.Debug("Service already started")
 
 		return
 	}
 
-	logger.Debugf("[%s] Starting service ...", h.name)
+	h.logger.Debug("Starting service ...")
 
 	h.start()
 
-	logger.Debugf("[%s] ... service started", h.name)
+	h.logger.Debug("... service started")
 
 	atomic.StoreUint32(&h.state, StateStarted)
 }
@@ -100,16 +102,16 @@ func (h *Lifecycle) Start() {
 // Stop stops the service.
 func (h *Lifecycle) Stop() {
 	if !atomic.CompareAndSwapUint32(&h.state, StateStarted, StateStopped) {
-		logger.Debugf("[%s] Service already stopped", h.name)
+		h.logger.Debug("Service already stopped")
 
 		return
 	}
 
-	logger.Debugf("[%s] Stopping service ...", h.name)
+	h.logger.Debug("Stopping service ...")
 
 	h.stop()
 
-	logger.Debugf("[%s] ... service stopped", h.name)
+	h.logger.Debug("... service stopped")
 }
 
 // State returns the state of the service.

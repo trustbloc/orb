@@ -21,7 +21,7 @@ const (
 	didLDJson          = "application/did+ld+json"
 )
 
-var logger = log.New("driver")
+var logger = log.NewStructured("driver")
 
 // Handler http handler for each controller API endpoint.
 type Handler interface {
@@ -74,7 +74,7 @@ func (o *Operation) resolveDIDHandler(rw http.ResponseWriter, req *http.Request)
 	rw.WriteHeader(http.StatusOK)
 
 	if _, err := rw.Write(bytes); err != nil {
-		logger.Errorf("Unable to send error message, %s", err)
+		log.WriteResponseBodyError(logger.Error, err)
 	}
 }
 
@@ -83,7 +83,7 @@ func (o *Operation) writeErrorResponse(rw http.ResponseWriter, status int, msg s
 	rw.WriteHeader(status)
 
 	if _, err := rw.Write([]byte(msg)); err != nil {
-		logger.Errorf("Unable to send error message, %s", err)
+		log.WriteResponseBodyError(logger.Error, err)
 	}
 }
 

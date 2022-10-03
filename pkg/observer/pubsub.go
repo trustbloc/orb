@@ -13,7 +13,9 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
+	"go.uber.org/zap"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/lifecycle"
@@ -64,7 +66,7 @@ func NewPubSub(pubSub pubSub, anchorProcessor anchorProcessor, didProcessor didP
 		lifecycle.WithStart(h.start),
 	)
 
-	logger.Infof("Subscribing to topic [%s]", anchorTopic)
+	logger.Info("Subscribing to topic", log.WithQueue(anchorTopic))
 
 	anchorCredChan, err := pubSub.SubscribeWithOpts(context.Background(), anchorTopic, spi.WithPool(poolSize))
 	if err != nil {
@@ -73,7 +75,7 @@ func NewPubSub(pubSub pubSub, anchorProcessor anchorProcessor, didProcessor didP
 
 	h.anchorCredChan = anchorCredChan
 
-	logger.Infof("Subscribing to topic [%s]", didTopic)
+	logger.Info("Subscribing to topic", log.WithQueue(didTopic))
 
 	didChan, err := pubSub.SubscribeWithOpts(context.Background(), didTopic, spi.WithPool(poolSize))
 	if err != nil {
@@ -98,17 +100,19 @@ func (h *PubSub) PublishAnchor(anchorInfo *anchorinfo.AnchorInfo) error {
 
 	msg := message.NewMessage(watermill.NewUUID(), payload)
 
-	logger.Debugf("Publishing anchors message [%s] to topic [%s]: %s", msg.UUID, anchorTopic, msg.Payload)
+	logger.Debug("Publishing anchors message to queue", log.WithMessageID(msg.UUID),
+		log.WithQueue(anchorTopic), log.WithData(msg.Payload))
 
 	err = h.publisher.Publish(anchorTopic, msg)
 	if err != nil {
-		logger.Warnf("Error publishing anchors message [%s] to topic [%s]: %s", msg.UUID, anchorTopic, err)
+		logger.Warn("Error publishing anchors message to queue", log.WithQueue(anchorTopic),
+			log.WithData(msg.Payload), log.WithError(err))
 
 		return errors.NewTransient(err)
 	}
 
-	logger.Debugf("Successfully published anchors message [%s] to topic [%s]: %s",
-		msg.UUID, anchorTopic, msg.Payload)
+	logger.Debug("Successfully published anchors message to queue", log.WithMessageID(msg.UUID),
+		log.WithQueue(anchorTopic), log.WithData(msg.Payload))
 
 	return nil
 }
@@ -126,7 +130,7 @@ func (h *PubSub) PublishDID(did string) error {
 
 	msg := message.NewMessage(watermill.NewUUID(), payload)
 
-	logger.Debugf("Publishing DIDs to topic [%s]: %s", didTopic, did)
+	logger.Debug("Publishing DIDs to queue", log.WithQueue(didTopic), log.WithDID(did))
 
 	return h.publisher.Publish(didTopic, msg)
 }
@@ -137,30 +141,30 @@ func (h *PubSub) start() {
 }
 
 func (h *PubSub) listen() {
-	logger.Debugf("Starting message listener")
+	logger.Debug("Starting message listener")
 
 	for {
 		select {
 		case msg, ok := <-h.anchorCredChan:
 			if !ok {
-				logger.Debugf("Message listener stopped")
+				logger.Debug("Message listener stopped")
 
 				return
 			}
 
-			logger.Debugf("Got new anchor credential message [%s], Metadata: %s, Payload %s",
-				msg.UUID, msg.Metadata, msg.Payload)
+			logger.Debug("Got new anchor credential message", log.WithMessageID(msg.UUID),
+				log.WithMetadata(msg.Metadata), log.WithData(msg.Payload))
 
 			h.handleAnchorCredentialMessage(msg)
 
 		case msg, ok := <-h.didChan:
 			if !ok {
-				logger.Debugf("Message listener stopped")
+				logger.Debug("Message listener stopped")
 
 				return
 			}
 
-			logger.Debugf("Got new DID message [%s]: %s", msg.UUID, msg.Payload)
+			logger.Debug("Got new DID message", log.WithMessageID(msg.UUID), log.WithData(msg.Payload))
 
 			h.handleDIDMessage(msg)
 		}
@@ -168,13 +172,13 @@ func (h *PubSub) listen() {
 }
 
 func (h *PubSub) handleAnchorCredentialMessage(msg *message.Message) {
-	logger.Debugf("Handling message [%s]: %s", msg.UUID, msg.Payload)
+	logger.Debug("Handling message", log.WithMessageID(msg.UUID), log.WithData(msg.Payload))
 
 	anchorInfo := &anchorinfo.AnchorInfo{}
 
 	err := h.jsonUnmarshal(msg.Payload, anchorInfo)
 	if err != nil {
-		logger.Errorf("Error unmarshalling anchor [%s]: %s", msg.UUID, err)
+		logger.Error("Error unmarshalling anchor", log.WithMessageID(msg.UUID), log.WithError(err))
 
 		// Ack the message to indicate that it should not be redelivered since this is a persistent error.
 		msg.Ack()
@@ -182,17 +186,18 @@ func (h *PubSub) handleAnchorCredentialMessage(msg *message.Message) {
 		return
 	}
 
-	h.ackNackMessage(msg, newAnchorInfo(anchorInfo), h.processAnchors(anchorInfo))
+	h.ackNackMessage(msg, h.processAnchors(anchorInfo), log.WithAnchorEventURIString(anchorInfo.Hashlink),
+		log.WithAttributedTo(anchorInfo.AttributedTo), log.WithLocalHashlink(anchorInfo.LocalHashlink))
 }
 
 func (h *PubSub) handleDIDMessage(msg *message.Message) {
-	logger.Debugf("Handling message [%s]: %s", msg.UUID, msg.Payload)
+	logger.Debug("Handling message", log.WithMessageID(msg.UUID), log.WithData(msg.Payload))
 
 	var did string
 
 	err := h.jsonUnmarshal(msg.Payload, &did)
 	if err != nil {
-		logger.Errorf("Error unmarshalling message [%s]: %s", msg.UUID, err)
+		logger.Error("Error unmarshalling message", log.WithMessageID(msg.UUID), log.WithError(err))
 
 		// Ack the message to indicate that it should not be redelivered since this is a persistent error.
 		msg.Ack()
@@ -200,61 +205,26 @@ func (h *PubSub) handleDIDMessage(msg *message.Message) {
 		return
 	}
 
-	h.ackNackMessage(msg, newDIDInfo(did), h.processDID(did))
+	h.ackNackMessage(msg, h.processDID(did), log.WithDID(did))
 }
 
-func (h *PubSub) ackNackMessage(msg *message.Message, info fmt.Stringer, err error) {
+func (h *PubSub) ackNackMessage(msg *message.Message, err error, logFields ...zap.Field) {
 	switch {
 	case err == nil:
-		logger.Debugf("Acking message [%s] for %s", msg.UUID, info)
+		logger.Debug("Acking message", append(logFields, log.WithMessageID(msg.UUID))...)
 
 		msg.Ack()
 	case errors.IsTransient(err):
 		// The message should be redelivered to (potentially) another server instance.
-		logger.Warnf("Nacking message [%s] for %s since it could not be delivered due to a transient error: %s",
-			msg.UUID, info, err)
+		logger.Warn("Nacking message since it could not be delivered due to a transient error",
+			append(logFields, log.WithMessageID(msg.UUID), log.WithError(err))...)
 
 		msg.Nack()
 	default:
 		// A persistent message should not be retried.
-		logger.Warnf("Acking message [%s] for DID [%s] since it could not be delivered due to a persistent error: %s",
-			msg.UUID, info, err)
+		logger.Warn("Acking message since it could not be delivered due to a persistent error",
+			append(logFields, log.WithMessageID(msg.UUID))...)
 
 		msg.Ack()
 	}
-}
-
-type anchorInfo struct {
-	hashLink      string
-	attributedTo  string
-	localHashlink string
-}
-
-func newAnchorInfo(info *anchorinfo.AnchorInfo) *anchorInfo {
-	return &anchorInfo{
-		hashLink:      info.Hashlink,
-		attributedTo:  info.AttributedTo,
-		localHashlink: info.LocalHashlink,
-	}
-}
-
-func (info *anchorInfo) String() string {
-	str := fmt.Sprintf("anchor - HL [%s]", info.hashLink)
-	if info.attributedTo == "" {
-		return str
-	}
-
-	return fmt.Sprintf("%s, LocalHL [%s], attributedTo [%s]", str, info.localHashlink, info.attributedTo)
-}
-
-type didInfo struct {
-	did string
-}
-
-func newDIDInfo(did string) *didInfo {
-	return &didInfo{did: did}
-}
-
-func (m *didInfo) String() string {
-	return fmt.Sprintf("DID [%s]", m.did)
 }

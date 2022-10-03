@@ -17,7 +17,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 )
 
-var logger = log.New("handler-with-auth-restapi")
+const loggerModule = "handler-with-auth-restapi"
 
 type signatureVerifier interface {
 	VerifyRequest(req *http.Request) (bool, *url.URL, error)
@@ -28,8 +28,8 @@ type HandlerWrapper struct {
 	*resthandler.AuthHandler
 
 	handleRequest common.HTTPRequestHandler
-
-	resolver common.HTTPHandler
+	resolver      common.HTTPHandler
+	logger        *log.StructuredLog
 }
 
 type authTokenManager interface {
@@ -39,14 +39,17 @@ type authTokenManager interface {
 // NewHandlerWrapper returns a new 'authenticated' handler. It verifies both tokens and signatures before proceeding.
 func NewHandlerWrapper(handler common.HTTPHandler, authCfg *resthandler.Config, s spi.Store,
 	verifier signatureVerifier, tm authTokenManager) *HandlerWrapper {
+	logger := log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(handler.Path())))
+
 	ah := &HandlerWrapper{
 		resolver:      handler,
 		handleRequest: handler.Handler(),
+		logger:        logger,
 	}
 
 	ah.AuthHandler = resthandler.NewAuthHandler(authCfg, handler.Path(), handler.Method(), s, verifier, tm,
 		func(actorIRI *url.URL) (bool, error) {
-			logger.Debugf("[%s] Authorized actor [%s]", ah.Path(), actorIRI)
+			logger.Debug("Authorized actor", log.WithActorIRI(actorIRI))
 
 			return true, nil
 		})
@@ -72,30 +75,30 @@ func (o *HandlerWrapper) Handler() common.HTTPRequestHandler {
 func (o *HandlerWrapper) handler(rw http.ResponseWriter, req *http.Request) {
 	ok, _, err := o.Authorize(req)
 	if err != nil {
-		logger.Errorf("Error authorizing request[%s]: %s", req.URL, err)
+		o.logger.Error("Error authorizing request", log.WithRequestURL(req.URL), log.WithError(err))
 
 		rw.WriteHeader(http.StatusInternalServerError)
 
 		if _, errWrite := rw.Write([]byte("Internal Server Error.\n")); errWrite != nil {
-			logger.Errorf("Unable to write response: %s", errWrite)
+			log.WriteResponseBodyError(o.logger.Error, errWrite)
 		}
 
 		return
 	}
 
 	if !ok {
-		logger.Infof("Request[%s] is unauthorized", req.URL)
+		o.logger.Info("Request is unauthorized", log.WithRequestURL(req.URL))
 
 		rw.WriteHeader(http.StatusUnauthorized)
 
 		if _, errWrite := rw.Write([]byte("Unauthorized.\n")); errWrite != nil {
-			logger.Errorf("Unable to write response: %s", errWrite)
+			log.WriteResponseBodyError(o.logger.Error, errWrite)
 		}
 
 		return
 	}
 
-	logger.Debugf("Request[%s] is authorized", req.URL)
+	o.logger.Debug("Request is authorized", log.WithRequestURL(req.URL))
 
 	o.handleRequest(rw, req)
 }

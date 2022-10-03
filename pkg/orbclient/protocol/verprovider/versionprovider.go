@@ -15,7 +15,7 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
-var logger = log.New("client-version-provider")
+var logger = log.NewStructured("client-version-provider")
 
 // ClientVersionProvider implements client versions.
 type ClientVersionProvider struct {
@@ -75,16 +75,18 @@ func (c *ClientVersionProvider) Current() (protocol.Version, error) {
 
 // Get gets client version based on version time.
 func (c *ClientVersionProvider) Get(versionTime uint64) (protocol.Version, error) {
-	logger.Debugf("available client versions: %s", c.versions)
+	logger.Debug("Available client versions", log.WithTotal(len(c.versions)))
 
 	for i := len(c.versions) - 1; i >= 0; i-- {
 		cv := c.versions[i]
 		p := cv.Protocol()
 
-		logger.Debugf("checking client version for version genesis time %d: %+v", versionTime, p)
+		logger.Debug("Checking client version for version genesis time",
+			log.WithGenesisTime(versionTime), log.WithSidetreeProtocol(p))
 
 		if versionTime == p.GenesisTime {
-			logger.Debugf("found client version for version genesis time %d: %+v", versionTime, p)
+			logger.Debug("Found client version for version genesis time",
+				log.WithGenesisTime(versionTime), log.WithSidetreeProtocol(p))
 
 			return cv, nil
 		}

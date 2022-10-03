@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package nodeinfo
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -23,26 +22,6 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/internal/testutil/mongodbtestutil"
 )
-
-type stringLogger struct {
-	log string
-}
-
-func (s *stringLogger) Debugf(msg string, args ...interface{}) {
-	s.log = fmt.Sprintf(msg, args...)
-}
-
-func (s *stringLogger) Infof(msg string, args ...interface{}) {
-	s.log = fmt.Sprintf(msg, args...)
-}
-
-func (s *stringLogger) Warnf(msg string, args ...interface{}) {
-	s.log = fmt.Sprintf(msg, args...)
-}
-
-func (s *stringLogger) Errorf(msg string, args ...interface{}) {
-	s.log = fmt.Sprintf(msg, args...)
-}
 
 func TestService(t *testing.T) {
 	log.SetLevel("nodeinfo", log.DEBUG)
@@ -77,16 +56,14 @@ func TestUpdateStatsUsingMultiTagQuery(t *testing.T) {
 		apStore, err := ariesstore.New("", memProvider, false)
 		require.NoError(t, err)
 
-		s := NewService(serviceIRI, 50*time.Millisecond, apStore, true, nil)
+		s := NewService(serviceIRI, 50*time.Millisecond, apStore, true)
 		require.NotNil(t, s)
 
-		logger := &stringLogger{}
-
-		s.logger = logger
-
-		s.updateStatsUsingMultiTagQuery()
-		require.Contains(t, logger.log, "query ActivityPub outbox for Create activities: cannot run "+
-			"query since the underlying storage provider does not support querying with multiple tags")
+		err = s.updateStatsUsingMultiTagQuery()
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
+			"query ActivityPub outbox for Create activities: cannot run query since the underlying storage "+
+				"provider does not support querying with multiple tags")
 	})
 }
 
@@ -107,7 +84,7 @@ func runServiceTest(t *testing.T, apStore spi.Store, multipleTagQueryCapable boo
 			spi.WithActivityType(a.Type().Types()[0])))
 	}
 
-	s := NewService(serviceIRI, 50*time.Millisecond, apStore, multipleTagQueryCapable, nil)
+	s := NewService(serviceIRI, 50*time.Millisecond, apStore, multipleTagQueryCapable)
 	require.NotNil(t, s)
 
 	s.Start()

@@ -15,7 +15,7 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
-var logger = log.New("httpserver")
+const loggerModule = "httpserver"
 
 const (
 	authHeader  = "Authorization"
@@ -43,6 +43,7 @@ type tokenManager interface {
 type TokenVerifier struct {
 	endpoint   string
 	authTokens []string
+	logger     *log.StructuredLog
 }
 
 // NewTokenVerifier returns a verifier that performs bearer token authorization.
@@ -56,6 +57,7 @@ func NewTokenVerifier(tm tokenManager, endpoint, method string) *TokenVerifier {
 	return &TokenVerifier{
 		endpoint:   endpoint,
 		authTokens: authTokens,
+		logger:     log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
 	}
 }
 
@@ -63,26 +65,26 @@ func NewTokenVerifier(tm tokenManager, endpoint, method string) *TokenVerifier {
 func (h *TokenVerifier) Verify(req *http.Request) bool {
 	if len(h.authTokens) == 0 {
 		// Open access.
-		logger.Debugf("[%s] No auth token required.", h.endpoint)
+		h.logger.Debug("No auth token required.")
 
 		return true
 	}
 
-	logger.Debugf("[%s] Auth tokens required: %s", h.endpoint, h.authTokens)
+	h.logger.Debug("Auth tokens required", log.WithAuthTokens(h.authTokens...))
 
 	actHdr := req.Header.Get(authHeader)
 	if actHdr == "" {
-		logger.Debugf("[%s] Bearer token not found in header", h.endpoint)
+		h.logger.Debug("Bearer token not found in header")
 
 		return false
 	}
 
 	// Compare the header against all tokens. If any match then we allow the request.
 	for _, token := range h.authTokens {
-		logger.Debugf("[%s] Checking token %s", h.endpoint, token)
+		h.logger.Debug("Checking token", log.WithAuthToken(token))
 
 		if subtle.ConstantTimeCompare([]byte(actHdr), []byte(tokenPrefix+token)) == 1 {
-			logger.Debugf("[%s] Found token %s", h.endpoint, token)
+			h.logger.Debug("Found token", log.WithAuthToken(token))
 
 			return true
 		}
@@ -101,6 +103,7 @@ type tokenDef struct {
 type TokenManager struct {
 	tokenDefs  []*tokenDef
 	authTokens map[string]string
+	logger     *log.StructuredLog
 }
 
 // NewTokenManager returns a token mapper that performs bearer token authorization.
@@ -123,6 +126,7 @@ func NewTokenManager(cfg Config) (*TokenManager, error) {
 	return &TokenManager{
 		tokenDefs:  defs,
 		authTokens: cfg.AuthTokens,
+		logger:     log.NewStructured(loggerModule),
 	}, nil
 }
 
@@ -137,13 +141,15 @@ func (m *TokenManager) IsAuthRequired(endpoint, method string) (bool, error) {
 		switch method {
 		case http.MethodGet:
 			if len(def.readTokens) > 0 {
-				logger.Debugf("[%s] Authorization token(s) required for %s: %s", endpoint, method, def.readTokens)
+				m.logger.Debug("Authorization token(s) required", log.WithServiceEndpoint(endpoint),
+					log.WithHTTPMethod(method), log.WithAuthTokens(def.readTokens...))
 
 				return true, nil
 			}
 		case http.MethodPost:
 			if len(def.writeTokens) > 0 {
-				logger.Debugf("[%s] Authorization token(s) required for %s: %s", endpoint, method, def.writeTokens)
+				m.logger.Debug("Authorization token(s) required", log.WithServiceEndpoint(endpoint),
+					log.WithHTTPMethod(method), log.WithAuthTokens(def.writeTokens...))
 
 				return true, nil
 			}
@@ -152,7 +158,7 @@ func (m *TokenManager) IsAuthRequired(endpoint, method string) (bool, error) {
 		}
 	}
 
-	logger.Debugf("[%s] Authorization not required for %s", endpoint, method)
+	m.logger.Debug("Authorization not required", log.WithServiceEndpoint(endpoint), log.WithHTTPMethod(method))
 
 	return false, nil
 }
@@ -190,7 +196,8 @@ func (m *TokenManager) RequiredAuthTokens(endpoint, method string) ([]string, er
 		break
 	}
 
-	logger.Debugf("[%s] Authorization tokens required for %s: %s", endpoint, method, authTokens)
+	m.logger.Debug("Authorization tokens required", log.WithServiceEndpoint(endpoint),
+		log.WithHTTPMethod(method), log.WithAuthTokens(authTokens...))
 
 	return authTokens, nil
 }
