@@ -20,7 +20,7 @@ import (
 	versioncommon "github.com/trustbloc/orb/pkg/protocolversion/common"
 )
 
-var logger = log.New("factory-registry")
+var logger = log.NewStructured("factory-registry")
 
 type factory interface {
 	Create(version string, casClient cas.Client, casResolver ctxcommon.CASResolver, opStore ctxcommon.OperationStore,
@@ -35,7 +35,7 @@ type Registry struct {
 
 // New returns a new protocol version factory Registry.
 func New() *Registry {
-	logger.Infof("Creating protocol version factory Registry")
+	logger.Info("Creating protocol version factory Registry")
 
 	registry := &Registry{factories: make(map[string]factory)}
 
@@ -54,7 +54,7 @@ func (r *Registry) CreateProtocolVersion(version string, casClient cas.Client, c
 		return nil, err
 	}
 
-	logger.Infof("Creating protocol version [%s]", version)
+	logger.Info("Creating protocol version", log.WithVersion(version))
 
 	return v.Create(version, casClient, casResolver, opStore, provider, sidetreeCfg)
 }
@@ -68,7 +68,7 @@ func (r *Registry) Register(version string, factory factory) {
 		panic(fmt.Errorf("protocol version factory [%s] already registered", version))
 	}
 
-	logger.Infof("Registering protocol version factory [%s]", version)
+	logger.Info("Registering protocol version factory", log.WithVersion(version))
 
 	r.factories[version] = factory
 }

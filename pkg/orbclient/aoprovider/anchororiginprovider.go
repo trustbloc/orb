@@ -30,7 +30,7 @@ import (
 	"github.com/trustbloc/orb/pkg/protocolversion/clientregistry"
 )
 
-var logger = log.New("orb-client")
+var logger = log.NewStructured("orb-client")
 
 const v1 = "1.0"
 
@@ -141,7 +141,7 @@ func (c *OrbClient) GetAnchorOrigin(cid, suffix string) (interface{}, error) {
 		return nil, fmt.Errorf("unable to read anchor[%s] from CAS: %w", cid, err)
 	}
 
-	logger.Debugf("read anchor[%s]: %s", cid, string(anchorLinksetBytes))
+	logger.Debug("Got anchor linkset", log.WithCID(cid), log.WithAnchorLinkset(anchorLinksetBytes))
 
 	anchorLinkset := &linkset.Linkset{}
 
@@ -215,7 +215,8 @@ func (c *OrbClient) getAnchoredOperation(anchor anchorinfo.AnchorInfo, anchorLin
 		CanonicalReference: anchor.Hashlink,
 	}
 
-	logger.Debugf("processing anchor[%s], core index[%s]", anchor.Hashlink, anchorPayload.CoreIndex)
+	logger.Debug("Processing anchor", log.WithAnchorEventURIString(anchor.Hashlink),
+		log.WithCoreIndex(anchorPayload.CoreIndex))
 
 	txnOps, err := v.OperationProvider().GetTxnOperations(&sidetreeTxn)
 	if err != nil {

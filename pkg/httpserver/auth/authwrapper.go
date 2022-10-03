@@ -10,6 +10,8 @@ import (
 	"net/http"
 
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+
+	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 const unauthorizedResponse = "Unauthorized.\n"
@@ -23,27 +25,31 @@ type HandlerWrapper struct {
 	handler       common.HTTPHandler
 	handleRequest common.HTTPRequestHandler
 	writeResponse func(w http.ResponseWriter, status int, body []byte)
+	logger        *log.StructuredLog
 }
 
 // NewHandlerWrapper returns a handler that first performs bearer token authorization and, if authorized,
 // invokes the wrapped handler.
 func NewHandlerWrapper(handler common.HTTPHandler, tm tokenManager) *HandlerWrapper {
+	logger := log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(handler.Path())))
+
 	return &HandlerWrapper{
 		verifier:      NewTokenVerifier(tm, handler.Path(), handler.Method()),
 		HTTPHandler:   handler,
 		handler:       handler,
 		handleRequest: handler.Handler(),
+		logger:        logger,
 		writeResponse: func(w http.ResponseWriter, status int, body []byte) {
 			w.WriteHeader(status)
 
 			if len(body) > 0 {
 				if _, err := w.Write(body); err != nil {
-					logger.Warnf("[%s] Unable to write response: %s", handler.Path(), err)
+					log.WriteResponseBodyError(logger.Error, err)
 
 					return
 				}
 
-				logger.Debugf("[%s] Wrote response: %s", handler.Path(), body)
+				log.WroteResponse(logger.Debug, body)
 			}
 		},
 	}

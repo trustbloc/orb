@@ -74,7 +74,7 @@ func New(anchorPublisher anchorPublisher, casResolver casResolver,
 // nolint:funlen,gocyclo,cyclop
 func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorRef, source *url.URL,
 	anchorEvent *vocab.AnchorEventType) error {
-	logger.Debug("Received request for anchor", log.WithActorIRI(actor), log.WithAnchorURI(anchorRef))
+	logger.Debug("Received request for anchor", log.WithActorIRI(actor), log.WithAnchorEventURI(anchorRef))
 
 	var anchorLinksetBytes []byte
 
@@ -120,7 +120,7 @@ func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorRef, source *url.URL
 		attributedTo = actor.String()
 	}
 
-	logger.Info("Processing anchor", log.WithAnchorURI(anchorRef))
+	logger.Info("Processing anchor", log.WithAnchorEventURI(anchorRef))
 
 	var alternateSources []string
 

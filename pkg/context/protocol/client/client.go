@@ -11,7 +11,6 @@ import (
 	"sort"
 
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
-	"go.uber.org/zap"
 
 	"github.com/trustbloc/orb/internal/pkg/log"
 )
@@ -81,11 +80,11 @@ func (c *Client) Get(genesisTime uint64) (protocol.Version, error) {
 		p := pv.Protocol()
 
 		logger.Debug("Checking protocol for genesis time...", log.WithGenesisTime(genesisTime),
-			zap.Inline(log.NewObjectMarshaller("sidetree-protocol", &p)))
+			log.WithSidetreeProtocol(&p))
 
 		if genesisTime == p.GenesisTime {
 			logger.Debug("Found protocol for version genesis time", log.WithGenesisTime(genesisTime),
-				zap.Inline(log.NewObjectMarshaller("sidetree-protocol", &p)))
+				log.WithSidetreeProtocol(&p))
 
 			return pv, nil
 		}

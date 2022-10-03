@@ -22,7 +22,7 @@ import (
 
 func TestNewHandler(t *testing.T) {
 	t.Run("V2.0", func(t *testing.T) {
-		h := NewHandler(V2_0, &NodeInfoRetriever{}, nil)
+		h := NewHandler(V2_0, &NodeInfoRetriever{})
 		require.NotNil(t, h)
 		require.Equal(t, http.MethodGet, h.Method())
 		require.Equal(t, "/nodeinfo/2.0", h.Path())
@@ -30,7 +30,7 @@ func TestNewHandler(t *testing.T) {
 	})
 
 	t.Run("V2.1", func(t *testing.T) {
-		h := NewHandler(V2_1, &NodeInfoRetriever{}, nil)
+		h := NewHandler(V2_1, &NodeInfoRetriever{})
 		require.NotNil(t, h)
 		require.Equal(t, http.MethodGet, h.Method())
 		require.Equal(t, "/nodeinfo/2.1", h.Path())
@@ -91,7 +91,7 @@ func TestHandlerV2_1(t *testing.T) {
 
 func TestNewHandlerError(t *testing.T) {
 	t.Run("Marshal error", func(t *testing.T) {
-		h := NewHandler(V2_0, &NodeInfoRetriever{}, nil)
+		h := NewHandler(V2_0, &NodeInfoRetriever{})
 		require.NotNil(t, h)
 
 		errExpected := errors.New("injected marshal error")
@@ -124,7 +124,7 @@ func testHandler(t *testing.T, version Version, nodeInfo *NodeInfo, expected str
 	retriever := &NodeInfoRetriever{}
 	retriever.GetNodeInfoReturns(nodeInfo)
 
-	h := NewHandler(version, retriever, nil)
+	h := NewHandler(version, retriever)
 	require.NotNil(t, h)
 
 	rw := httptest.NewRecorder()

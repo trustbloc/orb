@@ -1257,10 +1257,8 @@ func startOrbServices(parameters *orbParameters) error {
 			"See https://github.com/trustbloc/orb/issues/797 for more information.")
 	}
 
-	nodeInfoLogger := log.New("nodeinfo")
-
-	nodeInfoService := nodeinfo.NewService(parameters.apServiceParams.serviceEndpoint(), parameters.nodeInfoRefreshInterval,
-		apStore, usingMongoDB, nodeInfoLogger)
+	nodeInfoService := nodeinfo.NewService(parameters.apServiceParams.serviceEndpoint(),
+		parameters.nodeInfoRefreshInterval, apStore, usingMongoDB)
 
 	handlers := make([]restcommon.HTTPHandler, 0)
 
@@ -1304,8 +1302,8 @@ func startOrbServices(parameters *orbParameters) error {
 		auth.NewHandlerWrapper(logmonitorhandler.NewRetriever(logMonitorStore), authTokenManager),
 		auth.NewHandlerWrapper(vcthandler.New(configStore, logMonitorStore), authTokenManager),
 		auth.NewHandlerWrapper(vcthandler.NewRetriever(configStore), authTokenManager),
-		auth.NewHandlerWrapper(nodeinfo.NewHandler(nodeinfo.V2_0, nodeInfoService, nodeInfoLogger), authTokenManager),
-		auth.NewHandlerWrapper(nodeinfo.NewHandler(nodeinfo.V2_1, nodeInfoService, nodeInfoLogger), authTokenManager),
+		auth.NewHandlerWrapper(nodeinfo.NewHandler(nodeinfo.V2_0, nodeInfoService), authTokenManager),
+		auth.NewHandlerWrapper(nodeinfo.NewHandler(nodeinfo.V2_1, nodeInfoService), authTokenManager),
 		auth.NewHandlerWrapper(vcresthandler.New(vcStore), authTokenManager),
 		auth.NewHandlerWrapper(allowedoriginsrest.NewWriter(allowedOriginsStore), authTokenManager),
 		auth.NewHandlerWrapper(allowedoriginsrest.NewReader(allowedOriginsStore), authTokenManager),

@@ -238,6 +238,38 @@ func TestStandardFields(t *testing.T) {
 		require.Equal(t, rm, l.ResolutionModel)
 		require.Equal(t, []string{u1.String(), u2.String(), u3.String()}, l.ResolutionEndpoints)
 	})
+
+	t.Run("json fields 3", func(t *testing.T) {
+		stdOut := newMockWriter()
+
+		logger := NewStructured(module, WithStdOut(stdOut), WithEncoding(JSON))
+
+		metadata := &mockObject{Field1: "meta1", Field2: 7676}
+		protocol := &mockObject{Field1: "proto1", Field2: 2314}
+
+		logger.Info("Some message",
+			WithMetadata(metadata), WithSidetreeProtocol(protocol), WithOriginActorID(u2.String()), WithTargetIRIs(u2, u3),
+			WithHTTPMethod(http.MethodPost), WithSuffixes("suffix1", "suffix2"), WithLocalHashlink(hl.String()),
+			WithAuthToken("token1"), WithAuthTokens("token1", "token2"), WithAddress(u1.String()),
+			WithAttributedTo(u2.String()), WithAnchorLinkset([]byte(`"linkset":"{}"`)), WithVersion("v1"),
+		)
+
+		l := unmarshalLogData(t, stdOut.Bytes())
+
+		require.Equal(t, metadata, l.Metadata)
+		require.Equal(t, protocol, l.SidetreeProtocol)
+		require.Equal(t, u2.String(), l.OriginActorID)
+		require.Equal(t, []string{u2.String(), u3.String()}, l.Targets)
+		require.Equal(t, http.MethodPost, l.HTTPMethod)
+		require.Equal(t, []string{"suffix1", "suffix2"}, l.Suffixes)
+		require.Equal(t, hl.String(), l.LocalHashlink)
+		require.Equal(t, "token1", l.AuthToken)
+		require.Equal(t, []string{"token1", "token2"}, l.AuthTokens)
+		require.Equal(t, u1.String(), l.Address)
+		require.Equal(t, u2.String(), l.AttributedTo)
+		require.Equal(t, `"linkset":"{}"`, l.AnchorLinkset)
+		require.Equal(t, "v1", l.Version)
+	})
 }
 
 type mockObject struct {
@@ -337,6 +369,19 @@ type logData struct {
 	ResolutionResult       *mockObject         `json:"resolution-result"`
 	ResolutionModel        *mockObject         `json:"resolution-model"`
 	ResolutionEndpoints    []string            `json:"resolution-endpoints"`
+	Metadata               *mockObject         `json:"metadata"`
+	SidetreeProtocol       *mockObject         `json:"sidetree-protocol"`
+	OriginActorID          string              `json:"origin-actor-id"`
+	Targets                []string            `json:"targets"`
+	HTTPMethod             string              `json:"http-method"`
+	Suffixes               []string            `json:"suffixes"`
+	LocalHashlink          string              `json:"local-hashlink"`
+	AuthToken              string              `json:"auth-token"`
+	AuthTokens             []string            `json:"auth-tokens"`
+	Address                string              `json:"address"`
+	AttributedTo           string              `json:"attributed-to"`
+	AnchorLinkset          string              `json:"anchor-linkset"`
+	Version                string              `json:"version"`
 }
 
 func unmarshalLogData(t *testing.T, b []byte) *logData {

@@ -20,12 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
-type logger interface {
-	Infof(msg string, args ...interface{})
-	Debugf(msg string, args ...interface{})
-	Warnf(msg string, args ...interface{})
-	Errorf(msg string, args ...interface{})
-}
+var logger = log.NewStructured("nodeinfo")
 
 type stats struct {
 	Posts    uint64
@@ -47,7 +42,6 @@ type Service struct {
 	stats                   *stats
 	mutex                   sync.RWMutex
 	multipleTagQueryCapable bool
-	logger                  logger
 }
 
 // NewService returns a new NodeInfo service.
@@ -55,11 +49,7 @@ type Service struct {
 // feature in the underlying Aries storage provider to update the stats more efficiently.
 // If logger is nil, then a default will be used.
 func NewService(serviceIRI *url.URL, refreshInterval time.Duration, apStore apstore.Store,
-	multipleTagQueryCapable bool, logger logger) *Service {
-	if logger == nil {
-		logger = log.New("nodeinfo")
-	}
-
+	multipleTagQueryCapable bool) *Service {
 	r := &Service{
 		apStore:                 apStore,
 		serviceIRI:              serviceIRI,
@@ -67,7 +57,6 @@ func NewService(serviceIRI *url.URL, refreshInterval time.Duration, apStore apst
 		interval:                refreshInterval,
 		stats:                   &stats{},
 		multipleTagQueryCapable: multipleTagQueryCapable,
-		logger:                  logger,
 	}
 
 	r.Lifecycle = lifecycle.New("nodeinfo",
@@ -117,22 +106,24 @@ func (r *Service) GetNodeInfo(version Version) *NodeInfo {
 func (r *Service) start() {
 	go r.refresh()
 
-	r.logger.Infof("Started NodeInfo service")
+	logger.Info("Started NodeInfo service")
 }
 
 func (r *Service) stop() {
 	close(r.done)
 
-	r.logger.Infof("Stopped NodeInfo service")
+	logger.Info("Stopped NodeInfo service")
 }
 
 func (r *Service) refresh() {
 	for {
 		select {
 		case <-time.After(r.interval):
-			r.retrieve()
+			if err := r.retrieve(); err != nil {
+				logger.Warn("Error updating stats", log.WithError(err))
+			}
 		case <-r.done:
-			r.logger.Debugf("Exiting stats retriever.")
+			logger.Debug("Exiting stats retriever.")
 
 			return
 		}
@@ -141,17 +132,15 @@ func (r *Service) refresh() {
 
 // TODO (#979): Support updating stats using multi-tag queries for all storage types so we can avoid loading too much
 // in memory.
-func (r *Service) retrieve() {
+func (r *Service) retrieve() error {
 	if !r.multipleTagQueryCapable {
-		r.updateStatsUsingSingleTagQuery()
-
-		return
+		return r.updateStatsUsingSingleTagQuery()
 	}
 
-	r.updateStatsUsingMultiTagQuery()
+	return r.updateStatsUsingMultiTagQuery()
 }
 
-func (r *Service) updateStatsUsingSingleTagQuery() {
+func (r *Service) updateStatsUsingSingleTagQuery() error {
 	it, err := r.apStore.QueryActivities(
 		apstore.NewCriteria(
 			apstore.WithReferenceType(apstore.Outbox),
@@ -159,15 +148,13 @@ func (r *Service) updateStatsUsingSingleTagQuery() {
 		),
 	)
 	if err != nil {
-		r.logger.Errorf("query ActivityPub outbox: %s", err.Error())
-
-		return
+		return fmt.Errorf("query ActivityPub outbox: %w", err)
 	}
 
 	defer func() {
 		err = it.Close()
 		if err != nil {
-			r.logger.Errorf("failed to close iterator: %s", err.Error())
+			log.CloseIteratorError(logger.Warn, err)
 		}
 	}()
 
@@ -180,9 +167,7 @@ func (r *Service) updateStatsUsingSingleTagQuery() {
 				break
 			}
 
-			r.logger.Errorf("query ActivityPub outbox: %s", err.Error())
-
-			return
+			return fmt.Errorf("query ActivityPub outbox: %w", err)
 		}
 
 		switch {
@@ -193,24 +178,26 @@ func (r *Service) updateStatsUsingSingleTagQuery() {
 		}
 	}
 
-	r.logger.Debugf("Updated stats: %s", s)
+	logger.Debug("Updated stats", log.WithData([]byte(s.String())))
 
 	r.mutex.Lock()
 
 	r.stats = s
 
 	r.mutex.Unlock()
+
+	return nil
 }
 
-func (r *Service) updateStatsUsingMultiTagQuery() {
+func (r *Service) updateStatsUsingMultiTagQuery() error {
 	totalCreateActivities, totalLikeActivities, err := r.getTotalActivityCounts()
 	if err != nil {
-		r.logger.Errorf(err.Error())
-
-		return
+		return fmt.Errorf("get total activity counts: %w", err)
 	}
 
 	r.updateStatsStruct(totalCreateActivities, totalLikeActivities)
+
+	return nil
 }
 
 func (r *Service) getTotalActivityCounts() (int, int, error) {

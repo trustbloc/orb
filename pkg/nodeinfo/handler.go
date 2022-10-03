@@ -28,23 +28,17 @@ type Handler struct {
 	retriever   nodeInfoRetriever
 	contentType string
 	marshal     func(v interface{}) ([]byte, error)
-	logger      logger
 }
 
 // NewHandler returns the /nodeinfo REST handler.
 // If logger is nil, then a default will be used.
-func NewHandler(version Version, retriever nodeInfoRetriever, logger logger) *Handler {
-	if logger == nil {
-		logger = log.New("nodeinfo")
-	}
-
+func NewHandler(version Version, retriever nodeInfoRetriever) *Handler {
 	return &Handler{
 		version:   version,
 		retriever: retriever,
 		contentType: fmt.Sprintf(`application/json; profile="http://nodeinfo.diaspora.software/ns/schema/%s#"`,
 			version),
 		marshal: json.Marshal,
-		logger:  logger,
 	}
 }
 
@@ -68,7 +62,7 @@ func (h *Handler) handle(w http.ResponseWriter, _ *http.Request) {
 
 	nodeInfoBytes, err := h.marshal(h.retriever.GetNodeInfo(h.version))
 	if err != nil {
-		h.logger.Errorf("Error marshalling node info: %s", err)
+		logger.Error("Error marshalling node info", log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -83,11 +77,11 @@ func (h *Handler) writeResponse(w http.ResponseWriter, status int, body []byte) 
 
 	if len(body) > 0 {
 		if _, err := w.Write(body); err != nil {
-			h.logger.Warnf("[%s] Unable to write response: %s", h.Path(), err)
+			log.WriteResponseBodyError(logger.Error, err)
 
 			return
 		}
 
-		h.logger.Debugf("[%s] Wrote response: %s", h.Path(), body)
+		log.WroteResponse(logger.Debug, body)
 	}
 }

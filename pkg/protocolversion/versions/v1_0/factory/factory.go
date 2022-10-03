@@ -33,7 +33,7 @@ import (
 	"github.com/trustbloc/orb/pkg/versions/1_0/txnprocessor"
 )
 
-var logger = log.New("protocol-v1_0")
+var logger = log.NewStructured("protocol-v1_0")
 
 // Factory implements version 0.1 of the Sidetree protocol.
 type Factory struct{}
@@ -117,7 +117,8 @@ func formatWebCASURI(uri, serviceURI string) (string, error) {
 	// A CAS URI can either be a CID or a hashlink.
 	hash, err := hashlink.GetResourceHashFromHashLink(uri)
 	if err != nil {
-		logger.Debugf("CAS URI [%s] is not a hashlink: %s. Assuming that it's a plain hash.", uri, err)
+		logger.Debug("CAS URI is not a hashlink. Assuming that it's a plain hash.",
+			log.WithURIString(uri), log.WithError(err))
 
 		hash = uri
 	}
@@ -131,7 +132,7 @@ func formatWebCASURI(uri, serviceURI string) (string, error) {
 	// The WebCAS URI will look like this: https:orb.domain1.com:<hash>.
 	casURI := fmt.Sprintf("%s:%s:%s", scheme, host, hash)
 
-	logger.Debugf("Adding alternate CAS URI: %s", casURI)
+	logger.Debug("Adding alternate CAS URI", log.WithURIString(casURI))
 
 	return casURI, nil
 }

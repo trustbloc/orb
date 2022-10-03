@@ -26,7 +26,8 @@ import (
 )
 
 var (
-	logger = log.New("httpserver")
+	logger = log.NewStructured("httpserver")
+
 	// BuildVersion contains the version of the Orb build.
 	//nolint:gochecknoglobals
 	BuildVersion string
@@ -82,7 +83,8 @@ func New(url, certFile, keyFile string, serverIdleTimeout time.Duration, pubSub 
 	router := mux.NewRouter()
 
 	for _, handler := range handlers {
-		logger.Infof("Registering handler for [%s]", handler.Path())
+		logger.Info("Registering handler", log.WithServiceEndpoint(handler.Path()))
+
 		router.HandleFunc(handler.Path(), handler.Handler()).
 			Methods(handler.Method()).
 			Queries(params(handler)...)
@@ -103,7 +105,7 @@ func New(url, certFile, keyFile string, serverIdleTimeout time.Duration, pubSub 
 	http2Server := &http2.Server{
 		IdleTimeout: serverIdleTimeout,
 		CountError: func(errType string) {
-			logger.Errorf("http2 server error %s", errType)
+			logger.Error("HTTP2 server error", log.WithError(errors.New(errType)))
 		},
 	}
 
@@ -125,7 +127,7 @@ func (s *Server) Start() error {
 	}
 
 	go func() {
-		logger.Infof("listening for requests on [%s]", s.httpServer.Addr)
+		logger.Info("Listening for requests", log.WithAddress(s.httpServer.Addr))
 
 		var err error
 		if s.keyFile != "" && s.certFile != "" {
@@ -139,7 +141,8 @@ func (s *Server) Start() error {
 		}
 
 		atomic.StoreUint32(&s.started, 0)
-		logger.Infof("server has stopped")
+
+		logger.Info("Server has stopped")
 	}()
 
 	return nil
@@ -205,18 +208,18 @@ func (s *Server) healthCheckHandler(rw http.ResponseWriter, r *http.Request) {
 
 	hcBytes, err := json.Marshal(hc)
 	if err != nil {
-		logger.Errorf("healthcheck marshal error: %s", err)
+		logger.Error("Healthcheck marshal error", log.WithError(err))
 
 		return
 	}
 
-	logger.Debugf("Health check returning %d - %s", status, hcBytes)
+	logger.Debug("Health check returning response", log.WithHTTPStatus(status), log.WithResponse(hcBytes))
 
 	rw.WriteHeader(status)
 
 	_, err = rw.Write(hcBytes)
 	if err != nil {
-		logger.Errorf("healthcheck response failure: %s", err)
+		logger.Error("Healthcheck response failure", log.WithError(err))
 	}
 }
 
