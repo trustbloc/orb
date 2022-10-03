@@ -37,7 +37,7 @@ import (
 	"github.com/trustbloc/orb/pkg/orbclient/aoprovider"
 )
 
-var logger = log.New("endpoint-client")
+var logger = log.NewStructured("endpoint-client")
 
 const (
 	minResolvers         = "https://trustbloc.dev/ns/min-resolvers"
@@ -162,7 +162,7 @@ func (cs *Client) GetEndpoint(domain string) (*models.Endpoint, error) {
 		return nil, fmt.Errorf("failed to get key[%s] from endpoints cache: %w", domain, err)
 	}
 
-	logger.Debugf("got value for key[%v] from endpoints cache: %+v", domain, endpoint)
+	logger.Debug("Got value from endpoints cache", log.WithKey(domain), log.WithAnchorOriginEndpoint(endpoint))
 
 	return endpoint.(*models.Endpoint), nil
 }
@@ -206,7 +206,7 @@ func (cs *Client) getEndpoint(uri string) (*models.Endpoint, error) { //nolint:g
 		domain = uri
 	}
 
-	logger.Debugf("Resolved domain from URI [%s]: %s", uri, domain)
+	logger.Debug("Resolved domain from URI", log.WithURIString(uri), log.WithDomain(domain))
 
 	var wellKnownResponse restapi.WellKnownResponse
 
@@ -238,7 +238,7 @@ func (cs *Client) getEndpoint(uri string) (*models.Endpoint, error) { //nolint:g
 		endpoint.OperationEndpoints = append(endpoint.OperationEndpoints, v.Href)
 	}
 
-	logger.Debugf("... resolved endpoint from [%s]: %+v", uri, endpoint)
+	logger.Debug("... resolved endpoint from URI", log.WithURIString(uri), log.WithAnchorOriginEndpoint(endpoint))
 
 	return endpoint, nil
 }
@@ -290,7 +290,7 @@ func (cs *Client) loadDomainForDID(id string) (string, error) {
 				return "", fmt.Errorf("invalid service endpoint for did [%s]: %w", id, err)
 			}
 
-			logger.Debugf("Resolved service endpoint domain for [%s]: %s", id, uri)
+			logger.Debug("Resolved service endpoint domain", log.WithDID(id), log.WithURIString(uri))
 
 			return uri, nil
 		}
@@ -380,20 +380,20 @@ func (cs *Client) populateResolutionEndpoint(webFingerURL string) (*models.Endpo
 			}
 
 			if int(min) != endpoint.MinResolvers {
-				logger.Warnf("%s has different policy for n %s", v.Href, minResolvers)
+				logger.Warn("Link has different policy for min resolvers", log.WithHRef(v.Href))
 
 				continue
 			}
 
 			if len(webFingerResp.Links) != len(jrd.Links) {
-				logger.Warnf("%s has different link", v.Href, minResolvers)
+				logger.Warn("Number of links is different", log.WithHRef(v.Href))
 
 				continue
 			}
 
 			for _, link := range webFingerResp.Links {
 				if _, ok = m[link.Href]; !ok {
-					logger.Warnf("%s has different link", v.Href, minResolvers)
+					logger.Warn("Link content is different", log.WithHRef(v.Href))
 
 					continue
 				}
@@ -588,7 +588,7 @@ func (cs *Client) sendRequest(req []byte, method, endpointURL string, respObj in
 func closeResponseBody(respBody io.Closer) {
 	e := respBody.Close() // nolint: ifshort
 	if e != nil {
-		logger.Warnf("Failed to close response body: %v", e)
+		log.CloseResponseBodyError(logger.Warn, e)
 	}
 }
 

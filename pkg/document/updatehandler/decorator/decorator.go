@@ -20,7 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/document/util"
 )
 
-var logger = log.New("operation-decorator")
+var logger = log.NewStructured("operation-decorator")
 
 // New creates operation decorator that will verify that local domain has latest operations from anchor origin.
 func New(namespace, domain string, processor operationProcessor,
@@ -85,13 +85,14 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 
 	internalResult, err := d.processor.Resolve(op.UniqueSuffix)
 	if err != nil {
-		logger.Debugf("Failed to resolve suffix[%s] for operation type[%s]: %s", op.UniqueSuffix, op.Type, err.Error())
+		logger.Debug("Failed to resolve suffix[%s] for operation type[%s]: %s", log.WithSuffix(op.UniqueSuffix),
+			log.WithOperationType(string(op.Type)), log.WithError(err))
 
 		return nil, err
 	}
 
-	logger.Debugf("processor returned internal result for suffix[%s] for operation type[%s]: %+v",
-		op.UniqueSuffix, op.Type, internalResult)
+	logger.Debug("Processor returned internal result", log.WithSuffix(op.UniqueSuffix),
+		log.WithOperationType(string(op.Type)), log.WithResolutionModel(internalResult))
 
 	if internalResult.Deactivated {
 		return nil, fmt.Errorf("document has been deactivated, no further operations are allowed")
@@ -121,7 +122,7 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 
 	anchorOriginResponse, err := d.resolveDocumentFromAnchorOrigin(canonicalID, localAnchorOrigin)
 	if err != nil {
-		logger.Debugf("failed to resolve document from anchor origin for id[%s]: %s", canonicalID, err.Error())
+		logger.Debug("Failed to resolve document from anchor origin", log.WithDID(canonicalID), log.WithError(err))
 
 		return op, nil
 	}
@@ -138,14 +139,15 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 		return nil, fmt.Errorf("anchor origin has different anchor origin for this did - please re-submit your request at later time") //nolint:lll
 	}
 
-	logger.Debugf("resolution response from anchor origin for id[%s]: %+v", canonicalID, anchorOriginResponse)
+	logger.Debug("Got resolution response from anchor origin", log.WithDID(canonicalID),
+		log.WithResolutionResult(anchorOriginResponse))
 
 	// parse anchor origin response to get unpublished and published operations
 	anchorOriginUnpublishedOps, anchorOriginPublishedOps := getOperations(canonicalID, anchorOriginResponse.DocumentMetadata) //nolint:lll
 
 	if len(anchorOriginPublishedOps) == 0 {
 		// published ops not provided at anchor origin - nothing to do
-		logger.Debugf("published ops not provided at anchor origin - nothing to check for id[%s]", canonicalID)
+		logger.Debug("Published ops not provided at anchor origin - nothing to check", log.WithDID(canonicalID))
 
 		return op, nil
 	}
@@ -154,9 +156,6 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 		// this should never happen
 		return nil, fmt.Errorf("local server has no published operations for suffix[%s]", op.UniqueSuffix)
 	}
-
-	logger.Debugf("parsed %d unpublished and %d published operations from anchor origin for id[%s]",
-		len(anchorOriginUnpublishedOps), len(anchorOriginPublishedOps), canonicalID)
 
 	localHead := internalResult.PublishedOperations[len(internalResult.PublishedOperations)-1].CanonicalReference
 
@@ -177,7 +176,8 @@ func (d *OperationDecorator) resolveDocumentFromAnchorOrigin(id, anchorOrigin st
 		return nil, fmt.Errorf("unable to get endpoint from anchor origin domain[%s]: %w", id, err)
 	}
 
-	logger.Debugf("anchor domain resolution endpoints%s for id[%s]", endpoint.ResolutionEndpoints, id)
+	logger.Debug("Got anchor domain resolution endpoints", log.WithDID(id),
+		log.WithResolutionEndpoints(endpoint.ResolutionEndpoints...))
 
 	anchorOriginResponse, err := d.remoteResolver.ResolveDocumentFromResolutionEndpoints(id, endpoint.ResolutionEndpoints)
 	if err != nil {
@@ -191,12 +191,18 @@ func (d *OperationDecorator) resolveDocumentFromAnchorOrigin(id, anchorOrigin st
 func getOperations(id string, metadata document.Metadata) ([]*operation.AnchoredOperation, []*operation.AnchoredOperation) { //nolint:lll
 	unpublishedOps, err := util.GetUnpublishedOperationsFromMetadata(metadata)
 	if err != nil {
-		logger.Debugf("unable to get unpublished operations for id[%s]: %s", id, err.Error())
+		logger.Debug("Unable to get unpublished operations", log.WithDID(id), log.WithError(err))
+	} else {
+		logger.Debug("Parsed unpublished operations from anchor origin", log.WithDID(id),
+			log.WithTotal(len(unpublishedOps)))
 	}
 
 	publishedOps, err := util.GetPublishedOperationsFromMetadata(metadata)
 	if err != nil {
-		logger.Debugf("unable to get published operations for id[%s]: %s", id, err.Error())
+		logger.Debug("Unable to get published operations", log.WithDID(id), log.WithError(err))
+	} else {
+		logger.Debug("Parsed published operations from anchor origin", log.WithDID(id),
+			log.WithTotal(len(publishedOps)))
 	}
 
 	return unpublishedOps, publishedOps

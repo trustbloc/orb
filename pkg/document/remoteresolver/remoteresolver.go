@@ -21,7 +21,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 )
 
-var logger = log.New("remote-resolver")
+var logger = log.NewStructured("remote-resolver")
 
 const (
 	didLDJson = "application/did+ld+json"
@@ -98,9 +98,8 @@ func (rr *Resolver) send(uri string) ([]byte, error) {
 	}
 
 	defer func() {
-		errClose := resp.Body.Close()
-		if errClose != nil {
-			logger.Errorf("failed to close response body for request[%s] : %s", req.String(), errClose.Error())
+		if errClose := resp.Body.Close(); errClose != nil {
+			log.CloseResponseBodyError(logger.Warn, errClose)
 		}
 	}()
 

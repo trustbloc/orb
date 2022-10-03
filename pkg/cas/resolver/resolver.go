@@ -8,7 +8,6 @@ package resolver
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -36,7 +35,7 @@ const (
 
 const logModule = "cas-resolver"
 
-var logger = log.New(logModule)
+var logger = log.NewStructured(logModule)
 
 type httpClient interface {
 	Get(ctx context.Context, req *transport.Request) (*http.Response, error)
@@ -81,7 +80,7 @@ func New(casClient extendedcasclient.Client, ipfsReader ipfsReader, webCASResolv
 //    Finally, the data is returned to the caller, along with the hashlink of the stored data.
 // In both cases above, the CID produced by the local CAS will be checked against the cid passed in to ensure they are
 // the same.
-func (h *Resolver) Resolve(_ *url.URL, hashWithPossibleHint string, data []byte) ([]byte, string, error) { //nolint:gocyclo,cyclop,lll
+func (h *Resolver) Resolve(_ *url.URL, hashWithPossibleHint string, data []byte) ([]byte, string, error) { //nolint:gocyclo,cyclop,lll,funlen
 	startTime := time.Now()
 
 	defer func() { h.metrics.CASResolveTime(time.Since(startTime)) }()
@@ -100,8 +99,10 @@ func (h *Resolver) Resolve(_ *url.URL, hashWithPossibleHint string, data []byte)
 		return data, localHL, nil
 	}
 
+	logger.Debug("Resolving...", log.WithKey(hashWithPossibleHint), log.WithHash(resourceHash),
+		log.WithDomain(domain), log.WithLinks(links...))
+
 	casLinks, ipfsLinks := separateLinks(links)
-	logger.Debugf("resolving hashWithPossibleHint[%s], resource hash[%s], domain[%s], cas links%s, ipfs links%s", hashWithPossibleHint, resourceHash, domain, casLinks, ipfsLinks) //nolint:lll
 
 	if h.localCAS.GetPrimaryWriterType() == "ipfs" && len(ipfsLinks) > 0 {
 		cid := ipfsLinks[0][len(ipfsPrefix):]
@@ -205,7 +206,7 @@ func separateLinks(links []string) ([]string, []string) {
 		case strings.HasPrefix(link, ipfsPrefix):
 			ipfsLinks = append(ipfsLinks, link)
 		default:
-			logger.Debugf("ignoring metadata link during CAS resolution: %s", link)
+			logger.Debug("Ignoring metadata link during CAS resolution", log.WithLink(link))
 		}
 	}
 
@@ -224,7 +225,8 @@ func (h *Resolver) getAndStoreDataFromDomain(domain, resourceHash string) ([]byt
 			"WebCAS endpoint locally: %w", errStoreLocallyAndVerifyHash)
 	}
 
-	logger.Debugf("successfully retrieved data for resource hash[%s] from https domain[%s]", resourceHash, domain)
+	logger.Debug("Successfully retrieved data for resource hash from HTTP(S) domain",
+		log.WithHash(resourceHash), log.WithDomain(domain))
 
 	return dataFromRemote, localHL, nil
 }
@@ -303,11 +305,8 @@ func (h *Resolver) storeLocallyAndVerifyHash(data []byte, resourceHash string) (
 			"(and calculate CID in the process of doing so): %w", err)
 	}
 
-	if logger.IsEnabled(log.DEBUG) {
-		logger.Debugf("Successfully stored data into CAS. Request resource hash[%s], "+
-			"resource hash as determined by local store [%s], Data (base64-encoded): %s",
-			resourceHash, newHLFromLocalCAS, base64.RawStdEncoding.EncodeToString(data))
-	}
+	logger.Debug("Successfully stored data into CAS",
+		log.WithHash(resourceHash), log.WithHashlink(newHLFromLocalCAS), log.WithCASData(data))
 
 	newResourceHash, err := hashlink.GetResourceHashFromHashLink(newHLFromLocalCAS)
 	if err != nil {
@@ -354,7 +353,8 @@ func (w *WebCASResolver) Resolve(domain, cid string) ([]byte, error) {
 			"WebCAS endpoint: %w", err)
 	}
 
-	logger.Debugf("successfully retrieved data for cid[%s] from webcas domain[%s]", cid, domain)
+	logger.Debug("Successfully retrieved data for rom WebCAS", log.WithCID(cid),
+		log.WithDomain(domain), log.WithRequestURL(webCASURL))
 
 	return data, nil
 }
@@ -371,7 +371,7 @@ func (w *WebCASResolver) GetDataViaWebCASEndpoint(webCASEndpoint *url.URL) ([]by
 	defer func() {
 		errClose := resp.Body.Close()
 		if errClose != nil {
-			logger.Errorf("failed to close response body from WebCAS endpoint: %s", errClose.Error())
+			log.CloseResponseBodyError(logger.Warn, err)
 		}
 	}()
 

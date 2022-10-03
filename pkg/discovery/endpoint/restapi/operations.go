@@ -33,7 +33,7 @@ import (
 	"github.com/trustbloc/orb/pkg/webfinger/model"
 )
 
-var logger = log.New("discovery-rest")
+var logger = log.NewStructured("discovery-rest")
 
 const (
 	wellKnownEndpoint = "/.well-known/did-orb"
@@ -225,11 +225,11 @@ func (o *Operation) orbWebDIDFileHandler(rw http.ResponseWriter, r *http.Request
 	result, err := o.webResolver.ResolveDocument(did)
 	if err != nil {
 		if errors.Is(err, orberrors.ErrContentNotFound) {
-			logger.Debugf("web resource[%s] not found", id)
+			logger.Debug("Web resource not found", log.WithID(id))
 
 			writeErrorResponse(rw, http.StatusNotFound, "resource not found")
 		} else {
-			logger.Warnf("error returning web resource [%s]: %s", id, err)
+			logger.Warn("Error returning web resource", log.WithID(id), log.WithError(err))
 
 			writeErrorResponse(rw, http.StatusInternalServerError, "error retrieving resource")
 		}
@@ -299,7 +299,7 @@ func (o *Operation) handleDIDWeb(did string, pubKeys []PublicKey, rw http.Respon
 	rw.WriteHeader(http.StatusOK)
 
 	if _, err = rw.Write(bytes); err != nil {
-		logger.Errorf("unable to send a response: %v", err)
+		log.WriteResponseBodyError(logger.Error, err)
 	}
 }
 
@@ -432,7 +432,7 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 func (o *Operation) handleDIDOrbQuery(rw http.ResponseWriter, resource string) {
 	anchorInfo, err := o.GetAnchorInfo(resource)
 	if err != nil {
-		logger.Warnf("Error getting anchor info for [%s]: %s", resource, err)
+		logger.Warn("Error getting anchor info", log.WithResource(resource), log.WithError(err))
 
 		writeErrorResponse(rw, http.StatusInternalServerError,
 			fmt.Sprintf("failed to get info on %s: %s", resource, err.Error()))
@@ -490,7 +490,7 @@ func (o *Operation) handleDomainQuery(rw http.ResponseWriter, resource string) {
 
 	logURL, err := o.logEndpointRetriever.GetLogEndpoint()
 	if err != nil && !errors.Is(err, vct.ErrDisabled) && !errors.Is(err, vct.ErrLogEndpointNotConfigured) {
-		logger.Warnf("Error retrieving log endpoint: %s", err)
+		logger.Warn("Error retrieving log endpoint", log.WithError(err))
 
 		writeErrorResponse(rw, http.StatusInternalServerError, "error retrieving log endpoint")
 
@@ -509,7 +509,7 @@ func (o *Operation) handleDomainQuery(rw http.ResponseWriter, resource string) {
 			if errors.Is(err, model.ErrResourceNotFound) {
 				writeResponse(rw, resp)
 			} else {
-				logger.Warnf("Error retrieving ledger type from VCT[%s]: %s", logURL, err)
+				logger.Warn("Error retrieving ledger type from VCT", log.WithHRef(logURL), log.WithError(err))
 
 				writeErrorResponse(rw, http.StatusInternalServerError, "error retrieving ledger type from VCT")
 			}
@@ -540,11 +540,11 @@ func (o *Operation) handleWebCASQuery(rw http.ResponseWriter, resource string) {
 	_, err := o.cas.Read(cid)
 	if err != nil {
 		if errors.Is(err, orberrors.ErrContentNotFound) {
-			logger.Debugf("CAS resource not found [%s]", cid)
+			logger.Debug("CAS resource not found", log.WithCID(cid))
 
 			writeErrorResponse(rw, http.StatusNotFound, "resource not found")
 		} else {
-			logger.Warnf("Error returning CAS resource [%s]: %s", cid, err)
+			logger.Warn("Error returning CAS resource", log.WithCID(cid), log.WithError(err))
 
 			writeErrorResponse(rw, http.StatusInternalServerError, "error retrieving resource")
 		}
@@ -631,14 +631,14 @@ func (o *Operation) appendAlternateDomains(domains []string, anchorURI string) [
 
 	anchorInfo, err := parser.ParseHashLink(anchorURI)
 	if err != nil {
-		logger.Infof("Error parsing hashlink for anchor URI  [%s]: %w", anchorURI, err)
+		logger.Info("Error parsing hashlink for anchor URI", log.WithAnchorURIString(anchorURI), log.WithError(err))
 
 		return domains
 	}
 
 	alternates, err := o.anchorStore.GetLinks(anchorInfo.ResourceHash)
 	if err != nil {
-		logger.Infof("Error getting alternate links for anchor URI  [%s]: %w", anchorURI, err)
+		logger.Info("Error getting alternate links for anchor URI", log.WithAnchorURIString(anchorURI), log.WithError(err))
 
 		return domains
 	}
@@ -657,13 +657,13 @@ func (o *Operation) appendAlternateAnchorRefs(refs []string, cidOrHash string) [
 	if e != nil {
 		hash = cidOrHash
 	} else if hash != cidOrHash {
-		logger.Debugf("Converted CID [%s] to multihash [%s]", cidOrHash, hash)
+		logger.Debug("Converted CID to multihash", log.WithCID(cidOrHash), log.WithMultihash(hash))
 	}
 
 	alternates, err := o.anchorStore.GetLinks(hash)
 	if err != nil {
 		// Not fatal.
-		logger.Warnf("Error retrieving additional links for resource [%s]: %s", cidOrHash, err)
+		logger.Warn("Error retrieving additional links for resource", log.WithMultihash(hash), log.WithError(err))
 
 		return refs
 	}
@@ -673,7 +673,7 @@ func (o *Operation) appendAlternateAnchorRefs(refs []string, cidOrHash string) [
 	for _, hl := range alternates {
 		hlInfo, err := parser.ParseHashLink(hl.String())
 		if err != nil {
-			logger.Warnf("Error parsing hashlink [%s]: %s", hl, err)
+			logger.Warn("Error parsing hashlink", log.WithHashlinkURI(hl), log.WithError(err))
 
 			continue
 		}
@@ -696,7 +696,7 @@ func getDomainsFromHashLinks(hashLinks []*url.URL) []string {
 	for _, hl := range hashLinks {
 		hlInfo, err := parser.ParseHashLink(hl.String())
 		if err != nil {
-			logger.Warnf("Error parsing hashlink [%s]: %s", hl, err)
+			logger.Warn("Error parsing hashlink", log.WithHashlinkURI(hl), log.WithError(err))
 
 			continue
 		}
@@ -704,8 +704,8 @@ func getDomainsFromHashLinks(hashLinks []*url.URL) []string {
 		for _, l := range hlInfo.Links {
 			link, err := url.Parse(l)
 			if err != nil {
-				logger.Warnf("Error parsing additional anchor link [%s] for hash [%s]: %s",
-					l, hlInfo.ResourceHash, err)
+				logger.Warn("Error parsing additional anchor link for hash",
+					log.WithLink(l), log.WithHash(hlInfo.ResourceHash), log.WithError(err))
 
 				continue
 			}
@@ -734,7 +734,7 @@ func writeErrorResponse(rw http.ResponseWriter, status int, msg string) {
 		Message: msg,
 	})
 	if err != nil {
-		logger.Errorf("Unable to send error message, %s", err)
+		logger.Error("Unable to send error message", log.WithError(err))
 	}
 }
 
@@ -744,7 +744,7 @@ func writeResponse(rw http.ResponseWriter, v interface{}) {
 
 	err := json.NewEncoder(rw).Encode(v)
 	if err != nil {
-		logger.Errorf("unable to send a response: %v", err)
+		log.WriteResponseBodyError(logger.Error, err)
 	}
 }
 

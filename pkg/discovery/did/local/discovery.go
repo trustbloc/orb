@@ -17,7 +17,7 @@ import (
 	"github.com/trustbloc/orb/pkg/document/util"
 )
 
-var logger = log.New("local-discovery")
+var logger = log.NewStructured("local-discovery")
 
 type didPublisher interface {
 	PublishDID(dids string) error
@@ -52,7 +52,7 @@ func (d *Discovery) RequestDiscovery(did string) error {
 
 	latestCID, err := d.discoverLatestCID(did)
 	if err != nil {
-		logger.Warnf("failed to discover latest CID for did[%s]: %w", did, err)
+		logger.Warn("Failed to discover latest CID for DID", log.WithDID(did), log.WithError(err))
 
 		latestCID, err = d.getCID(did, suffix)
 		if err != nil {
@@ -88,7 +88,7 @@ func (d *Discovery) discoverLatestCID(did string) (string, error) {
 		return "", fmt.Errorf("failed to get endpoints: %w", err)
 	}
 
-	logger.Debugf("discovered latest CID for did[%s]: +v", did, endpoint)
+	logger.Debug("Discovered latest CID for DID", log.WithDID(did), log.WithAnchorOriginEndpoint(endpoint))
 
 	return endpoint.AnchorURI, nil
 }

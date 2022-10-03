@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package log
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -65,6 +66,8 @@ func TestStandardFields(t *testing.T) {
 
 		now := time.Now()
 
+		query := &mockObject{Field1: "value1", Field2: 1234}
+
 		logger.Info("Some message",
 			WithMessageID("msg1"), WithData([]byte(`{"field":"value"}`)),
 			WithActorIRI(u1), WithActivityID(u2), WithActivityType("Create"),
@@ -83,7 +86,7 @@ func TestStandardFields(t *testing.T) {
 			WithObjectIRI(u1), WithReferenceIRI(u2),
 			WithKeyIRI(u1), WithKeyOwnerIRI(u2), WithKeyType("ed25519"),
 			WithCurrentIRI(u1), WithNextIRI(u2),
-			WithTotal(12), WithType("type1"), WithQuery(map[string]interface{}{"field1": "value1"}),
+			WithTotal(12), WithType("type1"), WithQuery(query),
 			WithAnchorHash("sfsfsdfsd"), WithMinimum(2), WithSuffix("1234"), WithHashlink(hl.String()),
 			WithVerifiableCredential([]byte(`{"id":"https://example.com/vc1"}`)),
 			WithVerifiableCredentialID("https://example.com/vc1"),
@@ -93,6 +96,7 @@ func TestStandardFields(t *testing.T) {
 			WithAnchorOrigin(u1.String()), WithOperationType("Create"), WithCoreIndex("1234"),
 		)
 
+		t.Logf(stdOut.String())
 		l := unmarshalLogData(t, stdOut.Bytes())
 
 		require.Equal(t, `Some message`, l.Msg)
@@ -132,7 +136,7 @@ func TestStandardFields(t *testing.T) {
 		require.Equal(t, 12, l.Total)
 		require.Equal(t, 2, l.Minimum)
 		require.Equal(t, "type1", l.Type)
-		require.Equal(t, `{"field1":"value1"}`, l.Query)
+		require.Equal(t, query, l.Query)
 		require.Equal(t, "sfsfsdfsd", l.AnchorHash)
 		require.Equal(t, "1234", l.Suffix)
 		require.Equal(t, hl.String(), l.Hashlink)
@@ -155,15 +159,31 @@ func TestStandardFields(t *testing.T) {
 
 		logger := NewStructured(module, WithStdOut(stdOut), WithEncoding(JSON))
 
+		cfg := &mockObject{Field1: "value1", Field2: 1234}
+		aoep := &mockObject{Field1: "value11", Field2: 999}
+		rr := &mockObject{Field1: "value22", Field2: 777}
+		rm := &mockObject{Field1: "value33", Field2: 888}
+
 		logger.Info("Some message",
 			WithActorID(u1.String()), WithTarget(u2.String()),
-			WithConfig(&mockConfig{Field1: "value1", Field2: 1234}),
+			WithConfig(&mockObject{Field1: "value1", Field2: 1234}),
 			WithRequestURLString(u1.String()),
 			WithKeyID("key1"), WithURIString(u1.String()),
 			WithAnchorEventURIString(u3.String()), WithAnchorURIString(u3.String()),
 			WithHashlinkURI(hl), WithParentURI(u1),
 			WithProofDocument(map[string]interface{}{"id": "https://example.com/proof1"}),
 			WithWitnessURIString(u1.String()), WithWitnessURIStrings(u1.String(), u2.String()),
+			WithHash("hash1"), WithAnchorOriginEndpoint(aoep), WithKey("key1"),
+			WithCID("cid1"), WithResolvedCID("cid2"), WithAnchorCID("cid3"),
+			WithCIDVersion(1), WithMultihash("fsdfervs"), WithCASData([]byte("cas data")),
+			WithDomain(u1.String()), WithLink(u2.String()), WithLinks(u1.String(), u2.String()),
+			WithTaskMgrInstanceID("12345"), WithRetries(7), WithMaxRetries(12),
+			WithSubscriberPoolSize(30), WithTaskMonitorInterval(5*time.Second),
+			WithTaskExpiration(10*time.Second), WithDeliveryDelay(3*time.Second),
+			WithOperationID("op1"), WithTaskOwnerID("123"), WithTimeSinceLastUpdate(2*time.Minute),
+			WithGenesisTime(1233), WithDID("did:orb:123:456"), WithHRef(u3.String()),
+			WithID("id1"), WithResource("res1"), WithResolutionResult(rr),
+			WithResolutionModel(rm), WithResolutionEndpoints(u1.String(), u2.String(), u3.String()),
 		)
 
 		l := unmarshalLogData(t, stdOut.Bytes())
@@ -171,7 +191,7 @@ func TestStandardFields(t *testing.T) {
 		require.Equal(t, `Some message`, l.Msg)
 		require.Equal(t, u1.String(), l.ActorID)
 		require.Equal(t, u2.String(), l.Target)
-		require.Equal(t, `{"Field1":"value1","Field2":1234}`, l.Config)
+		require.Equal(t, cfg, l.Config)
 		require.Equal(t, u1.String(), l.RequestURL)
 		require.Equal(t, "key1", l.KeyID)
 		require.Equal(t, u1.String(), l.URI)
@@ -183,23 +203,44 @@ func TestStandardFields(t *testing.T) {
 		require.Equal(t, `{"id":"https://example.com/proof1"}`, l.Proof)
 		require.Equal(t, u1.String(), l.WitnessURI)
 		require.Equal(t, []string{u1.String(), u2.String()}, l.WitnessURIs)
-	})
+		require.Equal(t, "hash1", l.Hash)
+		require.Equal(t, aoep, l.AnchorOriginEndpoint)
+		require.Equal(t, "key1", l.Key)
+		require.Equal(t, "cid1", l.CID)
+		require.Equal(t, "cid2", l.ResolvedCID)
+		require.Equal(t, "cid3", l.AnchorCID)
+		require.Equal(t, 1, l.CIDVersion)
+		require.Equal(t, "fsdfervs", l.Multihash)
 
-	t.Run("marshal error", func(t *testing.T) {
-		stdOut := newMockWriter()
+		casData, err := base64.StdEncoding.DecodeString(l.CASData)
+		require.NoError(t, err)
+		require.Equal(t, "cas data", string(casData))
 
-		logger := NewStructured(module, WithStdOut(stdOut), WithEncoding(JSON))
-
-		logger.Info("Some message", WithConfig(func() {}))
-
-		l := unmarshalLogData(t, stdOut.Bytes())
-
-		require.Equal(t, `Some message`, l.Msg)
-		require.Equal(t, `marshal json: json: unsupported type: func()`, l.Error)
+		require.Equal(t, u1.String(), l.Domain)
+		require.Equal(t, u2.String(), l.Link)
+		require.Equal(t, []string{u1.String(), u2.String()}, l.Links)
+		require.Equal(t, "12345", l.TaskMgrInstanceID)
+		require.Equal(t, 7, l.Retries)
+		require.Equal(t, 12, l.MaxRetries)
+		require.Equal(t, 30, l.SubscriberPoolSize)
+		require.Equal(t, "5s", l.TaskMonitorInterval)
+		require.Equal(t, "10s", l.TaskExpiration)
+		require.Equal(t, "3s", l.DeliveryDelay)
+		require.Equal(t, "op1", l.OperationID)
+		require.Equal(t, "123", l.TaskOwnerID)
+		require.Equal(t, "2m0s", l.TimeSinceLastUpdate)
+		require.Equal(t, 1233, l.GenesisTime)
+		require.Equal(t, "did:orb:123:456", l.DID)
+		require.Equal(t, u3.String(), l.HRef)
+		require.Equal(t, "id1", l.ID)
+		require.Equal(t, "res1", l.Resource)
+		require.Equal(t, rr, l.ResolutionResult)
+		require.Equal(t, rm, l.ResolutionModel)
+		require.Equal(t, []string{u1.String(), u2.String(), u3.String()}, l.ResolutionEndpoints)
 	})
 }
 
-type mockConfig struct {
+type mockObject struct {
 	Field1 string
 	Field2 int
 }
@@ -232,7 +273,7 @@ type logData struct {
 	Sender                 string              `json:"sender"`
 	AnchorURI              string              `json:"anchor-uri"`
 	AnchorEventURI         string              `json:"anchor-event-uri"`
-	Config                 string              `json:"config"`
+	Config                 *mockObject         `json:"config"`
 	AcceptListType         string              `json:"accept-list-type"`
 	Additions              []string            `json:"additions"`
 	Deletions              []string            `json:"deletions"`
@@ -250,7 +291,7 @@ type logData struct {
 	Total                  int                 `json:"total"`
 	Minimum                int                 `json:"minimum"`
 	Type                   string              `json:"type"`
-	Query                  string              `json:"query"`
+	Query                  *mockObject         `json:"query"`
 	AnchorHash             string              `json:"anchor-hash"`
 	Suffix                 string              `json:"suffix"`
 	VerifiableCredential   string              `json:"vc"`
@@ -266,6 +307,36 @@ type logData struct {
 	AnchorOrigin           string              `json:"anchor-origin"`
 	OperationType          string              `json:"operation-type"`
 	CoreIndex              string              `json:"core-index"`
+	Hash                   string              `json:"hash"`
+	AnchorOriginEndpoint   *mockObject         `json:"anchor-origin-endpoint"`
+	Key                    string              `json:"key"`
+	CID                    string              `json:"cid"`
+	ResolvedCID            string              `json:"resolved-cid"`
+	AnchorCID              string              `json:"anchor-cid"`
+	CIDVersion             int                 `json:"cid-version"`
+	Multihash              string              `json:"multihash"`
+	CASData                string              `json:"cas-data"`
+	Domain                 string              `json:"domain"`
+	Link                   string              `json:"link"`
+	Links                  []string            `json:"links"`
+	TaskMgrInstanceID      string              `json:"task-mgr-instance"`
+	Retries                int                 `json:"retries"`
+	MaxRetries             int                 `json:"max-retries"`
+	SubscriberPoolSize     int                 `json:"subscriber-pool-size"`
+	TaskMonitorInterval    string              `json:"task-monitor-interval"`
+	TaskExpiration         string              `json:"task-expiration"`
+	DeliveryDelay          string              `json:"delivery-delay"`
+	OperationID            string              `json:"operation-id"`
+	TaskOwnerID            string              `json:"task-owner-id"`
+	TimeSinceLastUpdate    string              `json:"time-since-last-update"`
+	GenesisTime            int                 `json:"genesis-time"`
+	DID                    string              `json:"did"`
+	HRef                   string              `json:"href"`
+	ID                     string              `json:"id"`
+	Resource               string              `json:"resource"`
+	ResolutionResult       *mockObject         `json:"resolution-result"`
+	ResolutionModel        *mockObject         `json:"resolution-model"`
+	ResolutionEndpoints    []string            `json:"resolution-endpoints"`
 }
 
 func unmarshalLogData(t *testing.T, b []byte) *logData {

@@ -26,9 +26,9 @@ import (
 	"github.com/trustbloc/orb/pkg/store"
 )
 
-var logger = log.New("sidetree_context")
-
 const (
+	loggerModule = "sidetree_context"
+
 	topic            = "orb.operation"
 	taskID           = "op-queue-monitor"
 	storeName        = "operation-queue"
@@ -131,10 +131,13 @@ type Queue struct {
 	redeliveryInitialInterval time.Duration
 	maxRedeliveryInterval     time.Duration
 	redeliveryMultiplier      float64
+	logger                    *log.StructuredLog
 }
 
 // New returns a new operation queue.
 func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager, metrics metricsProvider) (*Queue, error) {
+	logger := log.NewStructured(loggerModule, log.WithFields(log.WithTaskMgrInstanceID(taskMgr.InstanceID())))
+
 	msgChan, err := pubSub.SubscribeWithOpts(context.Background(), topic, spi.WithPool(cfg.PoolSize))
 	if err != nil {
 		return nil, fmt.Errorf("subscribe to topic [%s]: %w", topic, err)
@@ -149,8 +152,9 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager, met
 
 	cfg = resolveConfig(cfg)
 
-	logger.Infof("Creating operation queue - PoolSize: %d, TaskMonitorInterval: %s, TaskExpiration: %s, "+
-		"MaxRetries: %d", cfg.PoolSize, cfg.TaskMonitorInterval, cfg.TaskExpiration, cfg.MaxRetries)
+	logger.Info("Creating operation queue.",
+		log.WithQueue(topic), log.WithMaxRetries(cfg.MaxRetries), log.WithSubscriberPoolSize(cfg.PoolSize),
+		log.WithTaskMonitorInterval(cfg.TaskMonitorInterval), log.WithTaskExpiration(cfg.TaskExpiration))
 
 	q := &Queue{
 		pubSub:                    pubSub,
@@ -167,11 +171,12 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager, met
 		redeliveryInitialInterval: cfg.RetriesInitialDelay,
 		redeliveryMultiplier:      cfg.RetriesMultiplier,
 		maxRedeliveryInterval:     cfg.RetriesMaxDelay,
+		logger:                    logger,
 	}
 
 	q.Lifecycle = lifecycle.New("operation-queue", lifecycle.WithStart(q.start))
 
-	logger.Infof("[%s] Storing new operation queue task.", q.serverInstanceID)
+	logger.Info("Storing new operation queue task.")
 
 	err = q.updateTaskTime(q.serverInstanceID)
 	if err != nil {
@@ -219,8 +224,9 @@ func (q *Queue) publish(op *OperationMessage) (uint, error) {
 
 	delay := q.getDeliveryDelay(op.Retries)
 
-	logger.Debugf("Publishing operation message to topic [%s] - Msg [%s], OpID [%s], DID [%s], "+
-		"Retries [%d], Delivery delay [%s]", topic, msg.UUID, op.ID, op.Operation.UniqueSuffix, op.Retries, delay)
+	q.logger.Debug("Publishing operation message to queue", log.WithQueue(topic), log.WithMessageID(msg.UUID),
+		log.WithOperationID(op.ID), log.WithRetries(op.Retries), log.WithDeliveryDelay(delay),
+		log.WithSuffix(op.Operation.UniqueSuffix))
 
 	err = q.pubSub.PublishWithOpts(topic, msg, spi.WithDeliveryDelay(delay))
 	if err != nil {
@@ -246,7 +252,7 @@ func (q *Queue) Peek(num uint) (operation.QueuedOperationsAtTime, error) {
 
 	items := q.pending[0:n]
 
-	logger.Debugf("[%s] Peeked %d operations", q.serverInstanceID, len(items))
+	q.logger.Debug("Peeked operations.", log.WithTotal(len(items)))
 
 	return q.asQueuedOperations(items), nil
 }
@@ -275,7 +281,7 @@ func (q *Queue) Remove(num uint) (ops operation.QueuedOperationsAtTime, ack func
 	items := q.pending[0:n]
 	q.pending = q.pending[n:]
 
-	logger.Debugf("[%s] Removed %d operations", q.serverInstanceID, len(items))
+	q.logger.Debug("Removed operations.", log.WithTotal(len(items)))
 
 	return q.asQueuedOperations(items), q.newAckFunc(items), q.newNackFunc(items), nil
 }
@@ -297,11 +303,11 @@ func (q *Queue) start() {
 
 	go q.listen()
 
-	logger.Infof("Started operation queue")
+	q.logger.Info("Started operation queue")
 }
 
 func (q *Queue) listen() {
-	logger.Debugf("Starting message listener")
+	q.logger.Debug("Starting message listener")
 
 	ticker := time.NewTicker(q.taskMonitorInterval)
 
@@ -309,7 +315,7 @@ func (q *Queue) listen() {
 		select {
 		case msg, ok := <-q.msgChan:
 			if !ok {
-				logger.Debugf("Message listener stopped")
+				q.logger.Debug("Message listener stopped")
 
 				return
 			}
@@ -319,20 +325,21 @@ func (q *Queue) listen() {
 		case <-ticker.C:
 			// Update the task time so that other instances don't think I'm down.
 			if err := q.updateTaskTime(q.serverInstanceID); err != nil {
-				logger.Warnf("Error updating time on operation queue task: %w", err)
+				q.logger.Warn("Error updating time on operation queue task", log.WithError(err))
 			}
 		}
 	}
 }
 
 func (q *Queue) handleMessage(msg *message.Message) {
-	logger.Debugf("Handling operation message [%s]", msg.UUID)
+	q.logger.Debug("Handling operation message", log.WithMessageID(msg.UUID))
 
 	op := &OperationMessage{}
 
 	err := q.unmarshal(msg.Payload, op)
 	if err != nil {
-		logger.Errorf("Error unmarshalling operation for message [%s]: %s", msg.UUID, err)
+		q.logger.Error("Error unmarshalling operation message payload.",
+			log.WithMessageID(msg.UUID), log.WithError(err))
 
 		// Send an Ack so that the message is not retried.
 		msg.Ack()
@@ -349,7 +356,7 @@ func (q *Queue) handleMessage(msg *message.Message) {
 
 	opBytes, err := json.Marshal(pop)
 	if err != nil {
-		logger.Errorf("Error marshalling operation for message [%s]: %s", msg.UUID, err)
+		q.logger.Error("Error marshalling operation.", log.WithMessageID(msg.UUID), log.WithError(err))
 
 		// Send an Ack so that the message is not retried.
 		msg.Ack()
@@ -361,8 +368,8 @@ func (q *Queue) handleMessage(msg *message.Message) {
 		storage.Tag{Name: tagServerID, Value: q.serverInstanceID},
 	)
 	if err != nil {
-		logger.Warnf("Error storing operation info for [%s]. Message [%s] will be nacked and retried: %w",
-			op.ID, msg.UUID, err)
+		q.logger.Warn("Error storing operation info. Message will be nacked and retried.",
+			log.WithOperationID(op.ID), log.WithMessageID(msg.UUID), log.WithError(err))
 
 		msg.Nack()
 
@@ -372,8 +379,8 @@ func (q *Queue) handleMessage(msg *message.Message) {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 
-	logger.Debugf("[%s] Adding operation to pending queue - ID [%s], DID [%s], Retries [%d]",
-		q.serverInstanceID, op.ID, op.Operation.UniqueSuffix, op.Retries)
+	q.logger.Debug("Adding operation to pending queue", log.WithOperationID(op.ID),
+		log.WithSuffix(op.Operation.UniqueSuffix), log.WithRetries(op.Retries))
 
 	q.pending = append(q.pending, &queuedOperation{
 		OperationMessage: op,
@@ -386,12 +393,10 @@ func (q *Queue) handleMessage(msg *message.Message) {
 
 func (q *Queue) newAckFunc(items []*queuedOperation) func() uint {
 	return func() uint {
-		logger.Infof("Committed %d operation messages...", len(items))
-
 		if err := q.deleteOperations(items); err != nil {
-			logger.Errorf("[%s] Error deleting pending operations: %s", q.serverInstanceID, err)
+			q.logger.Error("Error deleting pending operations.", log.WithTotal(len(items)), log.WithError(err))
 		} else {
-			logger.Debugf("[%s] Deleted %d operations", q.serverInstanceID, len(items))
+			q.logger.Debug("Deleted operations.", log.WithTotal(len(items)))
 		}
 
 		// Batch cut time is the time since the first operation was added (which is the oldest operation in the batch).
@@ -408,14 +413,14 @@ func (q *Queue) newAckFunc(items []*queuedOperation) func() uint {
 
 func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 	return func() {
-		logger.Infof("%d operations were rolled back. Re-posting...", len(items))
+		q.logger.Info("Operations were rolled back. Re-posting...", log.WithTotal(len(items)))
 
 		var operationsToDelete []*queuedOperation
 
 		for _, op := range items {
 			if op.Retries >= q.maxRetries {
-				logger.Warnf("... not re-posting operation [%s] for suffix [%s] since the retry count [%d] has reached the limit.",
-					op.ID, op.Operation.UniqueSuffix, op.Retries)
+				q.logger.Warn("... not re-posting operation since the retry count has reached the limit.",
+					log.WithOperationID(op.ID), log.WithSuffix(op.Operation.UniqueSuffix), log.WithRetries(op.Retries))
 
 				operationsToDelete = append(operationsToDelete, op)
 
@@ -424,18 +429,19 @@ func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 
 			op.Retries++
 
-			logger.Infof("... re-posting operation [%s] for suffix [%s], retries [%d]",
-				op.ID, op.Operation.UniqueSuffix, op.Retries)
+			q.logger.Info("... re-posting operation ...", log.WithOperationID(op.ID),
+				log.WithSuffix(op.Operation.UniqueSuffix), log.WithRetries(op.Retries))
 
 			if _, err := q.publish(op.OperationMessage); err != nil {
-				logger.Errorf("Error re-posting operation [%s]. Operation will be detached from this server instance: %s",
-					op.ID, err)
+				q.logger.Error("Error re-posting operation. Operation will be detached from this server instance",
+					log.WithOperationID(op.ID), log.WithError(err))
 
 				if e := q.detachOperation(op); e != nil {
-					logger.Errorf("Failed to detach operation [%s] from this server instance: %s", op.ID, e)
+					q.logger.Error("Failed to detach operation from this server instance",
+						log.WithOperationID(op.ID), log.WithError(e))
 				} else {
-					logger.Infof("Operation [%s] was detached from this server instance since it could not be "+
-						"published to the queue. It will be retried at a later time.", op.ID)
+					q.logger.Info("Operation was detached from this server instance since it could not be "+
+						"published to the queue. It will be retried at a later time.", log.WithOperationID(op.ID))
 				}
 			} else {
 				operationsToDelete = append(operationsToDelete, op)
@@ -444,9 +450,9 @@ func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 
 		if len(operationsToDelete) > 0 {
 			if err := q.deleteOperations(operationsToDelete); err != nil {
-				logger.Errorf("Error deleting operations: %s. Some (or all) of the operations "+
+				q.logger.Error("Error deleting operations. Some (or all) of the operations "+
 					"will be left in the database and potentially reprocessed (which should be harmless). "+
-					"The operations should be deleted (at some point) by the data expiry service.", err)
+					"The operations should be deleted (at some point) by the data expiry service.", log.WithError(err))
 			}
 		}
 
@@ -459,17 +465,22 @@ func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 func (q *Queue) monitorOtherServers() {
 	it, err := q.store.Query(tagOpQueueTask)
 	if err != nil {
-		logger.Warnf("Error querying for operation queue tasks: %w", err)
+		q.logger.Warn("Error querying for operation queue tasks", log.WithError(err))
 
 		return
 	}
 
-	defer storage.Close(it, logger)
+	defer func() {
+		errClose := it.Close()
+		if errClose != nil {
+			log.CloseIteratorError(q.logger.Warn, err)
+		}
+	}()
 
 	for {
 		task, ok, err := q.nextTask(it)
 		if err != nil {
-			logger.Warnf("Error getting next operation queue task: %w", err)
+			q.logger.Warn("Error getting next operation queue task", log.WithError(err))
 
 			return
 		}
@@ -492,8 +503,7 @@ func (q *Queue) repostOperationsForTask(task *opQueueTask) {
 		// Operations associated with the "detached" server ID are in error, most likely because the message
 		// queue service is unavailable and the operations could not be re-published. Try to repost the operations.
 		if err := q.repostOperations(task.TaskID); err != nil {
-			logger.Warnf("[%s] Error reposting operations for server instance [%s]: %s",
-				q.serverInstanceID, task.TaskID, err)
+			q.logger.Warn("Error reposting operations", log.WithTaskOwnerID(task.TaskID), log.WithError(err))
 		}
 
 		return
@@ -506,13 +516,14 @@ func (q *Queue) repostOperationsForTask(task *opQueueTask) {
 		return
 	}
 
-	logger.Warnf("[%s] Operation queue task [%s] was last updated %s ago which is longer than the expiry %s. "+
+	q.logger.Warn("Operation queue task was last updated a while ago (longer than the expiry). "+
 		"Assuming the server is dead and re-posting any outstanding operations to the queue.",
-		q.serverInstanceID, task.TaskID, timeSinceLastUpdate, q.taskExpiration)
+		log.WithTaskOwnerID(task.TaskID), log.WithTimeSinceLastUpdate(timeSinceLastUpdate),
+		log.WithTaskExpiration(q.taskExpiration))
 
 	if err := q.repostOperations(task.TaskID); err != nil {
-		logger.Warnf("[%s] Error reposting operations for server instance [%s]: %s",
-			q.serverInstanceID, task.TaskID, err)
+		q.logger.Warn("Error reposting operations for other server instance",
+			log.WithTaskOwnerID(task.TaskID), log.WithError(err))
 	}
 }
 
@@ -535,10 +546,11 @@ func (q *Queue) deleteOperations(items []*queuedOperation) error {
 func (q *Queue) asQueuedOperations(opMsgs []*queuedOperation) []*operation.QueuedOperationAtTime {
 	ops := make([]*operation.QueuedOperationAtTime, len(opMsgs))
 
-	logger.Debugf("[%s] Returning %d queued operations:", q.serverInstanceID, len(opMsgs))
+	q.logger.Debug("Returning queued operations", log.WithTotal(len(opMsgs)))
 
 	for i, opMsg := range opMsgs {
-		logger.Debugf("[%s] - ID [%s], DID [%s]", q.serverInstanceID, opMsg.ID, opMsg.Operation.UniqueSuffix)
+		q.logger.Debug("Adding operation.", log.WithMessageID(opMsg.ID),
+			log.WithSuffix(opMsg.Operation.UniqueSuffix))
 
 		ops[i] = opMsg.Operation
 	}
@@ -570,13 +582,18 @@ func (q *Queue) updateTaskTime(instanceID string) error {
 	return nil
 }
 
-func (q *Queue) repostOperations(serverID string) error { //nolint:gocyclo,cyclop
+func (q *Queue) repostOperations(serverID string) error { //nolint:gocyclo,cyclop,funlen
 	it, err := q.store.Query(fmt.Sprintf("%s:%s", tagServerID, serverID))
 	if err != nil {
 		return fmt.Errorf("query operations with tag [%s]: %w", serverID, err)
 	}
 
-	defer storage.Close(it, logger)
+	defer func() {
+		errClose := it.Close()
+		if errClose != nil {
+			log.CloseIteratorError(q.logger.Warn, err)
+		}
+	}()
 
 	var batchOperations []storage.Operation
 
@@ -591,16 +608,16 @@ func (q *Queue) repostOperations(serverID string) error { //nolint:gocyclo,cyclo
 		}
 
 		if op.Retries >= q.maxRetries {
-			logger.Warnf("Not re-posting operation [%s] for suffix [%s] since the retry count [%d] has reached the limit.",
-				op.ID, op.Operation.UniqueSuffix, op.Retries)
+			q.logger.Warn("Not re-posting operation since the retry count has reached the limit.",
+				log.WithOperationID(op.ID), log.WithSuffix(op.Operation.UniqueSuffix), log.WithRetries(op.Retries))
 
 			continue
 		}
 
 		op.Retries++
 
-		logger.Infof("[%s] Re-posting operation [%s] for suffix [%s]",
-			q.serverInstanceID, op.ID, op.Operation.UniqueSuffix)
+		q.logger.Info("Re-posting operation.", log.WithOperationID(op.ID),
+			log.WithSuffix(op.Operation.UniqueSuffix))
 
 		if _, e = q.publish(op); e != nil {
 			return fmt.Errorf("publish operation [%s]: %w", op.ID, e)
@@ -610,8 +627,8 @@ func (q *Queue) repostOperations(serverID string) error { //nolint:gocyclo,cyclo
 	}
 
 	if len(batchOperations) > 0 {
-		logger.Infof("[%s] Deleting %d operations for queue task [%s]",
-			q.serverInstanceID, len(batchOperations), serverID)
+		q.logger.Info("Deleting operations for queue task.", log.WithTotal(len(batchOperations)),
+			log.WithTaskOwnerID(serverID))
 
 		err = q.store.Batch(batchOperations)
 		if err != nil {
@@ -620,7 +637,7 @@ func (q *Queue) repostOperations(serverID string) error { //nolint:gocyclo,cyclo
 	}
 
 	if serverID != detachedServerID {
-		logger.Infof("[%s] Deleting operation queue task [%s]", q.serverInstanceID, serverID)
+		q.logger.Info("Deleting operation queue task.", log.WithTaskOwnerID(serverID))
 
 		err = q.store.Delete(serverID)
 		if err != nil {
