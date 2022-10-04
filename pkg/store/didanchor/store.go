@@ -19,7 +19,7 @@ import (
 
 const nameSpace = "didanchor"
 
-var logger = log.New("didanchor-store")
+var logger = log.NewStructured("didanchor-store")
 
 // New creates db implementation of latest did/anchor reference.
 func New(provider storage.Provider) (*Store, error) {
@@ -59,9 +59,9 @@ func (s *Store) PutBulk(suffixes []string, areNew []bool, cid string) error {
 	err := s.store.Batch(operations)
 	if err != nil {
 		if errors.Is(err, storage.ErrDuplicateKey) {
-			logger.Warnf("Failed to add cid[%s] to suffixes using the batch speed optimization. "+
+			logger.Warn("Failed to add CID to suffixes using the batch speed optimization. "+
 				"This can happen if this Orb server is in a recovery flow. Will retry without the "+
-				"optimization now (will be slower). Underlying error message: %s", cid, err.Error())
+				"optimization now (will be slower).", log.WithCID(cid), log.WithError(err))
 
 			for i, suffix := range suffixes {
 				op := storage.Operation{
@@ -81,7 +81,7 @@ func (s *Store) PutBulk(suffixes []string, areNew []bool, cid string) error {
 		}
 	}
 
-	logger.Debugf("updated latest anchor[%s] for suffixes: %s", cid, suffixes)
+	logger.Debug("Updated latest anchor for suffixes", log.WithCID(cid), log.WithSuffixes(suffixes...))
 
 	return nil
 }
@@ -103,7 +103,8 @@ func (s *Store) GetBulk(suffixes []string) ([]string, error) {
 		}
 	}
 
-	logger.Debugf("retrieved latest anchors%s for suffixes%s", anchors, suffixes)
+	logger.Debug("Retrieved latest anchors for suffixes", log.WithSuffixes(suffixes...),
+		log.WithAnchorURIStrings(anchors...))
 
 	return anchors, nil
 }
@@ -121,7 +122,7 @@ func (s *Store) Get(suffix string) (string, error) {
 
 	anchor := string(anchorBytes)
 
-	logger.Debugf("retrieved latest anchor[%s] for suffix[%s]", anchor, suffix)
+	logger.Debug("Retrieved latest anchor for suffix", log.WithAnchorURIString(anchor), log.WithSuffix(suffix))
 
 	return anchor, nil
 }

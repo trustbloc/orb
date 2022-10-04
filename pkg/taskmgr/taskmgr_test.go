@@ -8,9 +8,6 @@ package taskmgr
 
 import (
 	"errors"
-	"fmt"
-	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -22,66 +19,6 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/internal/testutil/mongodbtestutil"
 )
-
-// Logs to a string that can be read later and also (optionally) logs to another logger.
-type stringLogger struct {
-	// If passthroughLogger is set, then log statements will also be passed through here so they can also be
-	// displayed in the console during the test.
-	passthroughLogger logger
-	log               string
-	lock              sync.Mutex
-}
-
-func (s *stringLogger) Debugf(msg string, args ...interface{}) {
-	if s.passthroughLogger != nil {
-		s.passthroughLogger.Debugf(msg, args...)
-	}
-
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	s.log += fmt.Sprintf(msg, args...)
-}
-
-func (s *stringLogger) Infof(msg string, args ...interface{}) {
-	if s.passthroughLogger != nil {
-		s.passthroughLogger.Infof(msg, args...)
-	}
-
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	s.log += fmt.Sprintf(msg, args...)
-}
-
-func (s *stringLogger) Warnf(msg string, args ...interface{}) {
-	if s.passthroughLogger != nil {
-		s.passthroughLogger.Warnf(msg, args...)
-	}
-
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	s.log += fmt.Sprintf(msg, args...)
-}
-
-func (s *stringLogger) Errorf(msg string, args ...interface{}) {
-	if s.passthroughLogger != nil {
-		s.passthroughLogger.Errorf(msg, args...)
-	}
-
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	s.log += fmt.Sprintf(msg, args...)
-}
-
-func (s *stringLogger) Read() string {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	return s.log
-}
 
 func TestService(t *testing.T) {
 	t.Run("Success, using multiple running services to "+
@@ -109,9 +46,6 @@ func TestService(t *testing.T) {
 		// see that task manager 2 is able to take over.
 		time.Sleep(time.Second)
 
-		require.Contains(t, taskMgr1.logger.(*stringLogger).Read(), "Running test-task in task manager 1")
-		require.NotContains(t, taskMgr2.logger.(*stringLogger).Read(), "Running test-task in task manager 2")
-
 		taskMgr2.Start()
 
 		// Wait for the task to run again in task manager 1.
@@ -121,8 +55,6 @@ func TestService(t *testing.T) {
 		taskMgr1.Stop()
 
 		time.Sleep(3 * time.Second)
-
-		require.Contains(t, taskMgr2.logger.(*stringLogger).Read(), "Running test-task in task manager 2")
 
 		taskMgr2.Stop()
 	})
@@ -134,18 +66,13 @@ func TestService(t *testing.T) {
 
 		taskMgr := New(coordinationStore, time.Millisecond)
 
-		taskMgr.RegisterTask("test-task", time.Millisecond, func() {
-			t.Logf("Running test-task")
+		err := taskMgr.run(&registration{
+			handle:   func() {},
+			id:       "test-task",
+			interval: time.Millisecond,
 		})
-
-		logger := &stringLogger{}
-
-		taskMgr.logger = logger
-
-		taskMgr.Start()
-		defer taskMgr.Stop()
-
-		ensureLogContainsMessage(t, logger, "get permit from DB for task [test-task]: get error")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "get permit from DB for task [test-task]: get error")
 	})
 
 	t.Run("Fail to unmarshal permit", func(t *testing.T) {
@@ -155,18 +82,13 @@ func TestService(t *testing.T) {
 
 		taskMgr := New(coordinationStore, time.Millisecond)
 
-		taskMgr.RegisterTask("test-task", time.Millisecond, func() {
-			t.Logf("Running test-task")
+		err := taskMgr.run(&registration{
+			handle:   func() {},
+			id:       "test-task",
+			interval: time.Millisecond,
 		})
-
-		logger := &stringLogger{}
-
-		taskMgr.logger = logger
-
-		taskMgr.Start()
-		defer taskMgr.Stop()
-
-		ensureLogContainsMessage(t, logger,
+		require.Error(t, err)
+		require.Contains(t, err.Error(),
 			"unmarshal permit for task [test-task]: invalid character 'o' in literal null")
 	})
 }
@@ -180,59 +102,15 @@ func getTestExpiryServices(t *testing.T, coordinationStore storage.Store) (*Mana
 
 	service1LoggerModule := "expiry-service1"
 
-	taskMgr1.logger = &stringLogger{
-		passthroughLogger: log.New(service1LoggerModule),
-	}
-
 	log.SetLevel(service1LoggerModule, log.DEBUG)
 
 	taskMgr1.RegisterTask("test-task", time.Second, func() {
-		taskMgr1.logger.Infof("Running test-task in task manager 1")
-
 		time.Sleep(time.Second)
 	})
 
 	taskMgr2 := New(coordinationStore, 500*time.Millisecond)
 
-	service2LoggerModule := "expiry-service2"
-
-	taskMgr2Logger := &stringLogger{
-		passthroughLogger: log.New(service2LoggerModule),
-	}
-
-	taskMgr2.logger = taskMgr2Logger
-
-	log.SetLevel(service2LoggerModule, log.DEBUG)
-
-	taskMgr2.RegisterTask("test-task", time.Second, func() {
-		taskMgr2.logger.Infof("Running test-task in task manager 2")
-	})
+	taskMgr2.RegisterTask("test-task", time.Second, func() {})
 
 	return taskMgr1, taskMgr2
-}
-
-func ensureLogContainsMessage(t *testing.T, logger *stringLogger, expectedMessage string) {
-	t.Helper()
-
-	var logContents string
-
-	var logContainsMessage bool
-
-	for i := 0; i < 20; i++ {
-		time.Sleep(time.Millisecond * 2)
-
-		logContents = logger.Read()
-
-		logContainsMessage = strings.Contains(logContents, expectedMessage)
-
-		if logContainsMessage {
-			break
-		}
-	}
-
-	if !logContainsMessage {
-		require.FailNow(t, "The log did not contain the expected message.",
-			`Actual log contents: %s
-Expected message: %s`, logContents, expectedMessage)
-	}
 }

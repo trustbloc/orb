@@ -17,11 +17,12 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	mongoopts "go.mongodb.org/mongo-driver/mongo/options"
+	"go.uber.org/zap"
 
 	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
-var logger = log.New("store")
+var logger = log.NewStructured("store")
 
 const idField = "_id"
 
@@ -67,7 +68,7 @@ func newVendorStore(provider storage.Provider, store storage.Store,
 		return nil, false, nil
 	}
 
-	logger.Infof("Using MongoDB optimized interface for [%s]", namespace)
+	logger.Info("Using MongoDB optimized interface", log.WithStoreName(namespace))
 
 	ms := newMongoDBWrapper(namespace, mongoDBProvider, store)
 
@@ -122,7 +123,8 @@ func (s *mongoDBWrapper) createIndexes(tags []TagGroup) error {
 	}
 
 	for _, tagGroup := range tags {
-		logger.Infof("Creating MongoDB indexes for [%s]: %s", s.namespace, tagGroup)
+		logger.Info("Creating MongoDB indexes", log.WithStoreName(s.namespace),
+			zap.Inline(log.NewObjectMarshaller("tags", tagGroup)))
 
 		keys := make(bson.D, len(tagGroup))
 

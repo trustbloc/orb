@@ -7,7 +7,6 @@ SPDX-License-Identifier: Apache-2.0
 package cas
 
 import (
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
@@ -22,9 +21,7 @@ import (
 	"github.com/trustbloc/orb/pkg/hashlink"
 )
 
-const logModule = "cas-store"
-
-var logger = log.New(logModule)
+var logger = log.NewStructured("cas-store")
 
 const (
 	defaultCacheSize = 1000
@@ -78,7 +75,7 @@ func New(provider ariesstorage.Provider, casLink string, ipfsClient *ipfs.Client
 				return nil, err
 			}
 
-			logger.Debugf("Content was cached for key [%s]", key)
+			logger.Debug("Content was cached", log.WithKey(key.(string)))
 
 			return cid, nil
 		},
@@ -109,10 +106,8 @@ func (p *CAS) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CIDFo
 		return "", fmt.Errorf("failed to create resource hash from content: %w", err)
 	}
 
-	if logger.IsEnabled(log.DEBUG) {
-		logger.Debugf("Writing to CAS store [%s]. Content (base64-encoded): %s",
-			resourceHash, base64.RawStdEncoding.EncodeToString(content))
-	}
+	logger.Debug("Writing to CAS store. Content (base64-encoded)",
+		log.WithHash(resourceHash), log.WithCASData(content))
 
 	err = p.cas.Put(resourceHash, content)
 	if err != nil {
@@ -135,9 +130,9 @@ func (p *CAS) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CIDFo
 
 	if err = p.cache.Set(resourceHash, content); err != nil {
 		// This shouldn't be possible.
-		logger.Warnf("Error caching content for resource hash[%s]: %s", resourceHash, err)
+		logger.Warn("Error caching content for resource hash", log.WithHash(resourceHash), log.WithError(err))
 	} else {
-		logger.Debugf("Cached content for resource hash [%s]", resourceHash)
+		logger.Debug("Cached content for resource hash", log.WithHash(resourceHash))
 	}
 
 	metadata, err := p.hl.CreateMetadataFromLinks(links)

@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"go.uber.org/zap"
 	"net"
 	"net/http"
 	"net/url"
@@ -184,7 +185,7 @@ const (
 	unpublishedDIDLabel = "uAAA"
 )
 
-var logger = log.New("orb-server")
+var logger = log.NewStructured("orb-server")
 
 const (
 	basePath = "/sidetree/v1"
@@ -238,13 +239,13 @@ func run(srv *httpserver.Server, services ...service) error {
 		return err
 	}
 
-	logger.Infof("Started Orb REST service")
+	logger.Info("Started Orb REST service")
 
 	for _, service := range services {
 		service.Start()
 	}
 
-	logger.Infof("Started Orb services")
+	logger.Info("Started Orb services")
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)
@@ -257,7 +258,7 @@ func run(srv *httpserver.Server, services ...service) error {
 		services[i].Stop()
 	}
 
-	logger.Infof("Stopped Orb services")
+	logger.Info("Stopped Orb services")
 
 	return nil
 }
@@ -282,7 +283,7 @@ func createStartCmd() *cobra.Command {
 				return err
 			}
 
-			logger.Debugf("Orb parameters: %+v", parameters)
+			logger.Debug("Running with startup parameters", log.WithParameters(parameters))
 
 			return startOrbServices(parameters)
 		},
@@ -538,16 +539,16 @@ func startOrbServices(parameters *orbParameters) error {
 
 	switch {
 	case strings.EqualFold(parameters.casType, "ipfs"):
-		logger.Infof("Initializing Orb CAS with IPFS.")
+		logger.Info("Initializing Orb CAS with IPFS.")
 		coreCASClient = ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout, defaultCasCacheSize, metrics.Get(),
 			extendedcasclient.WithCIDVersion(parameters.cidVersion))
 	case strings.EqualFold(parameters.casType, "local"):
-		logger.Infof("Initializing Orb CAS with local storage provider.")
+		logger.Info("Initializing Orb CAS with local storage provider.")
 
 		var err error
 
 		if parameters.localCASReplicateInIPFSEnabled {
-			logger.Infof("Local CAS writes will be replicated in IPFS.")
+			logger.Info("Local CAS writes will be replicated in IPFS.")
 
 			coreCASClient, err = casstore.New(storeProviders.provider, casIRI.String(),
 				ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout, defaultCasCacheSize, metrics.Get(),
@@ -803,7 +804,6 @@ func startOrbServices(parameters *orbParameters) error {
 
 	// add any additional supported namespaces to resource registry (for now we have just one)
 	resourceRegistry := registry.New(registry.WithResourceInfoProvider(didAnchoringInfoProvider))
-	logger.Debugf("started resource registry: %+v", resourceRegistry)
 
 	var pubSub pubSub
 
@@ -886,9 +886,6 @@ func startOrbServices(parameters *orbParameters) error {
 	if err != nil {
 		return fmt.Errorf("get public key: %w", err)
 	}
-
-	logger.Infof("publicKeyIRI [%s], HTTP sign public key ID %s",
-		parameters.apServiceParams.publicKeyIRI(), httpSignActivePublicKey.ID())
 
 	var httpSignPubKeys []discoveryrest.PublicKey
 
@@ -1205,7 +1202,7 @@ func startOrbServices(parameters *orbParameters) error {
 	if parameters.enableVCT {
 		logEndpoint = witness
 	} else {
-		logger.Warnf("VCT is disabled.")
+		logger.Warn("VCT is disabled.")
 
 		logEndpoint = &noOpRetriever{}
 	}
@@ -1252,7 +1249,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	if !usingMongoDB {
-		logger.Warnf("The NodeInfo service is not optimized for storage providers other than MongoDB. " +
+		logger.Warn("The NodeInfo service is not optimized for storage providers other than MongoDB. " +
 			"With a large database, it may consume lots of memory. " +
 			"See https://github.com/trustbloc/orb/issues/797 for more information.")
 	}
@@ -1356,7 +1353,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	if err := pubSub.Close(); err != nil {
-		logger.Warnf("Error closing publisher/subscriber: %s", err)
+		logger.Warn("Error closing publisher/subscriber", log.WithError(err))
 	}
 
 	return nil
@@ -1520,7 +1517,7 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 		couchDBProvider, err :=
 			ariescouchdbstorage.NewProvider(parameters.dbParameters.databaseURL,
 				ariescouchdbstorage.WithDBPrefix(parameters.dbParameters.databasePrefix),
-				ariescouchdbstorage.WithLogger(logger))
+				ariescouchdbstorage.WithLogger(logger.Sugar()))
 		if err != nil {
 			return &storageProviders{}, err
 		}
@@ -1532,7 +1529,7 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 	case strings.EqualFold(parameters.dbParameters.databaseType, databaseTypeMongoDBOption):
 		mongoDBProvider, err := ariesmongodbstorage.NewProvider(parameters.dbParameters.databaseURL,
 			ariesmongodbstorage.WithDBPrefix(parameters.dbParameters.databasePrefix),
-			ariesmongodbstorage.WithLogger(logger),
+			ariesmongodbstorage.WithLogger(logger.Sugar()),
 			ariesmongodbstorage.WithTimeout(parameters.databaseTimeout))
 		if err != nil {
 			return nil, fmt.Errorf("create MongoDB storage provider: %w", err)
@@ -1567,7 +1564,7 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 	case strings.EqualFold(parameters.kmsParams.kmsSecretsDatabaseType, databaseTypeMongoDBOption):
 		mongoDBProvider, err := ariesmongodbstorage.NewProvider(parameters.kmsParams.kmsSecretsDatabaseURL,
 			ariesmongodbstorage.WithDBPrefix(parameters.kmsParams.kmsSecretsDatabasePrefix),
-			ariesmongodbstorage.WithLogger(logger),
+			ariesmongodbstorage.WithLogger(logger.Sugar()),
 			ariesmongodbstorage.WithTimeout(parameters.databaseTimeout))
 		if err != nil {
 			return nil, fmt.Errorf("create MongoDB storage provider: %w", err)
@@ -1624,7 +1621,7 @@ func getOrInit(cfg storage.Store, keyID string, v interface{}, initFn func() (in
 		return fmt.Errorf("put config value for %q: %w", keyID, err)
 	}
 
-	logger.Debugf("Stored KMS key [%s] with %s", keyID, src)
+	logger.Debug("Stored KMS key", log.WithKeyID(keyID), log.WithValue(src))
 
 	return getOrInit(cfg, keyID, v, initFn, timeout)
 }
@@ -1717,7 +1714,7 @@ func getActivityPubVerifier(parameters *orbParameters, km keyManager,
 		return httpsig.NewVerifier(apClient, cr, km)
 	}
 
-	logger.Warnf("HTTP signature verification for ActivityPub is disabled.")
+	logger.Warn("HTTP signature verification for ActivityPub is disabled.")
 
 	return &noOpVerifier{}
 }
@@ -1787,26 +1784,28 @@ func NewAcceptRejectHandler(targetType string, policy acceptRejectPolicy, config
 }
 
 type activityLogger interface {
-	Debugf(msg string, args ...interface{})
-	Warnf(msg string, args ...interface{})
+	Debug(msg string, fields ...zap.Field)
+	Warn(msg string, fields ...zap.Field)
 }
 
 func monitorActivities(activityChan <-chan *vocab.ActivityType, l activityLogger) {
-	logger.Infof("Activity monitor started.")
+	logger.Info("Activity monitor started.")
 
 	for activity := range activityChan {
 		switch {
 		case activity.Type().IsAny(vocab.TypeReject):
 			// Log this as a warning since one of our activities was rejected by another server.
-			l.Warnf("Received activity [%s] of type %s from [%s]",
-				activity.ID(), activity.Type(), activity.Actor())
+			l.Warn("Received activity",
+				log.WithActivityID(activity.ID()), log.WithActivityType(activity.Type().String()),
+				log.WithActorIRI(activity.Actor()))
 		default:
-			l.Debugf("Received activity [%s] of type %s from [%s]",
-				activity.ID(), activity.Type(), activity.Actor())
+			l.Debug("Received activity",
+				log.WithActivityID(activity.ID()), log.WithActivityType(activity.Type().String()),
+				log.WithActorIRI(activity.Actor()))
 		}
 	}
 
-	logger.Infof("Activity monitor stopped.")
+	logger.Info("Activity monitor stopped.")
 }
 
 func asURIs(strs ...string) ([]*url.URL, error) {

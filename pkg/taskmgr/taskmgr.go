@@ -22,21 +22,15 @@ import (
 )
 
 const (
-	loggerModule          = "task-manager"
 	coordinationPermitKey = "task-permit"
 	defaultCheckInterval  = 10 * time.Second
 )
 
-type logger interface {
-	Debugf(msg string, args ...interface{})
-	Infof(msg string, args ...interface{})
-	Warnf(msg string, args ...interface{})
-	Errorf(msg string, args ...interface{})
-}
-
 type status = string
 
 const (
+	loggerModule = "task-manager"
+
 	statusIdle    status = "idle"
 	statusRunning status = "running"
 )
@@ -61,7 +55,7 @@ type Manager struct {
 	interval          time.Duration
 	tasks             map[string]*registration
 	done              chan struct{}
-	logger            logger
+	logger            *log.StructuredLog
 	coordinationStore storage.Store
 	instanceID        string
 	mutex             sync.RWMutex
@@ -82,12 +76,14 @@ func New(coordinationStore storage.Store, interval time.Duration) *Manager {
 		interval = defaultCheckInterval
 	}
 
+	instanceID := uuid.New().String()
+
 	s := &Manager{
 		interval:          interval,
 		done:              make(chan struct{}),
-		logger:            log.New(loggerModule),
+		logger:            log.NewStructured(loggerModule, log.WithFields(log.WithTaskMgrInstanceID(instanceID))),
 		coordinationStore: coordinationStore,
-		instanceID:        uuid.New().String(),
+		instanceID:        instanceID,
 		tasks:             make(map[string]*registration),
 	}
 
@@ -130,16 +126,18 @@ func (s *Manager) getTasks() []*registration {
 
 func (s *Manager) start() {
 	go func() {
-		s.logger.Infof("Started task manager.")
+		s.logger.Info("Started task manager.")
 
 		for {
 			select {
 			case <-time.After(s.interval):
 				for _, t := range s.getTasks() {
-					s.run(t)
+					if err := s.run(t); err != nil {
+						s.logger.Error("Error running task", log.WithError(err), log.WithTaskID(t.id))
+					}
 				}
 			case <-s.done:
-				s.logger.Debugf("Stopped task manager.")
+				s.logger.Debug("Stopped task manager.")
 
 				return
 			}
@@ -151,53 +149,50 @@ func (s *Manager) stop() {
 	close(s.done)
 }
 
-func (s *Manager) run(t *registration) {
+func (s *Manager) run(t *registration) error {
 	if t.isRunning() {
-		s.logger.Debugf("[%s] Task [%s] is still running. Updating timestamp in the permit to tell "+
-			"others that I'm still alive.", s.instanceID, t.id)
+		s.logger.Debug("Task is still running. Updating timestamp in the permit to tell others that I'm still alive.",
+			log.WithTaskID(t.id))
 
 		if err := s.updatePermit(t.id, statusRunning); err != nil {
-			s.logger.Warnf("Error updating status of task [%s]: %s", t.id, err)
+			s.logger.Warn("Error updating status of task", log.WithTaskID(t.id), log.WithError(err))
 		}
 
-		return
+		return nil
 	}
 
 	ok, err := s.shouldRun(t)
 	if err != nil {
-		s.logger.Warnf("[%s] An error occurred while checking if task [%s] should run: %s",
-			s.instanceID, t.id, err)
-
-		return
+		return fmt.Errorf("should run: %w", err)
 	}
 
 	if !ok {
-		s.logger.Debugf("[%s] Not running task [%s]", s.instanceID, t.id)
+		s.logger.Debug("Not running task.", log.WithTaskID(t.id))
 
-		return
+		return nil
 	}
 
 	err = s.updatePermit(t.id, statusRunning)
 	if err != nil {
-		s.logger.Errorf("[%s] Failed to update permit for task [%s]: %s", s.instanceID, t.id, err.Error())
-
-		return
+		return fmt.Errorf("update permit for task: %w", err)
 	}
 
 	// Run the task in a new Go routine.
 
 	go func(t *registration) {
-		s.logger.Debugf("[%s] Running task [%s]", s.instanceID, t.id)
+		s.logger.Debug("Running task", log.WithTaskID(t.id))
 
 		t.run()
 
 		err := s.updatePermit(t.id, statusIdle)
 		if err != nil {
-			s.logger.Errorf("[%s] Failed to update permit: %s", s.instanceID, err.Error())
+			s.logger.Error("Failed to update permit for task", log.WithTaskID(t.id), log.WithError(err))
 		}
 
-		s.logger.Debugf("[%s] Finished running task [%s]", s.instanceID, t.id)
+		s.logger.Debug("Finished running task", log.WithTaskID(t.id))
 	}(t)
+
+	return nil
 }
 
 //nolint:funlen
@@ -205,8 +200,8 @@ func (s *Manager) shouldRun(t *registration) (bool, error) {
 	currentPermitBytes, err := s.coordinationStore.Get(getPermitKey(t.id))
 	if err != nil {
 		if errors.Is(err, storage.ErrDataNotFound) {
-			s.logger.Infof("[%s] No existing permit found for task [%s]. I will take on "+
-				"the duty of running the task.", s.instanceID, t.id)
+			s.logger.Info("No existing permit found for task. I will take on the duty of running the task.",
+				log.WithTaskID(t.id))
 
 			return true, nil
 		}
@@ -232,15 +227,15 @@ func (s *Manager) shouldRun(t *registration) (bool, error) {
 
 	if currentPermit.CurrentHolder == s.instanceID {
 		if timeSinceLastUpdate < t.interval {
-			s.logger.Debugf("[%s] It's currently my duty to run task [%s] but it's not time to run the task "+
-				"since I last did this %s ago and the interval for this task is %s.",
-				s.instanceID, t.id, timeSinceLastUpdate, t.interval)
+			s.logger.Debug("It's currently my duty to run this task but it's not time for it to run.",
+				log.WithTaskID(t.id), log.WithTimeSinceLastUpdate(timeSinceLastUpdate),
+				log.WithTaskMonitorInterval(t.interval))
 
 			return false, nil
 		}
 
-		s.logger.Debugf("[%s] It's currently my duty to run task [%s]. I last did this %s ago. I will "+
-			"run the task and then update the permit timestamp.", s.instanceID, t.id, timeSinceLastUpdate)
+		s.logger.Debug("It's currently my duty to run task.", log.WithTaskID(t.id),
+			log.WithTimeSinceLastUpdate(timeSinceLastUpdate))
 
 		return true, nil
 	}
@@ -255,23 +250,25 @@ func (s *Manager) shouldRun(t *registration) (bool, error) {
 	maxTime := s.interval + t.interval
 
 	if timeSinceLastUpdate > maxTime {
-		s.logger.Infof("[%s] The current permit holder [%s] for task [%s] has not updated the permit in an "+
-			"unusually long time (%s ago which is longer than the maximum time of %s). This indicates "+
-			"that [%s] may be down or not responding. I will take over and grab the permit.",
-			s.instanceID, currentPermit.CurrentHolder, t.id, timeSinceLastUpdate, maxTime, currentPermit.CurrentHolder)
+		s.logger.Info("The current permit holder for this task has not updated the permit in an "+
+			"unusually long time. This indicates "+
+			"that the permit holder may be down or not responding. I will take over and grab the permit.",
+			log.WithPermitHolder(currentPermit.CurrentHolder), log.WithTaskID(t.id),
+			log.WithTimeSinceLastUpdate(timeSinceLastUpdate), log.WithMaxTime(maxTime))
 
 		return true, nil
 	}
 
-	s.logger.Debugf("[%s] I will not run task [%s] since [%s] currently has the duty and did it "+
-		"recently (%s ago).", s.instanceID, t.id, currentPermit.CurrentHolder, timeSinceLastUpdate.String())
+	s.logger.Debug("I will not run this task since I am not the permit holder and ran it recently.",
+		log.WithTaskID(t.id), log.WithPermitHolder(currentPermit.CurrentHolder),
+		log.WithTimeSinceLastUpdate(timeSinceLastUpdate))
 
 	return false, nil
 }
 
 func (s *Manager) updatePermit(taskID string, status status) error {
-	s.logger.Debugf("[%s] Updating the permit for task [%s] with the current time and status [%s].",
-		s.instanceID, taskID, status)
+	s.logger.Debug("Updating the permit for task with current time and status.",
+		log.WithTaskID(taskID), log.WithStatus(status))
 
 	p := permit{
 		TaskID:        taskID,
@@ -290,8 +287,7 @@ func (s *Manager) updatePermit(taskID string, status status) error {
 		return fmt.Errorf("failed to store permit: %w", err)
 	}
 
-	s.logger.Debugf("[%s] Permit successfully updated for task [%s] with status [%s].",
-		s.instanceID, taskID, status)
+	s.logger.Debug("Permit successfully updated for task.", log.WithTaskID(taskID), log.WithStatus(status))
 
 	return nil
 }

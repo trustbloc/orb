@@ -24,7 +24,7 @@ import (
 	"github.com/trustbloc/orb/pkg/webfinger/model"
 )
 
-var logger = log.New("vct_monitor")
+var logger = log.NewStructured("vct_monitor")
 
 const (
 	taskID            = "proof-monitor"
@@ -80,7 +80,7 @@ func New(provider storage.Provider, documentLoader ld.DocumentLoader, wfClient w
 		requestTokens:  requestTokens,
 	}
 
-	logger.Infof("Registering task [%s] to be run at intervals of %s", taskID, interval)
+	logger.Info("Registering task with Task Manager", log.WithTaskID(taskID), log.WithTaskMonitorInterval(interval))
 
 	taskMgr.RegisterTask(taskID, interval, client.worker)
 
@@ -147,7 +147,7 @@ func (c *Client) exist(e *entity) error {
 
 func (c *Client) worker() {
 	if err := c.handleEntities(); err != nil {
-		logger.Errorf("handle entities: %v", err)
+		logger.Error("Error handling entities", log.WithError(err))
 	}
 }
 
@@ -155,7 +155,7 @@ func (c *Client) worker() {
 func Next(records interface{ Next() (bool, error) }) bool {
 	ok, err := records.Next()
 	if err != nil {
-		logger.Errorf("next entity: %v", err)
+		logger.Error("Error getting next entity", log.WithError(err))
 
 		return false
 	}
@@ -163,7 +163,7 @@ func Next(records interface{ Next() (bool, error) }) bool {
 	return ok
 }
 
-func (c *Client) handleEntities() error {
+func (c *Client) handleEntities() error { //nolint:funlen,gocyclo,cyclop
 	expr := fmt.Sprintf("%s:%s", tagStatus, statusUnconfirmed)
 
 	records, err := c.store.Query(expr)
@@ -171,7 +171,11 @@ func (c *Client) handleEntities() error {
 		return fmt.Errorf("query %s: %w", expr, err)
 	}
 
-	defer storage.Close(records, logger)
+	defer func() {
+		if e := records.Close(); e != nil {
+			log.CloseIteratorError(logger.Warn, e)
+		}
+	}()
 
 	for Next(records) {
 		var src []byte
@@ -182,7 +186,7 @@ func (c *Client) handleEntities() error {
 
 		var e *entity
 		if err = json.Unmarshal(src, &e); err != nil {
-			logger.Errorf("unmarshal entity: %v", err)
+			logger.Error("Error unmarshalling entity", log.WithError(err))
 
 			continue
 		}
@@ -192,34 +196,39 @@ func (c *Client) handleEntities() error {
 			verifiable.WithJSONLDDocumentLoader(c.documentLoader),
 		)
 		if err != nil {
-			logger.Errorf("parse credential: %v", err)
+			logger.Error("Error parsing credential", log.WithError(err))
 
 			continue
 		}
 
 		err = c.exist(e)
 		if err == nil {
-			logger.Infof("credential %q existence in the ledger [%s] confirmed", vc.ID, e.Domain)
+			logger.Info("Credential existence in the ledger is confirmed",
+				log.WithVerifiableCredentialID(vc.ID), log.WithDomain(e.Domain))
 
 			// removes the entity from the store bc we confirmed that credential is in MT (log above).
 			if err = c.store.Delete(key(vc.ID)); err != nil {
-				logger.Errorf("delete credential %q from queue: %v", vc.ID, err)
+				logger.Error("Error deleting credential from queue",
+					log.WithVerifiableCredentialID(vc.ID), log.WithError(err))
 			}
 
 			continue
 		}
 
 		if !errors.Is(err, errExpired) {
-			logger.Warnf("credential %q existence: %v", vc.ID, err)
+			logger.Warn("Error determining credential existence",
+				log.WithVerifiableCredentialID(vc.ID), log.WithError(err))
 
 			continue
 		}
 
-		logger.Errorf("credential %q existence in the ledger [%s] not confirmed", vc.ID, e.Domain)
+		logger.Error("Credential existence in the ledger not confirmed.",
+			log.WithVerifiableCredentialID(vc.ID), log.WithDomain(e.Domain))
 
 		// removes entity from the store bc we failed our promise (log above).
 		if err = c.store.Delete(key(vc.ID)); err != nil {
-			logger.Errorf("delete credential %q from queue: %v", vc.ID, err)
+			logger.Error("Error deleting credential from queue",
+				log.WithVerifiableCredentialID(vc.ID), log.WithError(err))
 		}
 	}
 
@@ -229,7 +238,7 @@ func (c *Client) handleEntities() error {
 // Watch starts monitoring.
 func (c *Client) Watch(vc *verifiable.Credential, endTime time.Time, domain string, created time.Time) error {
 	if domain == "" {
-		logger.Infof("No domain for VC %s. Proof will not be monitored.", vc.ID)
+		logger.Info("No domain for VC. Proof will not be monitored.", log.WithVerifiableCredentialID(vc.ID))
 
 		return nil
 	}
@@ -237,8 +246,8 @@ func (c *Client) Watch(vc *verifiable.Credential, endTime time.Time, domain stri
 	lt, err := c.wfClient.GetLedgerType(domain)
 	if err != nil {
 		if errors.Is(err, model.ErrResourceNotFound) {
-			logger.Infof("Ledger not found for domain %s. Proof will not be monitored for VC %s. Details: %s",
-				domain, vc.ID, err)
+			logger.Info("Ledger not found for domain. Proof will not be monitored for VC.",
+				log.WithDomain(domain), log.WithVerifiableCredentialID(vc.ID), log.WithError(err))
 
 			return nil
 		}
@@ -247,8 +256,8 @@ func (c *Client) Watch(vc *verifiable.Credential, endTime time.Time, domain stri
 	}
 
 	if !isLedgerTypeSupported(lt) {
-		logger.Warnf("Ledger type %s for domain %s not supported. Proof will not be monitored for VC %s.",
-			lt, domain, vc.ID)
+		logger.Warn("Ledger type for domain not supported. Proof will not be monitored for VC.",
+			log.WithType(lt), log.WithDomain(domain), log.WithVerifiableCredentialID(vc.ID))
 
 		return nil
 	}
@@ -273,20 +282,22 @@ func (c *Client) checkExistenceInLedger(vc *verifiable.Credential, domain string
 	err = c.exist(e)
 	// no error means that we have credential in MT, no need to put it in the queue.
 	if err == nil {
-		logger.Infof("credential %q existence in the ledger [%s] confirmed", vc.ID, e.Domain)
+		logger.Info("Credential existence in the ledger confirmed", log.WithVerifiableCredentialID(vc.ID),
+			log.WithDomain(e.Domain))
 
 		return nil
 	}
 
 	// if error is errExpired no need to put data in the queue.
 	if errors.Is(err, errExpired) {
-		logger.Errorf("credential %q existence in the ledger [%s] not confirmed", vc.ID, e.Domain)
+		logger.Error("Credential existence in the ledger not confirmed.", log.WithVerifiableCredentialID(vc.ID),
+			log.WithDomain(e.Domain))
 
 		return err
 	}
 
-	logger.Warnf("Credential %q is not in the ledger [%s] yet: %s. Will check again later.",
-		vc.ID, e.Domain, err)
+	logger.Warn("Credential is not in the ledger yet. Will check again later.", log.WithVerifiableCredentialID(vc.ID),
+		log.WithDomain(e.Domain), log.WithError(err))
 
 	src, err := json.Marshal(e)
 	if err != nil {

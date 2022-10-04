@@ -153,7 +153,7 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager, met
 	cfg = resolveConfig(cfg)
 
 	logger.Info("Creating operation queue.",
-		log.WithQueue(topic), log.WithMaxRetries(cfg.MaxRetries), log.WithSubscriberPoolSize(cfg.PoolSize),
+		log.WithTopic(topic), log.WithMaxRetries(cfg.MaxRetries), log.WithSubscriberPoolSize(cfg.PoolSize),
 		log.WithTaskMonitorInterval(cfg.TaskMonitorInterval), log.WithTaskExpiration(cfg.TaskExpiration))
 
 	q := &Queue{
@@ -224,7 +224,7 @@ func (q *Queue) publish(op *OperationMessage) (uint, error) {
 
 	delay := q.getDeliveryDelay(op.Retries)
 
-	q.logger.Debug("Publishing operation message to queue", log.WithQueue(topic), log.WithMessageID(msg.UUID),
+	q.logger.Debug("Publishing operation message to queue", log.WithTopic(topic), log.WithMessageID(msg.UUID),
 		log.WithOperationID(op.ID), log.WithRetries(op.Retries), log.WithDeliveryDelay(delay),
 		log.WithSuffix(op.Operation.UniqueSuffix))
 
@@ -503,7 +503,7 @@ func (q *Queue) repostOperationsForTask(task *opQueueTask) {
 		// Operations associated with the "detached" server ID are in error, most likely because the message
 		// queue service is unavailable and the operations could not be re-published. Try to repost the operations.
 		if err := q.repostOperations(task.TaskID); err != nil {
-			q.logger.Warn("Error reposting operations", log.WithTaskOwnerID(task.TaskID), log.WithError(err))
+			q.logger.Warn("Error reposting operations", log.WithPermitHolder(task.TaskID), log.WithError(err))
 		}
 
 		return
@@ -518,12 +518,12 @@ func (q *Queue) repostOperationsForTask(task *opQueueTask) {
 
 	q.logger.Warn("Operation queue task was last updated a while ago (longer than the expiry). "+
 		"Assuming the server is dead and re-posting any outstanding operations to the queue.",
-		log.WithTaskOwnerID(task.TaskID), log.WithTimeSinceLastUpdate(timeSinceLastUpdate),
+		log.WithPermitHolder(task.TaskID), log.WithTimeSinceLastUpdate(timeSinceLastUpdate),
 		log.WithTaskExpiration(q.taskExpiration))
 
 	if err := q.repostOperations(task.TaskID); err != nil {
 		q.logger.Warn("Error reposting operations for other server instance",
-			log.WithTaskOwnerID(task.TaskID), log.WithError(err))
+			log.WithPermitHolder(task.TaskID), log.WithError(err))
 	}
 }
 
@@ -628,7 +628,7 @@ func (q *Queue) repostOperations(serverID string) error { //nolint:gocyclo,cyclo
 
 	if len(batchOperations) > 0 {
 		q.logger.Info("Deleting operations for queue task.", log.WithTotal(len(batchOperations)),
-			log.WithTaskOwnerID(serverID))
+			log.WithPermitHolder(serverID))
 
 		err = q.store.Batch(batchOperations)
 		if err != nil {
@@ -637,7 +637,7 @@ func (q *Queue) repostOperations(serverID string) error { //nolint:gocyclo,cyclo
 	}
 
 	if serverID != detachedServerID {
-		q.logger.Info("Deleting operation queue task.", log.WithTaskOwnerID(serverID))
+		q.logger.Info("Deleting operation queue task.", log.WithPermitHolder(serverID))
 
 		err = q.store.Delete(serverID)
 		if err != nil {

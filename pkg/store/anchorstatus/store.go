@@ -37,7 +37,7 @@ const (
 	defaultCheckStatusAfterTimePeriod = 10 * time.Second
 )
 
-var logger = log.New("anchor-status")
+var logger = log.NewStructured("anchor-status")
 
 // Option is an option for registered store.
 type Option func(opts *Store)
@@ -128,11 +128,12 @@ func (s *Store) AddStatus(anchorID string, status proof.AnchorIndexStatus) error
 		delErr := s.deleteInProcessStatus(anchorID)
 		if delErr != nil {
 			// no need to stop processing for this
-			logger.Debugf("failed to delete in-process statuses after receiving complete status: %s", delErr.Error())
+			logger.Debug("Failed to delete in-process statuses after receiving complete status",
+				log.WithError(delErr))
 		}
 	}
 
-	logger.Debugf("stored anchorID[%s] status '%s'", anchorID, status)
+	logger.Debug("Stored status for anchor", log.WithAnchorURIString(anchorID), log.WithStatus(string(status)))
 
 	return nil
 }
@@ -164,8 +165,6 @@ func (s *Store) getAnchorStatusWithTags(anchorID string,
 
 	if status != proof.AnchorIndexStatusCompleted {
 		statusCheckTime = time.Now().Add(s.checkStatusAfterTimePeriod).Unix()
-
-		logger.Debugf("Setting '%s' tag for anchorID[%s]: %d", statusCheckTimeTagName, anchorID, statusCheckTime)
 
 		tags = append(tags, storage.Tag{
 			Name:  statusCheckTimeTagName,
@@ -244,11 +243,11 @@ func (s *Store) deleteInProcessStatus(anchorID string) error { //nolint:funlen,g
 
 		err = s.store.Batch(operations)
 		if err != nil {
-			return fmt.Errorf("failed to delete in process status for anchor event[%s]: %w", anchorID, err)
+			return fmt.Errorf("failed to delete in process status for anchor [%s]: %w", anchorID, err)
 		}
 
-		logger.Debugf("Successfully deleted %d pieces of in-process status data for anchor event[%s].",
-			len(operations), anchorID)
+		logger.Debug("Successfully deleted in-process status data for anchor.",
+			log.WithTotal(len(operations)), log.WithAnchorURIString(anchorID))
 	}
 
 	return nil
@@ -305,7 +304,7 @@ func (s *Store) GetStatus(anchorID string) (proof.AnchorIndexStatus, error) {
 		}
 	}
 
-	logger.Debugf("status for anchor [%s]: %s", anchorID, status)
+	logger.Debug("Status for anchor", log.WithAnchorEventURIString(anchorID), log.WithStatus(string(status)))
 
 	return status, nil
 }
@@ -317,14 +316,14 @@ func (s *Store) CheckInProcessAnchors() {
 
 	iterator, e := s.store.Query(query)
 	if e != nil {
-		logger.Errorf("failed to query anchor event status store: %s", e.Error())
+		logger.Error("Failed to query anchor status store", log.WithError(e))
 
 		return
 	}
 
 	more, e := iterator.Next()
 	if e != nil {
-		logger.Errorf("failed to get next value from iterator: %s", e.Error())
+		logger.Error("Failed to get next value from iterator", log.WithError(e))
 
 		return
 	}
@@ -332,7 +331,7 @@ func (s *Store) CheckInProcessAnchors() {
 	for more {
 		statusBytes, e := iterator.Value()
 		if e != nil {
-			logger.Errorf("Failed to get status from iterator: %s", e.Error())
+			logger.Error("Failed to get status from iterator", log.WithError(e))
 
 			continue
 		}
@@ -341,7 +340,7 @@ func (s *Store) CheckInProcessAnchors() {
 
 		e = s.unmarshal(statusBytes, status)
 		if e != nil {
-			logger.Errorf("Failed to unmarshal status from iterator: %s", e.Error())
+			logger.Error("Failed to unmarshal status from iterator", log.WithError(e))
 
 			continue
 		}
@@ -350,15 +349,15 @@ func (s *Store) CheckInProcessAnchors() {
 		if e != nil {
 			if errors.Is(e, orberrors.ErrWitnessesNotFound) {
 				// This is not a critical error. Log it as info.
-				logger.Infof("failed to process anchor event index: %s", e.Error())
+				logger.Info("Failed to process anchor index", log.WithError(e))
 			} else {
-				logger.Errorf("failed to process anchor event index: %s", e.Error())
+				logger.Error("Failed to process anchor index", log.WithError(e))
 			}
 		}
 
 		more, e = iterator.Next()
 		if e != nil {
-			logger.Errorf("failed to get next value from iterator: %s", e)
+			logger.Error("Failed to get next value from iterator", log.WithError(e))
 
 			return
 		}
@@ -373,7 +372,7 @@ func (s *Store) processIndex(encodedAnchorID string) error {
 
 	anchorID := string(anchorIDBytes)
 
-	logger.Debugf("Processing anchor [%s]", anchorID)
+	logger.Debug("Processing anchor", log.WithAnchorURIString(anchorID))
 
 	status, err := s.GetStatus(anchorID)
 	if err != nil {
@@ -390,7 +389,7 @@ func (s *Store) processIndex(encodedAnchorID string) error {
 		return fmt.Errorf("failed to re-evaluate policy for anchorID[%s]: %w", anchorID, err)
 	}
 
-	logger.Debugf("successfully re-evaluated policy for anchorID[%s]", anchorID)
+	logger.Debug("Successfully re-evaluated policy for anchor", log.WithAnchorURIString(anchorID))
 
 	return nil
 }

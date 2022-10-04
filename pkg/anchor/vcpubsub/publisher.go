@@ -51,7 +51,7 @@ func (h *Publisher) Publish(anchorLinkset *linkset.Linkset) error {
 
 	msg := message.NewMessage(watermill.NewUUID(), payload)
 
-	logger.Debug("Publishing anchor linkset", log.WithQueue(anchorTopic), log.WithData(payload))
+	logger.Debug("Publishing anchor linkset", log.WithTopic(anchorTopic), log.WithData(payload))
 
 	err = h.pubSub.Publish(anchorTopic, msg)
 	if err != nil {

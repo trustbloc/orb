@@ -22,13 +22,11 @@ import (
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
-const cidPathVariable = "cid"
+const (
+	loggerModule = "webcas"
 
-type logger interface {
-	Errorf(msg string, args ...interface{})
-	Infof(msg string, args ...interface{})
-	Debugf(msg string, args ...interface{})
-}
+	cidPathVariable = "cid"
+)
 
 type signatureVerifier interface {
 	VerifyRequest(req *http.Request) (bool, *url.URL, error)
@@ -39,7 +37,7 @@ type WebCAS struct {
 	*resthandler.AuthHandler
 
 	casClient casapi.Client
-	logger    logger
+	logger    *log.StructuredLog
 }
 
 // Path returns the HTTP REST endpoint for the WebCAS service.
@@ -67,8 +65,9 @@ func New(authCfg *resthandler.Config, s spi.Store, verifier signatureVerifier,
 	casClient casapi.Client, tm authTokenManager) *WebCAS {
 	h := &WebCAS{
 		casClient: casClient,
-		logger:    log.New("webcas"),
 	}
+
+	h.logger = log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(h.Path())))
 
 	h.AuthHandler = resthandler.NewAuthHandler(authCfg, "/cas/{%s}", http.MethodGet, s, verifier, tm,
 		func(actorIRI *url.URL) (bool, error) {
@@ -77,7 +76,7 @@ func New(authCfg *resthandler.Config, s spi.Store, verifier signatureVerifier,
 			// an offer is sent to a non-system witness).
 			// So, for now, let all actors through.
 
-			h.logger.Debugf("[%s] Authorized actor [%s]", h.Path(), actorIRI)
+			h.logger.Debug("Authorized actor", log.WithActorIRI(actorIRI))
 
 			return true, nil
 		})
@@ -88,30 +87,30 @@ func New(authCfg *resthandler.Config, s spi.Store, verifier signatureVerifier,
 func (w *WebCAS) handler(rw http.ResponseWriter, req *http.Request) {
 	ok, _, err := w.Authorize(req)
 	if err != nil {
-		w.logger.Errorf("Error authorizing request from %s: %s", req.URL, err)
+		w.logger.Error("Error authorizing request", log.WithRequestURL(req.URL), log.WithError(err))
 
 		rw.WriteHeader(http.StatusInternalServerError)
 
 		if _, errWrite := rw.Write([]byte("Internal Server Error.\n")); errWrite != nil {
-			w.logger.Errorf("Unable to write response: %s", errWrite)
+			log.WriteResponseBodyError(w.logger.Error, errWrite)
 		}
 
 		return
 	}
 
 	if !ok {
-		w.logger.Infof("Request from %s is unauthorized", req.URL)
+		w.logger.Info("Request is unauthorized", log.WithRequestURL(req.URL))
 
 		rw.WriteHeader(http.StatusUnauthorized)
 
 		if _, errWrite := rw.Write([]byte("Unauthorized.\n")); errWrite != nil {
-			w.logger.Errorf("Unable to write response: %s", errWrite)
+			log.WriteResponseBodyError(w.logger.Error, errWrite)
 		}
 
 		return
 	}
 
-	w.logger.Debugf("Request from %s is authorized", req.URL)
+	w.logger.Debug("Request is authorized", log.WithRequestURL(req.URL))
 
 	cid := mux.Vars(req)[cidPathVariable]
 
@@ -122,8 +121,7 @@ func (w *WebCAS) handler(rw http.ResponseWriter, req *http.Request) {
 
 			_, errWrite := rw.Write([]byte(fmt.Sprintf("no content at %s was found: %s", cid, err.Error())))
 			if errWrite != nil {
-				w.logger.Errorf("failed to write error response. CAS error that led to this: %s. "+
-					"Response write error: %s", err.Error(), errWrite.Error())
+				log.WriteResponseBodyError(w.logger.Error, errWrite)
 			}
 
 			return
@@ -133,8 +131,7 @@ func (w *WebCAS) handler(rw http.ResponseWriter, req *http.Request) {
 
 		_, errWrite := rw.Write([]byte(fmt.Sprintf("failure while finding content at %s: %s", cid, err.Error())))
 		if errWrite != nil {
-			w.logger.Errorf("failed to write error response. CAS error that led to this: %s. "+
-				"Response write error: %s", err.Error(), errWrite.Error())
+			log.WriteResponseBodyError(w.logger.Error, errWrite)
 		}
 
 		return
@@ -142,6 +139,6 @@ func (w *WebCAS) handler(rw http.ResponseWriter, req *http.Request) {
 
 	_, err = rw.Write(content)
 	if err != nil {
-		w.logger.Errorf("failed to write success response: %s", err.Error())
+		log.WriteResponseBodyError(w.logger.Error, err)
 	}
 }

@@ -25,7 +25,7 @@ const (
 	index     = "uniqueSuffix"
 )
 
-var logger = log.New("operation-store")
+var logger = log.NewStructured("operation-store")
 
 type metricsProvider interface {
 	PutPublishedOperations(duration time.Duration)
@@ -71,9 +71,6 @@ func (s *Store) Put(ops []*operation.AnchoredOperation) error {
 			return fmt.Errorf("failed to marshal operation: %w", err)
 		}
 
-		logger.Debugf("adding operation to storage batch: type[%s], suffix[%s], txtime[%d], pg[%d], buffer: %s",
-			op.Type, op.UniqueSuffix, op.TransactionTime, op.ProtocolVersion, string(op.OperationRequest))
-
 		op := storage.Operation{
 			Key:   uuid.New().String(),
 			Value: value,
@@ -86,6 +83,8 @@ func (s *Store) Put(ops []*operation.AnchoredOperation) error {
 			PutOptions: putOptions,
 		}
 
+		logger.Debug("Adding operation to storage batch", log.WithOperation(op))
+
 		operations[i] = op
 	}
 
@@ -94,7 +93,7 @@ func (s *Store) Put(ops []*operation.AnchoredOperation) error {
 		return orberrors.NewTransient(fmt.Errorf("failed to store operations: %w", err))
 	}
 
-	logger.Debugf("stored %d operations", len(ops))
+	logger.Debug("Stored operations", log.WithOperation(len(ops)))
 
 	return nil
 }
@@ -148,7 +147,7 @@ func (s *Store) Get(suffix string) ([]*operation.AnchoredOperation, error) {
 		}
 	}
 
-	logger.Debugf("retrieved %d operations for suffix[%s]", len(ops), suffix)
+	logger.Debug("Retrieved operations for suffix", log.WithTotal(len(ops)), log.WithSuffix(suffix))
 
 	if len(ops) == 0 {
 		return nil, fmt.Errorf("suffix[%s] not found in the store", suffix)

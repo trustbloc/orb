@@ -12,6 +12,8 @@ import (
 	"reflect"
 
 	"github.com/ThreeDotsLabs/watermill/message"
+
+	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 // pooledSubscriber manages a pool of subscriptions. Each subscription listens on a topic and forwards
@@ -20,18 +22,22 @@ type pooledSubscriber struct {
 	topic       string
 	msgChan     chan *message.Message
 	subscribers []reflect.SelectCase
+	logger      *log.StructuredLog
 }
 
 func newPooledSubscriber(ctx context.Context, size int, subscriber subscriber,
 	topic string) (*pooledSubscriber, error) {
+	l := log.NewStructured(loggerModule, log.WithFields(log.WithTopic(topic)))
+
 	p := &pooledSubscriber{
 		topic:       topic,
 		msgChan:     make(chan *message.Message, size),
 		subscribers: make([]reflect.SelectCase, size),
+		logger:      l,
 	}
 
 	for i := 0; i < size; i++ {
-		logger.Debugf("[%s-%d] Subscribing...", topic, i)
+		l.Debug("Subscribing to topic...", log.WithIndex(i))
 
 		msgChan, err := subscriber.Subscribe(ctx, topic)
 		if err != nil {
@@ -47,20 +53,20 @@ func newPooledSubscriber(ctx context.Context, size int, subscriber subscriber,
 
 func (s *pooledSubscriber) start() {
 	go func() {
-		logger.Infof("[%s] Started pooled subscriber with %d listeners", s.topic, len(s.subscribers))
+		s.logger.Info("Started pooled subscriber", log.WithSize(len(s.subscribers)))
 
 		for {
 			i, value, ok := reflect.Select(s.subscribers)
 
 			if !ok {
-				logger.Infof("[%s] Message channel [%d] was closed. Exiting pooled subscriber.", s.topic, i)
+				logger.Info("Message channel was closed. Exiting pooled subscriber.", log.WithIndex(i))
 
 				return
 			}
 
 			msg := value.Interface().(*message.Message) //nolint:errcheck,forcetypeassert
 
-			logger.Debugf("[%s-%d] Pool subscriber got message [%s]", s.topic, i, msg.UUID)
+			logger.Debug("Pool subscriber got message", log.WithIndex(i), log.WithMessageID(msg.UUID))
 
 			s.msgChan <- msg
 		}
@@ -68,7 +74,7 @@ func (s *pooledSubscriber) start() {
 }
 
 func (s *pooledSubscriber) stop() {
-	logger.Infof("[%s] Closing pooled subscriber", s.topic)
+	logger.Info("Closing pooled subscriber")
 
 	close(s.msgChan)
 }

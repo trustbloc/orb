@@ -74,7 +74,7 @@ func TestStandardFields(t *testing.T) {
 			WithServiceIRI(parseURL(t, u2.String())), WithServiceName("service1"),
 			WithServiceEndpoint("/services/service1"),
 			WithSize(1234), WithCacheExpiration(12*time.Second),
-			WithTargetIRI(u1), WithQueue("queue1"),
+			WithTargetIRI(u1), WithTopic("queue1"),
 			WithHTTPStatus(http.StatusNotFound), WithParameter("param1"),
 			WithReferenceType("followers"), WithURI(u2), WithURIs(u1, u2),
 			WithSenderURL(u1), WithAnchorURI(u3), WithAnchorEventURI(u3),
@@ -111,7 +111,7 @@ func TestStandardFields(t *testing.T) {
 		require.Equal(t, 1234, l.Size)
 		require.Equal(t, `12s`, l.CacheExpiration)
 		require.Equal(t, u1.String(), l.Target)
-		require.Equal(t, `queue1`, l.Queue)
+		require.Equal(t, `queue1`, l.Topic)
 		require.Equal(t, 404, l.HTTPStatus)
 		require.Equal(t, `param1`, l.Parameter)
 		require.Equal(t, `followers`, l.ReferenceType)
@@ -180,7 +180,7 @@ func TestStandardFields(t *testing.T) {
 			WithTaskMgrInstanceID("12345"), WithRetries(7), WithMaxRetries(12),
 			WithSubscriberPoolSize(30), WithTaskMonitorInterval(5*time.Second),
 			WithTaskExpiration(10*time.Second), WithDeliveryDelay(3*time.Second),
-			WithOperationID("op1"), WithTaskOwnerID("123"), WithTimeSinceLastUpdate(2*time.Minute),
+			WithOperationID("op1"), WithPermitHolder("123"), WithTimeSinceLastUpdate(2*time.Minute),
 			WithGenesisTime(1233), WithDID("did:orb:123:456"), WithHRef(u3.String()),
 			WithID("id1"), WithResource("res1"), WithResolutionResult(rr),
 			WithResolutionModel(rm), WithResolutionEndpoints(u1.String(), u2.String(), u3.String()),
@@ -227,7 +227,7 @@ func TestStandardFields(t *testing.T) {
 		require.Equal(t, "10s", l.TaskExpiration)
 		require.Equal(t, "3s", l.DeliveryDelay)
 		require.Equal(t, "op1", l.OperationID)
-		require.Equal(t, "123", l.TaskOwnerID)
+		require.Equal(t, "123", l.PermitHolder)
 		require.Equal(t, "2m0s", l.TimeSinceLastUpdate)
 		require.Equal(t, 1233, l.GenesisTime)
 		require.Equal(t, "did:orb:123:456", l.DID)
@@ -296,7 +296,7 @@ type logData struct {
 	Size                   int                 `json:"size"`
 	CacheExpiration        string              `json:"cache-expiration"`
 	Target                 string              `json:"target"`
-	Queue                  string              `json:"queue"`
+	Topic                  string              `json:"topic"`
 	HTTPStatus             int                 `json:"http-status"`
 	Parameter              string              `json:"parameter"`
 	ReferenceType          string              `json:"reference-type"`
@@ -359,7 +359,7 @@ type logData struct {
 	TaskExpiration         string              `json:"task-expiration"`
 	DeliveryDelay          string              `json:"delivery-delay"`
 	OperationID            string              `json:"operation-id"`
-	TaskOwnerID            string              `json:"task-owner-id"`
+	PermitHolder           string              `json:"permit-holder"`
 	TimeSinceLastUpdate    string              `json:"time-since-last-update"`
 	GenesisTime            int                 `json:"genesis-time"`
 	DID                    string              `json:"did"`

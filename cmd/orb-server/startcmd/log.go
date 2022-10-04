@@ -35,18 +35,18 @@ Valid log levels: critical,error,warn,info,debug
 Error: %s`
 
 // setLogLevels sets the log levels for individual modules as well as the default level.
-func setLogLevels(logger *log.Log, logSpec string) {
+func setLogLevels(logger *log.StructuredLog, logSpec string) {
 	if err := log.SetSpec(logSpec); err != nil {
-		logger.Warnf(logSpecErrorMsg, err.Error())
+		logger.Warn(logSpecErrorMsg, log.WithError(err))
 
 		log.SetDefaultLevel(log.INFO)
 	}
 
 	if err := sidetreelog.SetSpec(logSpec); err != nil {
-		logger.Warnf(logSpecErrorMsg, err.Error())
+		logger.Warn(logSpecErrorMsg, log.WithError(err))
 	}
 
 	if err := vctlog.SetSpec(logSpec); err != nil {
-		logger.Warnf(logSpecErrorMsg, err.Error())
+		logger.Warn(logSpecErrorMsg, log.WithError(err))
 	}
 }

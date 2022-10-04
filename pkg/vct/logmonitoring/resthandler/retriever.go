@@ -14,6 +14,7 @@ import (
 
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/store/logmonitor"
 )
@@ -21,6 +22,7 @@ import (
 // RetrieveHandler retrieves the current log URL.
 type RetrieveHandler struct {
 	logMonitorStore logMonitorStore
+	logger          *log.StructuredLog
 	marshal         func(interface{}) ([]byte, error)
 }
 
@@ -43,6 +45,7 @@ func (r *RetrieveHandler) Handler() common.HTTPRequestHandler {
 func NewRetriever(store logMonitorStore) *RetrieveHandler {
 	return &RetrieveHandler{
 		logMonitorStore: store,
+		logger:          log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
 		marshal:         json.Marshal,
 	}
 }
@@ -58,32 +61,32 @@ func (r *RetrieveHandler) handle(w http.ResponseWriter, req *http.Request) {
 	logs, err := r.getLogs(status)
 	if err != nil {
 		if errors.Is(err, orberrors.ErrContentNotFound) {
-			logger.Debugf("[%s] no %s logs found", status, endpoint)
+			r.logger.Debug("No logs found for status.", log.WithStatus(status))
 
-			writeResponse(w, http.StatusNotFound, []byte(notFoundResponse))
+			writeResponse(r.logger, w, http.StatusNotFound, []byte(notFoundResponse))
 
 			return
 		}
 
-		logger.Errorf("[%s] Error retrieving logs: %s", endpoint, err)
+		r.logger.Error("Error retrieving logs", log.WithError(err))
 
-		writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+		writeResponse(r.logger, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
 	retBytes, err := r.marshal(logs)
 	if err != nil {
-		logger.Errorf("[%s] Marshal logs error: %s", endpoint, err)
+		r.logger.Error("Marshal logs error", log.WithError(err))
 
-		writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+		writeResponse(r.logger, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
-	logger.Debugf("[%s] Retrieved %s logs", endpoint, status)
+	r.logger.Debug("Retrieved logs for status.", log.WithStatus(status))
 
-	writeResponse(w, http.StatusOK, retBytes)
+	writeResponse(r.logger, w, http.StatusOK, retBytes)
 }
 
 func (r *RetrieveHandler) getLogs(status string) (*logResponse, error) {

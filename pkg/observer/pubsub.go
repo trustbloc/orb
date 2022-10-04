@@ -66,7 +66,7 @@ func NewPubSub(pubSub pubSub, anchorProcessor anchorProcessor, didProcessor didP
 		lifecycle.WithStart(h.start),
 	)
 
-	logger.Info("Subscribing to topic", log.WithQueue(anchorTopic))
+	logger.Info("Subscribing to topic", log.WithTopic(anchorTopic))
 
 	anchorCredChan, err := pubSub.SubscribeWithOpts(context.Background(), anchorTopic, spi.WithPool(poolSize))
 	if err != nil {
@@ -75,7 +75,7 @@ func NewPubSub(pubSub pubSub, anchorProcessor anchorProcessor, didProcessor didP
 
 	h.anchorCredChan = anchorCredChan
 
-	logger.Info("Subscribing to topic", log.WithQueue(didTopic))
+	logger.Info("Subscribing to topic", log.WithTopic(didTopic))
 
 	didChan, err := pubSub.SubscribeWithOpts(context.Background(), didTopic, spi.WithPool(poolSize))
 	if err != nil {
@@ -101,18 +101,18 @@ func (h *PubSub) PublishAnchor(anchorInfo *anchorinfo.AnchorInfo) error {
 	msg := message.NewMessage(watermill.NewUUID(), payload)
 
 	logger.Debug("Publishing anchors message to queue", log.WithMessageID(msg.UUID),
-		log.WithQueue(anchorTopic), log.WithData(msg.Payload))
+		log.WithTopic(anchorTopic), log.WithData(msg.Payload))
 
 	err = h.publisher.Publish(anchorTopic, msg)
 	if err != nil {
-		logger.Warn("Error publishing anchors message to queue", log.WithQueue(anchorTopic),
+		logger.Warn("Error publishing anchors message to queue", log.WithTopic(anchorTopic),
 			log.WithData(msg.Payload), log.WithError(err))
 
 		return errors.NewTransient(err)
 	}
 
 	logger.Debug("Successfully published anchors message to queue", log.WithMessageID(msg.UUID),
-		log.WithQueue(anchorTopic), log.WithData(msg.Payload))
+		log.WithTopic(anchorTopic), log.WithData(msg.Payload))
 
 	return nil
 }
@@ -130,7 +130,7 @@ func (h *PubSub) PublishDID(did string) error {
 
 	msg := message.NewMessage(watermill.NewUUID(), payload)
 
-	logger.Debug("Publishing DIDs to queue", log.WithQueue(didTopic), log.WithDID(did))
+	logger.Debug("Publishing DIDs to queue", log.WithTopic(didTopic), log.WithDID(did))
 
 	return h.publisher.Publish(didTopic, msg)
 }

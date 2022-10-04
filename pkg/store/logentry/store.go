@@ -44,7 +44,7 @@ const (
 	EntryStatusFailed EntryStatus = "failed"
 )
 
-var logger = log.New("log-entry-store")
+var logger = log.NewStructured("log-entry-store")
 
 // ErrDataNotFound is returned when data is not found.
 var ErrDataNotFound = errors.New("data not found")
@@ -157,7 +157,7 @@ func (s *Store) StoreLogEntries(logURL string, start, end uint64, entries []comm
 		return orberrors.NewTransient(fmt.Errorf("failed to add entries for log: %w", err))
 	}
 
-	logger.Debugf("added %d entries for log: %s", len(entries), logURL)
+	logger.Debug("Added entries for log", log.WithTotal(len(entries)), log.WithLogURLString(logURL))
 
 	return nil
 }
@@ -248,7 +248,7 @@ func (s *Store) FailLogEntriesFrom(logURL string, start uint64) error { // nolin
 		return orberrors.NewTransient(fmt.Errorf("failed to update %d entries to failed for log: %w", len(operations), e))
 	}
 
-	logger.Debugf("updated %d entries to failed for log: %s", len(operations), logURL)
+	logger.Debug("Updated entries to 'failed' for log", log.WithTotal(len(operations)), log.WithLogURLString(logURL))
 
 	return nil
 }
