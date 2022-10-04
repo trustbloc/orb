@@ -20,7 +20,6 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
-	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -331,14 +330,9 @@ func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 
 		return webkms.New(keyStoreURL, client), webcrypto.New(keyStoreURL, client), nil
 	case kmsAWS:
-		region, err := getRegion(parameters.kmsParams.vcSignActiveKeyID)
-		if err != nil {
-			return nil, nil, err
-		}
-
 		awsSession, err := session.NewSession(&aws.Config{
 			Endpoint:                      &parameters.kmsParams.kmsEndpoint,
-			Region:                        aws.String(region),
+			Region:                        aws.String(parameters.kmsParams.kmsRegion),
 			CredentialsChainVerboseErrors: aws.Bool(true),
 		})
 		if err != nil {
@@ -407,22 +401,6 @@ func (a *awsKMSWrapper) ImportPrivateKey(privKey interface{}, kt kms.KeyType,
 
 func (a awsKMSWrapper) HealthCheck() error {
 	return a.service.HealthCheck()
-}
-
-func getRegion(keyURI string) (string, error) {
-	// keyURI must have the following format: 'aws-kms://arn:<partition>:kms:<region>:[:path]'.
-	// See http://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html.
-	re1 := regexp.MustCompile(`aws-kms://arn:(aws[a-zA-Z0-9-_]*):kms:([a-z0-9-]+):`)
-
-	r := re1.FindStringSubmatch(keyURI)
-
-	const subStringCount = 3
-
-	if len(r) != subStringCount {
-		return "", fmt.Errorf("extracting region from URI failed")
-	}
-
-	return r[2], nil
 }
 
 func createKID(km keyManager, httpSignKeyType bool, parameters *orbParameters, cfg storage.Store) error {
@@ -1509,7 +1487,7 @@ type storageProviders struct {
 	kmsSecretsProvider storage.Provider
 }
 
-//nolint: gocyclo
+// nolint: gocyclo
 func createStoreProviders(parameters *orbParameters) (*storageProviders, error) {
 	var edgeServiceProvs storageProviders
 

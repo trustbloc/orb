@@ -45,6 +45,11 @@ const (
 	kmsEndpointFlagUsage = "KMS URL." +
 		" Alternatively, this can be set with the following environment variable: " + kmsEndpointEnvKey
 
+	kmsRegionFlagName  = "kms-region"
+	kmsRegionEnvKey    = "ORB_KMS_REGION"
+	kmsRegionFlagUsage = "KMS region." +
+		" Alternatively, this can be set with the following environment variable: " + kmsEndpointEnvKey
+
 	vcSignActiveKeyIDFlagName  = "vc-sign-active-key-id"
 	vcSignActiveKeyIDEnvKey    = "ORB_VC_SIGN_ACTIVE_KEY_ID"
 	vcSignActiveKeyIDFlagUsage = "VC Sign Active Key ID (ED25519Type)." +
@@ -779,6 +784,7 @@ type dbParameters struct {
 type kmsParameters struct {
 	kmsType                  kmsMode
 	kmsEndpoint              string
+	kmsRegion                string
 	kmsSecretsDatabaseType   string
 	kmsSecretsDatabaseURL    string
 	kmsSecretsDatabasePrefix string
@@ -803,6 +809,8 @@ func getKmsParameters(cmd *cobra.Command) (*kmsParameters, error) {
 	}
 
 	kmsEndpoint := cmdutil.GetUserSetOptionalVarFromString(cmd, kmsEndpointFlagName, kmsEndpointEnvKey)
+
+	kmsRegion := cmdutil.GetUserSetOptionalVarFromString(cmd, kmsRegionFlagName, kmsRegionEnvKey)
 
 	secretLockKeyPath := cmdutil.GetUserSetOptionalVarFromString(cmd, secretLockKeyPathFlagName, secretLockKeyPathEnvKey)
 	keyDatabaseType, err := cmdutil.GetUserSetVarFromString(cmd, kmsSecretsDatabaseTypeFlagName,
@@ -845,6 +853,7 @@ func getKmsParameters(cmd *cobra.Command) (*kmsParameters, error) {
 	return &kmsParameters{
 		kmsType:                  kmsType,
 		kmsEndpoint:              kmsEndpoint,
+		kmsRegion:                kmsRegion,
 		vcSignActiveKeyID:        vcSignActiveKeyID,
 		vcSignPrivateKeys:        vcSignPrivateKeys,
 		vcSignKeysID:             vcSignKeysID,
@@ -2245,4 +2254,5 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringArray(vcSignKeysIDFlagName, []string{}, vcSignKeysIDFlagUsage)
 	startCmd.Flags().StringArray(requestTokensFlagName, []string{}, requestTokensFlagUsage)
 	startCmd.Flags().StringP(allowedOriginsCacheExpirationFlagName, "", "", allowedOriginsCacheExpirationFlagUsage)
+	startCmd.Flags().String(kmsRegionFlagName, "", kmsRegionFlagUsage)
 }

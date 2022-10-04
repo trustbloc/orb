@@ -638,9 +638,10 @@ services:
       - ORB_SYNC_TIMEOUT=3
       - ORB_KMS_TYPE=aws
       - ORB_KMS_ENDPOINT=http://aws-kms:8020
-      - ORB_VC_SIGN_KEYS_ID=aws-kms://arn:aws:kms:ca-central-1:111122223333:alias/vc-sign
-      - ORB_VC_SIGN_ACTIVE_KEY_ID=aws-kms://arn:aws:kms:ca-central-1:111122223333:alias/vc-sign
-      - ORB_HTTP_SIGN_ACTIVE_KEY_ID=aws-kms://arn:aws:kms:ca-central-1:111122223333:alias/http-sign
+      - ORB_VC_SIGN_KEYS_ID=alias/vc-sign
+      - ORB_VC_SIGN_ACTIVE_KEY_ID=alias/vc-sign
+      - ORB_HTTP_SIGN_ACTIVE_KEY_ID=alias/http-sign
+      - ORB_KMS_REGION=ca-central-1
       - AWS_ACCESS_KEY_ID=mock
       - AWS_SECRET_ACCESS_KEY=mock
       - LOG_LEVEL=metrics=INFO:nodeinfo=WARNING:activitypub_store=INFO:expiry-service=INFO:task-manager=INFO:watermill=INFO:DEBUG
@@ -998,7 +999,7 @@ services:
 
   orb.vct:
     container_name: orb.vct
-    image: ghcr.io/trustbloc-cicd/vct:v1.0.0-rc4-snapshot-330d089
+    image: ghcr.io/trustbloc-cicd/vct:v1.0.0-rc4-snapshot-8b6a133
     restart: always
     environment:
       - VCT_API_HOST=172.20.0.14:8077
@@ -1007,7 +1008,8 @@ services:
       - VCT_LOGS=maple2020:rw@orb.trillian.log.server:8090,maple2022:rw@orb.trillian.log.server:8090
       - VCT_KMS_TYPE=aws
       - VCT_KMS_ENDPOINT=http://aws-kms:8020
-      - VCT_LOG_SIGN_ACTIVE_KEY_ID=aws-kms://arn:aws:kms:ca-central-1:111122223333:alias/log-sign
+      - VCT_LOG_SIGN_ACTIVE_KEY_ID=alias/log-sign
+      - VCT_KMS_REGION=ca-central-1
       - AWS_ACCESS_KEY_ID=mock
       - AWS_SECRET_ACCESS_KEY=mock
       - VCT_TLS_SYSTEMCERTPOOL=true

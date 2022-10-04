@@ -1113,7 +1113,7 @@ const testVC = `{
       "jws": "eyJhbGciOiIiLCJiNjQiOmZhbHNlLCJjcml0IjpbImI2NCJdfQ..MEYCIQDPteXXbktG7ma_TNBVcz1bzSJtntbrYaNX9SvAgBj_5wIhAKRmM3ODG2Tvc4uZxUszZEfSMLeUTUzAUJXUdbQFFMyp",
       "proofPurpose": "assertionMethod",
       "type": "JsonWebSignature2020",
-      "verificationMethod": "did:web:orb.domain1.com#aws-kms://arn:aws:kms:ca-central-1:111122223333:alias/vc-sign"
+      "verificationMethod": "did:web:orb.domain1.com#alias/vc-sign"
     },
     {
       "created": "2022-08-22T16:39:55.088769427Z",
@@ -1154,7 +1154,7 @@ const testVCDuplicateProof = `{
       "proofPurpose": "assertionMethod",
       "proofValue": "MEYCIQDwuBrM_lgb6mVyXu6DzD2wa25WJA9AD9GsqWk1eeblSQIhANKgynJs6bP-W7mnryJ7TJryLdz9CHnMKtWqJ2XMmMBt",
       "type": "JsonWebSignature2020",
-      "verificationMethod": "did:web:orb.domain4.com#aws-kms://arn:aws:kms:ca-central-1:111122223333:alias/vc-sign"
+      "verificationMethod": "did:web:orb.domain4.com#alias/vc-sign"
     },
     {
       "created": "2022-07-15T19:17:55.246854Z",
@@ -1162,7 +1162,7 @@ const testVCDuplicateProof = `{
       "proofPurpose": "assertionMethod",
       "proofValue": "MEYCIQDwuBrM_lgb6mVyXu6DzD2wa25WJA9AD9GsqWk1eeblSQIhANKgynJs6bP-W7mnryJ7TJryLdz9CHnMKtWqJ2XMmMBt",
       "type": "JsonWebSignature2020",
-      "verificationMethod": "did:web:orb.domain4.com#aws-kms://arn:aws:kms:ca-central-1:111122223333:alias/vc-sign"
+      "verificationMethod": "did:web:orb.domain4.com#alias/vc-sign"
     },
     {
       "created": "2022-07-15T19:17:59.5484674Z",

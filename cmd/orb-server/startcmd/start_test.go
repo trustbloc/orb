@@ -150,7 +150,7 @@ func TestAWSKMSWrapper(t *testing.T) {
 	wrapper := awsKMSWrapper{service: awsService}
 
 	keyID, handle, err := wrapper.Create("")
-	require.EqualError(t, err, "not implemented")
+	require.EqualError(t, err, "key not supported ")
 	require.Empty(t, "", keyID)
 	require.Nil(t, handle)
 
@@ -158,18 +158,10 @@ func TestAWSKMSWrapper(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "", handle)
 
-	pubKeyBytes, keyType, err := wrapper.ExportPubKeyBytes("")
-	require.EqualError(t, err, "extracting key id from URI failed")
-	require.Nil(t, pubKeyBytes)
-	require.Empty(t, keyType)
-
 	keyID, handle, err = wrapper.ImportPrivateKey(nil, "")
 	require.EqualError(t, err, "not implemented")
 	require.Empty(t, keyID)
 	require.Nil(t, handle)
-
-	err = wrapper.HealthCheck()
-	require.EqualError(t, err, "extracting key id from URI failed")
 }
 
 func TestGetOrInit(t *testing.T) {
