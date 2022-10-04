@@ -25,7 +25,7 @@ import (
 	"github.com/trustbloc/orb/pkg/webfinger/model"
 )
 
-var logger = log.New("webfinger-client")
+var logger = log.NewStructured("webfinger-client")
 
 const (
 	defaultCacheLifetime = 300 * time.Second // five minutes
@@ -77,8 +77,8 @@ func New(opts ...Option) *Client {
 				return nil, err
 			}
 
-			logger.Debugf("Loaded webfinger resource for domain [%s] and resource [%s] into cache: %+v",
-				k.domainWithScheme, k.resource, r)
+			logger.Debug("Loaded webfinger resource into cache", log.WithDomain(k.domainWithScheme),
+				log.WithResource(k.resource), log.WithJRD(r))
 
 			return r, nil
 		}).Build()
@@ -159,7 +159,7 @@ func (c *Client) resolveResource(domainWithScheme, resource string) (*restapi.JR
 	defer func() {
 		err = resp.Body.Close()
 		if err != nil {
-			logger.Errorf("failed to close response body after getting WebFinger response: %s", err.Error())
+			log.CloseResponseBodyError(logger.Warn, err)
 		}
 	}()
 
@@ -225,7 +225,7 @@ func (c *Client) ResolveLog(uri string) (*url.URL, error) {
 		return nil, fmt.Errorf("failed to resolve WebFinger resource[%s]: %w", domain, err)
 	}
 
-	logger.Debugf("jrd response for domain[%s]: %+v", domain, jrd)
+	logger.Debug("Got response for domain", log.WithDomain(domain), log.WithJRD(jrd))
 
 	var logURL string
 

@@ -24,16 +24,17 @@ const (
 )
 
 const (
+	loggerModule = "log-rest-handler"
+
 	badRequestResponse          = "Bad Request."
 	internalServerErrorResponse = "Internal Server Error."
 )
-
-var logger = log.New("log-rest-handler")
 
 // LogConfigurator updates VCT log URL in config store.
 type LogConfigurator struct {
 	configStore     storage.Store
 	logMonitorStore logMonitorStore
+	logger          *log.StructuredLog
 	marshal         func(interface{}) ([]byte, error)
 }
 
@@ -61,6 +62,7 @@ func New(cfgStore storage.Store, lmStore logMonitorStore) *LogConfigurator {
 	h := &LogConfigurator{
 		configStore:     cfgStore,
 		logMonitorStore: lmStore,
+		logger:          log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
 		marshal:         json.Marshal,
 	}
 
@@ -70,9 +72,9 @@ func New(cfgStore storage.Store, lmStore logMonitorStore) *LogConfigurator {
 func (c *LogConfigurator) handle(w http.ResponseWriter, req *http.Request) {
 	logURLBytes, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		logger.Errorf("[%s] Error reading request body: %s", endpoint, err)
+		log.ReadRequestBodyError(c.logger.Error, err)
 
-		writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
+		writeResponse(c.logger, w, http.StatusBadRequest, []byte(badRequestResponse))
 
 		return
 	}
@@ -82,9 +84,9 @@ func (c *LogConfigurator) handle(w http.ResponseWriter, req *http.Request) {
 	if logURLStr != "" {
 		_, err = url.Parse(logURLStr)
 		if err != nil {
-			logger.Errorf("[%s] Invalid log URL: %s", endpoint, err)
+			c.logger.Error("Invalid log URL", log.WithError(err))
 
-			writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
+			writeResponse(c.logger, w, http.StatusBadRequest, []byte(badRequestResponse))
 
 			return
 		}
@@ -96,39 +98,40 @@ func (c *LogConfigurator) handle(w http.ResponseWriter, req *http.Request) {
 
 	valueBytes, err := c.marshal(logConfig)
 	if err != nil {
-		logger.Errorf("[%s] Marshal log configuration error: %s", endpoint, err)
+		c.logger.Error("Marshal log configuration error", log.WithError(err))
 
-		writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+		writeResponse(c.logger, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
 	err = c.configStore.Put(logURLKey, valueBytes)
 	if err != nil {
-		logger.Errorf("[%s] Error storing log URL: %s", endpoint, err)
+		c.logger.Error("Error storing log URL", log.WithError(err))
 
-		writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+		writeResponse(c.logger, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
-	logger.Debugf("[%s] Stored log URL %s", endpoint, string(logURLBytes))
+	c.logger.Debug("Stored log URL", log.WithLogURLString(logURLStr))
 
 	if logURLStr != "" {
 		err = c.logMonitorStore.Activate(logURLStr)
 		if err != nil {
-			logger.Errorf("[%s] Error activating log monitoring for log URL: %s", endpoint, err)
+			c.logger.Error("Error activating log monitoring for log URL", log.WithLogURLString(logURLStr),
+				log.WithError(err))
 
-			writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+			writeResponse(c.logger, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 			return
 		}
 	}
 
-	writeResponse(w, http.StatusOK, nil)
+	writeResponse(c.logger, w, http.StatusOK, nil)
 }
 
-func writeResponse(w http.ResponseWriter, status int, body []byte) {
+func writeResponse(logger *log.StructuredLog, w http.ResponseWriter, status int, body []byte) {
 	if len(body) > 0 {
 		w.Header().Set("Content-Type", "text/plain")
 	}
@@ -137,12 +140,12 @@ func writeResponse(w http.ResponseWriter, status int, body []byte) {
 
 	if len(body) > 0 {
 		if _, err := w.Write(body); err != nil {
-			logger.Warnf("[%s] Unable to write response: %s", endpoint, err)
+			log.WriteResponseBodyError(logger.Error, err)
 
 			return
 		}
 
-		logger.Debugf("[%s] Wrote response: %s", endpoint, body)
+		log.WroteResponse(logger.Debug, body)
 	}
 }
 

@@ -29,12 +29,13 @@ const (
 	internalServerErrorResponse = "Internal Server Error."
 )
 
-var logger = log.New("log-monitor-rest-handler")
+const loggerModule = "log-monitor-rest-handler"
 
 // UpdateHandler activates VCT log URL in log monitor store.
 type UpdateHandler struct {
 	logMonitorStore logMonitorStore
 
+	logger    *log.StructuredLog
 	unmarshal func([]byte, interface{}) error
 }
 
@@ -64,6 +65,7 @@ func (a *UpdateHandler) Handler() common.HTTPRequestHandler {
 func NewUpdateHandler(store logMonitorStore) *UpdateHandler {
 	h := &UpdateHandler{
 		logMonitorStore: store,
+		logger:          log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
 		unmarshal:       json.Unmarshal,
 	}
 
@@ -73,20 +75,20 @@ func NewUpdateHandler(store logMonitorStore) *UpdateHandler {
 func (a *UpdateHandler) handle(w http.ResponseWriter, req *http.Request) {
 	reqBytes, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		logger.Errorf("[%s] Error reading request body: %s", endpoint, err)
+		a.logger.Error("Error reading request body", log.WithError(err))
 
-		writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
+		writeResponse(a.logger, w, http.StatusBadRequest, []byte(badRequestResponse))
 
 		return
 	}
 
-	logger.Debugf("[%s] Got request to activate/deactivate log monitors: %s", endpoint, reqBytes)
+	a.logger.Debug("Got request to activate/deactivate log monitors", log.WithRequestBody(reqBytes))
 
 	request, err := a.unmarshalAndValidateRequest(reqBytes)
 	if err != nil {
-		logger.Infof("[%s] Error validating request: %s", endpoint, err)
+		a.logger.Info("Error validating request", log.WithError(err))
 
-		writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
+		writeResponse(a.logger, w, http.StatusBadRequest, []byte(badRequestResponse))
 
 		return
 	}
@@ -94,9 +96,10 @@ func (a *UpdateHandler) handle(w http.ResponseWriter, req *http.Request) {
 	for _, logURL := range request.Activate {
 		err = a.logMonitorStore.Activate(logURL)
 		if err != nil {
-			logger.Errorf("[%s] Error while activating log monitoring for log URL[%s]: %s", endpoint, logURL, err)
+			a.logger.Error("Error activating log monitoring for log URL", log.WithLogURLString(logURL),
+				log.WithError(err))
 
-			writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+			writeResponse(a.logger, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 			return
 		}
@@ -105,18 +108,18 @@ func (a *UpdateHandler) handle(w http.ResponseWriter, req *http.Request) {
 	for _, logURL := range request.Deactivate {
 		err = a.logMonitorStore.Deactivate(logURL)
 		if err != nil {
-			logger.Errorf("[%s] Error while de-activating log monitoring for log URL[%s]: %s", endpoint, logURL, err)
+			a.logger.Error("Error de-activating log monitoring for log URL", log.WithLogURLString(logURL), log.WithError(err))
 
-			writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+			writeResponse(a.logger, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 			return
 		}
 	}
 
-	writeResponse(w, http.StatusOK, nil)
+	writeResponse(a.logger, w, http.StatusOK, nil)
 }
 
-func writeResponse(w http.ResponseWriter, status int, body []byte) {
+func writeResponse(logger *log.StructuredLog, w http.ResponseWriter, status int, body []byte) {
 	if len(body) > 0 {
 		w.Header().Set("Content-Type", "text/plain")
 	}
@@ -125,12 +128,12 @@ func writeResponse(w http.ResponseWriter, status int, body []byte) {
 
 	if len(body) > 0 {
 		if _, err := w.Write(body); err != nil {
-			logger.Warnf("[%s] Unable to write response: %s", endpoint, err)
+			log.WriteResponseBodyError(logger.Warn, err)
 
 			return
 		}
 
-		logger.Debugf("[%s] Wrote response: %s", endpoint, body)
+		log.WroteResponse(logger.Debug, body)
 	}
 }
 

@@ -28,7 +28,7 @@ const (
 	defaultCacheSize     = 100
 )
 
-var logger = log.New("resource-resolver")
+var logger = log.NewStructured("resource-resolver")
 
 type domainResolver interface {
 	ResolveDomainForDID(did string) (string, error)
@@ -82,7 +82,8 @@ func (c *Resolver) ResolveHostMetaLink(urlToGetHostMetaFrom, linkType string) (s
 		return "", fmt.Errorf("failed to get key[%s] from host metadata cache: %w", urlToGetHostMetaFrom, err)
 	}
 
-	logger.Debugf("got value for key[%v] from metadata cache: %+v", urlToGetHostMetaFrom, hostMetaDocumentObj)
+	logger.Debug("Got value from metadata cache", log.WithKey(urlToGetHostMetaFrom),
+		log.WithMetadata(hostMetaDocumentObj))
 
 	hostMetaDocument, ok := hostMetaDocumentObj.(*discoveryrest.JRD)
 	if !ok {
@@ -183,7 +184,7 @@ func (c *Resolver) getHostMetaDocumentViaHTTP(urlToGetHostMetaDocumentFrom strin
 	defer func() {
 		err = resp.Body.Close()
 		if err != nil {
-			logger.Warnf("failed to close host-meta response body: %s", err.Error())
+			log.CloseResponseBodyError(logger.Warn, err)
 		}
 	}()
 
@@ -197,9 +198,10 @@ func (c *Resolver) getHostMetaDocumentViaHTTP(urlToGetHostMetaDocumentFrom strin
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	var hostMetaDocument discoveryrest.JRD
+	logger.Debug("Host meta document for endpoint", log.WithServiceEndpoint(hostMetaEndpoint),
+		log.WithResponse(hostMetaDocumentBytes))
 
-	logger.Debugf("Host meta document for endpoint [%s]: %s", hostMetaEndpoint, hostMetaDocumentBytes)
+	var hostMetaDocument discoveryrest.JRD
 
 	err = json.Unmarshal(hostMetaDocumentBytes, &hostMetaDocument)
 	if err != nil {

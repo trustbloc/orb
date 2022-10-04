@@ -30,7 +30,7 @@ const (
 	sha2_256      = 18
 )
 
-var logger = log.New("unpublished-operation-store")
+var logger = log.NewStructured("unpublished-operation-store")
 
 // New returns a new instance of an unpublished operation store.
 // This method will also register the unpublished operation store with the given expiry service which will then take
@@ -99,7 +99,8 @@ func (s *Store) Put(op *operation.AnchoredOperation) error {
 		return fmt.Errorf("failed to marshal unpublished operation: %w", err)
 	}
 
-	logger.Debugf("storing unpublished '%s' operation for suffix[%s]: %s", op.Type, op.UniqueSuffix, string(opBytes))
+	logger.Debug("Storing unpublished operation", log.WithOperationType(string(op.Type)),
+		log.WithSuffix(op.UniqueSuffix), log.WithData(opBytes))
 
 	tags := []storage.Tag{
 		{
@@ -177,7 +178,7 @@ func (s *Store) Get(suffix string) ([]*operation.AnchoredOperation, error) {
 		}
 	}
 
-	logger.Debugf("retrieved %d unpublished operations for suffix[%s]", len(ops), suffix)
+	logger.Debug("Retrieved unpublished operations for suffix", log.WithTotal(len(ops)), log.WithSuffix(suffix))
 
 	if len(ops) == 0 {
 		return nil, fmt.Errorf("suffix[%s] not found in the unpublished operation store", suffix)
@@ -222,7 +223,7 @@ func (s *Store) DeleteAll(ops []*operation.AnchoredOperation) error {
 		return orberrors.NewTransient(fmt.Errorf("failed to delete unpublished operations: %w", err))
 	}
 
-	logger.Debugf("deleted %d unpublished operations", len(ops))
+	logger.Debug("Deleted unpublished operations", log.WithTotal(len(ops)))
 
 	return nil
 }

@@ -18,7 +18,7 @@ import (
 	"github.com/trustbloc/orb/pkg/context/common"
 )
 
-var logger = log.New("orb-txn-processor")
+var logger = log.NewStructured("orb-txn-processor")
 
 // Providers contains the providers required by the TxnProcessor.
 type Providers struct {
@@ -67,9 +67,9 @@ func WithUnpublishedOperationStore(store unpublishedOperationStore, opTypes []op
 	}
 }
 
-// Process persists all of the operations for the given anchor.
+// Process persists the operations for the given anchor.
 func (p *TxnProcessor) Process(sidetreeTxn txn.SidetreeTxn, suffixes ...string) (int, error) { //nolint:gocritic
-	logger.Debugf("processing sidetree txn:%+v", sidetreeTxn)
+	logger.Debug("Processing sidetree txn", log.WithSidetreeTxn(sidetreeTxn))
 
 	txnOps, err := p.OperationProtocolProvider.GetTxnOperations(&sidetreeTxn)
 	if err != nil {
@@ -108,7 +108,7 @@ func contains(arr []string, v string) bool {
 //nolint:funlen
 func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperation,
 	sidetreeTxn *txn.SidetreeTxn) (int, error) {
-	logger.Debugf("processing %d transaction operations", len(txnOps))
+	logger.Debug("Processing transaction operations", log.WithTotal(len(txnOps)))
 
 	batchSuffixes := make(map[string]bool)
 
@@ -119,8 +119,9 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 	for _, op := range txnOps {
 		_, ok := batchSuffixes[op.UniqueSuffix]
 		if ok {
-			logger.Warnf("[%s] duplicate suffix[%s] found in transaction operations: discarding operation %v",
-				sidetreeTxn.Namespace, op.UniqueSuffix, op)
+			logger.Warn("Duplicate suffix found in transaction operations. Discarding operation.",
+				log.WithNamespace(sidetreeTxn.Namespace), log.WithSuffix(op.UniqueSuffix),
+				log.WithOperation(op))
 
 			continue
 		}
@@ -131,8 +132,8 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 		}
 
 		if containsCanonicalReference(opsSoFar, sidetreeTxn.CanonicalReference) {
-			logger.Debugf("[%s] Ignoring operation that has already been inserted [%s]",
-				sidetreeTxn.Namespace, sidetreeTxn.CanonicalReference)
+			logger.Debug("Ignoring operation that has already been inserted",
+				log.WithNamespace(sidetreeTxn.Namespace), log.WithCanonicalRef(sidetreeTxn.CanonicalReference))
 
 			// this operation has already been inserted - ignore it
 			continue
@@ -143,21 +144,22 @@ func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperatio
 		op.CanonicalReference = sidetreeTxn.CanonicalReference
 		op.EquivalentReferences = sidetreeTxn.EquivalentReferences
 
-		logger.Debugf("updated operation time: %s", op.UniqueSuffix)
+		logger.Debug("Updated operation time", log.WithSuffix(op.UniqueSuffix))
 		ops = append(ops, op)
 
 		batchSuffixes[op.UniqueSuffix] = true
 
 		if containsOperationType(p.unpublishedOperationTypes, op.Type) {
-			logger.Debugf("added operation with suffix[%s] for deletion from unpublished operation store",
-				op.UniqueSuffix)
+			logger.Debug("Added operation for deletion from unpublished operation store",
+				log.WithSuffix(op.UniqueSuffix))
 
 			unpublishedOps = append(unpublishedOps, op)
 		}
 	}
 
 	if len(ops) == 0 {
-		logger.Infof("No operations to be processed for anchor string [%s]", sidetreeTxn.AnchorString)
+		logger.Info("No operations to be processed for anchor string",
+			log.WithAnchorString(sidetreeTxn.AnchorString))
 
 		return 0, nil
 	}

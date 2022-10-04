@@ -16,17 +16,9 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
-const (
-	loggerModule = "expiry-service"
-	taskName     = "data-expiry"
-)
+const taskName = "data-expiry"
 
-type logger interface {
-	Debugf(msg string, args ...interface{})
-	Infof(msg string, args ...interface{})
-	Warnf(msg string, args ...interface{})
-	Errorf(msg string, args ...interface{})
-}
+var logger = log.NewStructured("expiry-service")
 
 type taskManager interface {
 	RegisterTask(taskType string, interval time.Duration, handler func())
@@ -57,7 +49,6 @@ type expiryHandler interface {
 // Service is an expiry service that periodically polls registered stores and removes data past a specified
 // expiration time.
 type Service struct {
-	logger           logger
 	registeredStores []registeredStore
 	mutex            sync.RWMutex
 }
@@ -78,9 +69,7 @@ type Service struct {
 // You must register each store you want this service to run on using the Register method. Once all your stores are
 // registered, call the Start method to start the service.
 func NewService(scheduler taskManager, interval time.Duration) *Service {
-	s := &Service{
-		logger: log.New(loggerModule),
-	}
+	s := &Service{}
 
 	scheduler.RegisterTask(taskName, interval, s.deleteExpiredData)
 
@@ -116,35 +105,31 @@ func (s *Service) deleteExpiredData() {
 	defer s.mutex.RUnlock()
 
 	for _, registeredStore := range s.registeredStores {
-		registeredStore.deleteExpiredData(s.logger)
+		if err := registeredStore.deleteExpiredData(); err != nil {
+			logger.Warn("Error deleting expired data", log.WithError(err), log.WithStoreName(registeredStore.name))
+		}
 	}
 }
 
-func (r *registeredStore) deleteExpiredData(logger logger) { //nolint:funlen
-	logger.Debugf("Checking for expired data in %s.", r.name)
+func (r *registeredStore) deleteExpiredData() error {
+	logger.Debug("Checking for expired data in store", log.WithStoreName(r.name))
 
 	iterator, err := r.store.Query(fmt.Sprintf("%s<=%d", r.expiryTagName, time.Now().Unix()))
 	if err != nil {
-		logger.Errorf("failed to query store for expired data: %s", err.Error())
-
-		return
+		return fmt.Errorf("query store for expired data: %w", err)
 	}
 
 	var keysToDelete []string
 
 	more, err := iterator.Next()
 	if err != nil {
-		logger.Errorf("failed to get next value from iterator: %s", err.Error())
-
-		return
+		return fmt.Errorf("get next value from iterator: %w", err)
 	}
 
 	for more {
 		key, errKey := iterator.Key()
 		if errKey != nil {
-			logger.Errorf("failed to get key from iterator: %s", errKey.Error())
-
-			return
+			return fmt.Errorf("get key from iterator: %w", errKey)
 		}
 
 		keysToDelete = append(keysToDelete, key)
@@ -153,39 +138,36 @@ func (r *registeredStore) deleteExpiredData(logger logger) { //nolint:funlen
 
 		more, errNext = iterator.Next()
 		if errNext != nil {
-			logger.Errorf("failed to get next value from iterator: %s", errNext.Error())
-
-			return
+			return fmt.Errorf("get next value from iterator: %w", errNext)
 		}
 	}
 
-	logger.Debugf("Found %d pieces of expired data to delete in %s.", len(keysToDelete), r.name)
+	logger.Debug("Found expired data to delete.", log.WithTotal(len(keysToDelete)), log.WithStoreName(r.name))
 
 	err = r.expiryHandler.HandleExpiredKeys(keysToDelete...)
 	if err != nil {
-		logger.Errorf("failed to invoke expiry handler: %s", err.Error())
-
-		return
+		return fmt.Errorf("invoke expiry handler: %w", err)
 	}
 
 	if len(keysToDelete) > 0 {
 		operations := make([]storage.Operation, len(keysToDelete))
 
 		for i, key := range keysToDelete {
-			logger.Debugf("Deleting expired data for key [%s] in %s.", key, r.name)
+			logger.Debug("Deleting expired data for key", log.WithStoreName(r.name), log.WithKey(key))
 
 			operations[i] = storage.Operation{Key: key}
 		}
 
 		err = r.store.Batch(operations)
 		if err != nil {
-			logger.Errorf("failed to delete expired data: %s", err.Error())
-
-			return
+			return fmt.Errorf("delete expired data: %w", err)
 		}
 
-		logger.Debugf("Successfully deleted %d pieces of expired data.", len(operations))
+		logger.Debug("Successfully deleted expired data.", log.WithStoreName(r.name),
+			log.WithTotal(len(operations)))
 	}
+
+	return nil
 }
 
 type noopExpiryHandler struct{}

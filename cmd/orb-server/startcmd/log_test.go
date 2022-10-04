@@ -16,7 +16,7 @@ import (
 
 const testLogModuleName = "test"
 
-var testLogger = log.New(testLogModuleName)
+var testLogger = log.NewStructured(testLogModuleName)
 
 func TestSetLogLevel(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {

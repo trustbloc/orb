@@ -21,6 +21,7 @@ import (
 const (
 	FieldURI                    = "uri"
 	FieldURIs                   = "uris"
+	FieldURL                    = "url"
 	FieldSenderURL              = "sender"
 	FieldConfig                 = "config"
 	FieldServiceName            = "service"
@@ -38,18 +39,21 @@ const (
 	FieldRequestBody            = "request-body"
 	FieldResponse               = "response"
 	FieldSize                   = "size"
+	FieldMaxSize                = "max-size"
 	FieldCacheExpiration        = "cache-expiration"
 	FieldTarget                 = "target"
 	FieldTargets                = "targets"
-	FieldQueue                  = "queue"
+	FieldTopic                  = "topic"
 	FieldHTTPStatus             = "http-status"
 	FieldHTTPMethod             = "http-method"
 	FieldParameter              = "parameter"
+	FieldParameters             = "parameters"
 	FieldAcceptListType         = "accept-list-type"
 	FieldAdditions              = "additions"
 	FieldDeletions              = "deletions"
 	FieldReferenceType          = "reference-type"
 	FieldAnchorURI              = "anchor-uri"
+	FieldAnchorURIs             = "anchor-uris"
 	FieldAnchorHash             = "anchor-hash"
 	FieldAnchorEventURI         = "anchor-event-uri"
 	FieldObjectIRI              = "object-iri"
@@ -80,8 +84,10 @@ const (
 	FieldAnchorOrigin           = "anchor-origin"
 	FieldAnchorOriginEndpoint   = "anchor-origin-endpoint"
 	FieldOperationType          = "operation-type"
+	FieldOperation              = "operation"
 	FieldCoreIndex              = "core-index"
 	FieldKey                    = "key"
+	FieldValue                  = "value"
 	FieldCID                    = "cid"
 	FieldResolvedCID            = "resolved-cid"
 	FieldAnchorCID              = "anchor-cid"
@@ -92,6 +98,7 @@ const (
 	FieldLink                   = "link"
 	FieldLinks                  = "links"
 	FieldTaskMgrInstanceID      = "task-mgr-instance"
+	FieldTaskID                 = "task-id"
 	FieldRetries                = "retries"
 	FieldMaxRetries             = "max-retries"
 	FieldSubscriberPoolSize     = "subscriber-pool-size"
@@ -99,10 +106,11 @@ const (
 	FieldTaskExpiration         = "task-expiration"
 	FieldDeliveryDelay          = "delivery-delay"
 	FieldOperationID            = "operation-id"
-	FieldTaskOwnerID            = "task-owner-id"
+	FieldPermitHolder           = "permit-holder"
 	FieldTimeSinceLastUpdate    = "time-since-last-update"
 	FieldGenesisTime            = "genesis-time"
 	FieldSidetreeProtocol       = "sidetree-protocol"
+	FieldSidetreeTxn            = "sidetree-txn"
 	FieldDID                    = "did"
 	FieldHRef                   = "href"
 	FieldID                     = "id"
@@ -114,8 +122,27 @@ const (
 	FieldAuthTokens             = "auth-tokens" //nolint:gosec
 	FieldAddress                = "address"
 	FieldAttributedTo           = "attributed-to"
+	FieldAnchorLink             = "anchor-link"
 	FieldAnchorLinkset          = "anchor-linkset"
 	FieldVersion                = "version"
+	FieldDeliveryAttempts       = "delivery-attempts"
+	FieldProperty               = "property"
+	FieldStorageName            = "store-name"
+	FieldIssuer                 = "issuer"
+	FieldStatus                 = "status"
+	FieldLogURL                 = "log-url"
+	FieldNamespace              = "namespace"
+	FieldCanonicalRef           = "canonical-ref"
+	FieldAnchorString           = "anchor-string"
+	FieldJRD                    = "jrd"
+	FieldBackoff                = "backoff"
+	FieldTimeout                = "timeout"
+	FieldMaxTime                = "max-time"
+	FieldLogMonitor             = "log-monitor"
+	FieldLogMonitors            = "log-monitors"
+	FieldIndex                  = "index"
+	FieldFromIndex              = "from-index"
+	FieldToIndex                = "to-index"
 )
 
 // WithError sets the error field.
@@ -214,6 +241,21 @@ func WithSize(value int) zap.Field {
 	return zap.Int(FieldSize, value)
 }
 
+// WithSizeUint64 sets the size field.
+func WithSizeUint64(value uint64) zap.Field {
+	return zap.Uint64(FieldSize, value)
+}
+
+// WithMaxSize sets the max-size field.
+func WithMaxSize(value int) zap.Field {
+	return zap.Int(FieldMaxSize, value)
+}
+
+// WithMaxSizeUInt64 sets the max-size field.
+func WithMaxSizeUInt64(value uint64) zap.Field {
+	return zap.Uint64(FieldMaxSize, value)
+}
+
 // WithCacheExpiration sets the cache-expiration field.
 func WithCacheExpiration(value time.Duration) zap.Field {
 	return zap.Duration(FieldCacheExpiration, value)
@@ -234,9 +276,9 @@ func WithTargetIRIs(value ...*url.URL) zap.Field {
 	return zap.Array(FieldTargets, NewURLArrayMarshaller(value))
 }
 
-// WithQueue sets the queue field.
-func WithQueue(value string) zap.Field {
-	return zap.String(FieldQueue, value)
+// WithTopic sets the topic field.
+func WithTopic(value string) zap.Field {
+	return zap.String(FieldTopic, value)
 }
 
 // WithHTTPStatus sets the http-status field.
@@ -252,6 +294,11 @@ func WithHTTPMethod(value string) zap.Field {
 // WithParameter sets the parameter field.
 func WithParameter(value string) zap.Field {
 	return zap.String(FieldParameter, value)
+}
+
+// WithParameters sets the parameters field.
+func WithParameters(value interface{}) zap.Field {
+	return zap.Inline(NewObjectMarshaller(FieldParameters, value))
 }
 
 // WithAcceptListType sets the accept-list-type field.
@@ -289,6 +336,16 @@ func WithURIs(value ...*url.URL) zap.Field {
 	return zap.Array(FieldURIs, NewURLArrayMarshaller(value))
 }
 
+// WithURL sets the url field.
+func WithURL(value fmt.Stringer) zap.Field {
+	return zap.Stringer(FieldURL, value)
+}
+
+// WithURLString sets the url field.
+func WithURLString(value string) zap.Field {
+	return zap.String(FieldURL, value)
+}
+
 // WithSenderURL sets the sender field.
 func WithSenderURL(value fmt.Stringer) zap.Field {
 	return zap.Stringer(FieldSenderURL, value)
@@ -312,6 +369,11 @@ func WithAnchorURI(value fmt.Stringer) zap.Field {
 // WithAnchorURIString sets the anchor-uri field.
 func WithAnchorURIString(value string) zap.Field {
 	return zap.String(FieldAnchorURI, value)
+}
+
+// WithAnchorURIStrings sets the anchor-uris field.
+func WithAnchorURIStrings(value ...string) zap.Field {
+	return zap.Array(FieldAnchorURIs, NewStringArrayMarshaller(value))
 }
 
 // WithAnchorHash sets the anchor-hash field.
@@ -490,6 +552,11 @@ func WithOperationType(value string) zap.Field {
 	return zap.Any(FieldOperationType, value)
 }
 
+// WithOperation sets the operation field.
+func WithOperation(value interface{}) zap.Field {
+	return zap.Inline(NewObjectMarshaller(FieldOperation, value))
+}
+
 // WithCoreIndex sets the coreIndex field.
 func WithCoreIndex(value string) zap.Field {
 	return zap.Any(FieldCoreIndex, value)
@@ -498,6 +565,11 @@ func WithCoreIndex(value string) zap.Field {
 // WithKey sets the key field.
 func WithKey(value string) zap.Field {
 	return zap.String(FieldKey, value)
+}
+
+// WithValue sets the value field.
+func WithValue(value interface{}) zap.Field {
+	return zap.Inline(NewObjectMarshaller(FieldValue, value))
 }
 
 // WithCID sets the cid field.
@@ -550,6 +622,11 @@ func WithTaskMgrInstanceID(value string) zap.Field {
 	return zap.String(FieldTaskMgrInstanceID, value)
 }
 
+// WithTaskID sets the task-id field.
+func WithTaskID(value string) zap.Field {
+	return zap.String(FieldTaskID, value)
+}
+
 // WithRetries sets the retries field.
 func WithRetries(value int) zap.Field {
 	return zap.Int(FieldRetries, value)
@@ -585,9 +662,9 @@ func WithOperationID(value string) zap.Field {
 	return zap.String(FieldOperationID, value)
 }
 
-// WithTaskOwnerID sets the task-owner-id field.
-func WithTaskOwnerID(value string) zap.Field {
-	return zap.String(FieldTaskOwnerID, value)
+// WithPermitHolder sets the permit-holder field.
+func WithPermitHolder(value string) zap.Field {
+	return zap.String(FieldPermitHolder, value)
 }
 
 // WithTimeSinceLastUpdate sets the time-since-last-update field.
@@ -603,6 +680,11 @@ func WithGenesisTime(value uint64) zap.Field {
 // WithSidetreeProtocol sets the sidetree-protocol field.
 func WithSidetreeProtocol(value interface{}) zap.Field {
 	return zap.Inline(NewObjectMarshaller(FieldSidetreeProtocol, value))
+}
+
+// WithSidetreeTxn sets the sidetree-txn field.
+func WithSidetreeTxn(value interface{}) zap.Field {
+	return zap.Inline(NewObjectMarshaller(FieldSidetreeTxn, value))
 }
 
 // WithDID sets the did field.
@@ -660,6 +742,11 @@ func WithAttributedTo(value string) zap.Field {
 	return zap.String(FieldAttributedTo, value)
 }
 
+// WithAnchorLink sets the anchor-link field.
+func WithAnchorLink(value []byte) zap.Field {
+	return zap.String(FieldAnchorLink, string(value))
+}
+
 // WithAnchorLinkset sets the anchor-linkset field.
 func WithAnchorLinkset(value []byte) zap.Field {
 	return zap.String(FieldAnchorLinkset, string(value))
@@ -668,6 +755,106 @@ func WithAnchorLinkset(value []byte) zap.Field {
 // WithVersion sets the version field.
 func WithVersion(value string) zap.Field {
 	return zap.String(FieldVersion, value)
+}
+
+// WithDeliveryAttempts sets the delivery-attempts field.
+func WithDeliveryAttempts(value int) zap.Field {
+	return zap.Int(FieldDeliveryAttempts, value)
+}
+
+// WithProperty sets the property field.
+func WithProperty(value string) zap.Field {
+	return zap.String(FieldProperty, value)
+}
+
+// WithStoreName sets the store-name field.
+func WithStoreName(value string) zap.Field {
+	return zap.String(FieldStorageName, value)
+}
+
+// WithIssuer sets the issuer field.
+func WithIssuer(value string) zap.Field {
+	return zap.String(FieldIssuer, value)
+}
+
+// WithStatus sets the status field.
+func WithStatus(value string) zap.Field {
+	return zap.String(FieldStatus, value)
+}
+
+// WithLogURL sets the log-url field.
+func WithLogURL(value fmt.Stringer) zap.Field {
+	return zap.Stringer(FieldLogURL, value)
+}
+
+// WithLogURLString sets the log-url field.
+func WithLogURLString(value string) zap.Field {
+	return zap.String(FieldLogURL, value)
+}
+
+// WithNamespace sets the namespace field.
+func WithNamespace(value string) zap.Field {
+	return zap.String(FieldNamespace, value)
+}
+
+// WithCanonicalRef sets the canonical-ref field.
+func WithCanonicalRef(value string) zap.Field {
+	return zap.String(FieldCanonicalRef, value)
+}
+
+// WithAnchorString sets the anchor-string field.
+func WithAnchorString(value string) zap.Field {
+	return zap.String(FieldAnchorString, value)
+}
+
+// WithJRD sets the jrd field.
+func WithJRD(value interface{}) zap.Field {
+	return zap.Inline(NewObjectMarshaller(FieldJRD, value))
+}
+
+// WithBackoff sets the backoff field.
+func WithBackoff(value time.Duration) zap.Field {
+	return zap.Duration(FieldBackoff, value)
+}
+
+// WithTimeout sets the timeout field.
+func WithTimeout(value time.Duration) zap.Field {
+	return zap.Duration(FieldTimeout, value)
+}
+
+// WithLogMonitor sets the log-monitor field.
+func WithLogMonitor(value interface{}) zap.Field {
+	return zap.Inline(NewObjectMarshaller(FieldLogMonitor, value))
+}
+
+// WithLogMonitors sets the log-monitors field.
+func WithLogMonitors(value interface{}) zap.Field {
+	return zap.Inline(NewObjectMarshaller(FieldLogMonitors, value))
+}
+
+// WithMaxTime sets the max-time field.
+func WithMaxTime(value time.Duration) zap.Field {
+	return zap.Duration(FieldMaxTime, value)
+}
+
+// WithIndex sets the index field.
+func WithIndex(value int) zap.Field {
+	return zap.Int(FieldIndex, value)
+}
+
+// WithIndexUint64 sets the index field.
+func WithIndexUint64(value uint64) zap.Field {
+	return zap.Uint64(FieldIndex, value)
+}
+
+// WithFromIndexUint64 sets the from-index field.
+func WithFromIndexUint64(value uint64) zap.Field {
+	return zap.Uint64(FieldFromIndex, value)
+}
+
+// WithToIndexUint64 sets the to-index field.
+func WithToIndexUint64(value uint64) zap.Field {
+	return zap.Uint64(FieldToIndex, value)
 }
 
 type jsonMarshaller struct {

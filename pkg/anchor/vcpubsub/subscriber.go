@@ -43,7 +43,7 @@ func NewSubscriber(pubSub pubSub, processor anchorProcessor) (*Subscriber, error
 		lifecycle.WithStart(h.start),
 	)
 
-	logger.Debug("Subscribing to queue", log.WithQueue(anchorTopic))
+	logger.Debug("Subscribing to topic", log.WithTopic(anchorTopic))
 
 	vcChan, err := pubSub.Subscribe(context.Background(), anchorTopic)
 	if err != nil {

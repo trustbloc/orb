@@ -25,6 +25,11 @@ func CloseResponseBodyError(log loggerFunc, err error) {
 	log("Error closing response body", WithError(err))
 }
 
+// ReadRequestBodyError outputs a 'read response body' error log to the given logger.
+func ReadRequestBodyError(log loggerFunc, err error) {
+	log("Error reading response body", WithError(err))
+}
+
 // WriteResponseBodyError outputs a 'write response body' error log to the given logger.
 func WriteResponseBodyError(log loggerFunc, err error) {
 	log("Error writing response body", WithError(err))

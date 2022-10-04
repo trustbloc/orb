@@ -12,6 +12,8 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill-amqp/v2/pkg/amqp"
 	"github.com/ThreeDotsLabs/watermill/message"
+
+	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 type publishFunc func(topic string, messages ...*message.Message) error
@@ -40,7 +42,7 @@ func newPublisherPool(connMgr connMgr, maxChannelsPerConn int, cfg *amqp.Config,
 		publish = func(topic string, messages ...*message.Message) error {
 			i := lb.nextIndex()
 
-			logger.Debugf("Using publisher at index %d", i)
+			logger.Debug("Using publisher at index", log.WithIndex(i))
 
 			return publishers[i].Publish(topic, messages...)
 		}
@@ -57,7 +59,7 @@ func (p *publisherPool) Publish(topic string, messages ...*message.Message) erro
 }
 
 func (p *publisherPool) Close() error {
-	logger.Debugf("Closing publisher pool.")
+	logger.Debug("Closing publisher pool.")
 
 	var lastErr error
 
@@ -105,8 +107,8 @@ func createPublishers(connMgr connMgr, maxChannelsPerConn int, cfg *amqp.Config,
 		publishers = append(publishers, pub)
 	}
 
-	logger.Infof("Created %d publisher connections at [%s], each with a channel pool size of %d",
-		len(publishers), extractEndpoint(newCfg.Connection.AmqpURI), newCfg.Publish.ChannelPoolSize)
+	logger.Info("Created publisher connections, each with a channel pool", log.WithTotal(len(publishers)),
+		log.WithAddress(extractEndpoint(newCfg.Connection.AmqpURI)), log.WithSize(newCfg.Publish.ChannelPoolSize))
 
 	return publishers, nil
 }

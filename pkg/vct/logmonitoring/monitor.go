@@ -21,6 +21,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 	"github.com/trustbloc/vct/pkg/client/vct"
 	"github.com/trustbloc/vct/pkg/controller/command"
+	"go.uber.org/zap"
 
 	"github.com/trustbloc/orb/internal/pkg/log"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
@@ -29,7 +30,7 @@ import (
 	"github.com/trustbloc/orb/pkg/vct/logmonitoring/verifier"
 )
 
-var logger = log.New("vct-consistency-monitor")
+var logger = log.NewStructured("vct-consistency-monitor")
 
 const (
 	// VCT limits maximum number of entries to 1000.
@@ -160,7 +161,7 @@ func New(store logMonitorStore, httpClient httpClient, requestTokens map[string]
 }
 
 func (c *Client) checkVCTConsistency(logMonitor *logmonitor.LogMonitor) error {
-	logger.Debugf("log[%s]: checking VCT consistency...", logMonitor.Log)
+	logger.Debug("Checking VCT consistency...", log.WithLogURLString(logMonitor.Log))
 
 	storedSTH := logMonitor.STH
 
@@ -186,7 +187,7 @@ func (c *Client) checkVCTConsistency(logMonitor *logmonitor.LogMonitor) error {
 		return fmt.Errorf("failed to verify STH signature: %w", err)
 	}
 
-	logger.Debugf("log[%s]: verified STH signature", logMonitor.Log)
+	logger.Debug("Verified STH signature", log.WithLogURLString(logMonitor.Log))
 
 	err = c.verifySTH(logMonitor.Log, storedSTH, sth, vctClient)
 	if err != nil {
@@ -202,7 +203,7 @@ func (c *Client) checkVCTConsistency(logMonitor *logmonitor.LogMonitor) error {
 		return fmt.Errorf("failed to store STH: %w", err)
 	}
 
-	logger.Debugf("log[%s]: latest tree size[%d]", logMonitor.Log, sth.TreeSize)
+	logger.Debug("Got latest tree size", log.WithLogURLString(logMonitor.Log), log.WithSizeUint64(sth.TreeSize))
 
 	return nil
 }
@@ -212,14 +213,14 @@ func (c *Client) verifySTH(logURL string, storedSTH, sth *command.GetSTHResponse
 
 	if storedSTH == nil {
 		if sth.TreeSize == 0 {
-			logger.Debugf("log[%s]: initial STH tree size is zero - nothing to do", logURL)
+			logger.Debug("Initial STH tree size is zero - nothing to do", log.WithLogURLString(logURL))
 
 			return nil
 		}
 
 		if sth.TreeSize > c.maxTreeSize {
-			logger.Debugf("log[%s]: initial STH tree size[%d] is greater than max size[%d] - nothing to do",
-				logURL, sth.TreeSize, c.maxTreeSize)
+			logger.Debug("Initial STH tree size is greater than max size - nothing to do",
+				log.WithLogURLString(logURL), log.WithSizeUint64(sth.TreeSize), log.WithMaxSizeUInt64(c.maxTreeSize))
 
 			return nil
 		}
@@ -229,21 +230,23 @@ func (c *Client) verifySTH(logURL string, storedSTH, sth *command.GetSTHResponse
 			return fmt.Errorf("failed to verify STH tree: %w", err)
 		}
 
-		logger.Debugf("log[%s]: verified STH tree", logURL)
+		logger.Debug("Verified STH tree.", log.WithLogURLString(logURL))
 
 		return nil
 	}
 
 	if sth.TreeSize == storedSTH.TreeSize && bytes.Equal(sth.SHA256RootHash, storedSTH.SHA256RootHash) {
-		logger.Debugf("log[%s]: STH tree size[%d] and root hash did not change - nothing to do", logURL, sth.TreeSize)
+		logger.Debug("STH tree size and root hash did not change - nothing to do",
+			log.WithLogURLString(logURL), log.WithSizeUint64(sth.TreeSize))
 
 		return nil
 	}
 
 	if sth.TreeSize < storedSTH.TreeSize ||
 		(sth.TreeSize == storedSTH.TreeSize && !bytes.Equal(sth.SHA256RootHash, storedSTH.SHA256RootHash)) {
-		logger.Errorf("log[%s]: log tree size[%d] is less than stored tree size[%d] or root hashes are not equal",
-			logURL, sth.TreeSize, storedSTH.TreeSize)
+		logger.Error("Log tree size is less than stored tree size or root hashes are not equal",
+			log.WithLogURLString(logURL), log.WithSizeUint64(sth.TreeSize),
+			zap.Uint64("stored-size", storedSTH.TreeSize))
 
 		e := c.processLogInconsistency(logURL, vctClient, sth)
 		if e != nil {
@@ -258,7 +261,7 @@ func (c *Client) verifySTH(logURL string, storedSTH, sth *command.GetSTHResponse
 		return fmt.Errorf("failed to verify STH consistency: %w", err)
 	}
 
-	logger.Debugf("log[%s]: verified STH consistency", logURL)
+	logger.Debug("Verified STH consistency", log.WithLogURLString(logURL))
 
 	return nil
 }
@@ -269,7 +272,7 @@ func (c *Client) processLogInconsistency(logURL string, vctClient *vct.Client, s
 		return nil
 	}
 
-	logger.Infof("log[%s]: starting recovery process for log entry store ...", logURL)
+	logger.Info("Starting recovery process for log entry store ...", log.WithLogURLString(logURL))
 
 	// entry storage is enabled - find last common entry for log and store
 	index, entries, err := c.getDiscrepancyIndexAndAdditionalLogEntries(logURL, vctClient, sth.TreeSize)
@@ -325,8 +328,10 @@ func (c *Client) getDiscrepancyIndexAndAdditionalLogEntries(logURL string,
 
 		minSize := minimum(len(storedEntries), len(logEntries))
 
-		logger.Debugf("log[%s]: retrieved %d stored and %d log entries from index[%d], fetchSize[%d]",
-			logURL, len(storedEntries), len(logEntries), curStart, c.maxRecoveryFetchSize)
+		logger.Debug("Retrieved log entries from VCT and from storage",
+			log.WithLogURLString(logURL), zap.Int("total-stored-entries", len(storedEntries)),
+			zap.Int("total-entries", len(logEntries)),
+			log.WithIndexUint64(uint64(curStart)), log.WithMaxSize(c.maxRecoveryFetchSize))
 
 		for i := minSize - 1; i >= 0; i-- {
 			if bytes.Equal(storedEntries[i].LeafInput, logEntries[i].LeafInput) {
@@ -336,8 +341,8 @@ func (c *Client) getDiscrepancyIndexAndAdditionalLogEntries(logURL string,
 					allDifferentLogEntries = append(logEntries[i+1:], allDifferentLogEntries...)
 				}
 
-				logger.Infof("log[%s]: found common log entry between store and log - first different index[%d]",
-					logURL, firstDifferentIndex)
+				logger.Info("Found common log entry between store and log - first different index",
+					log.WithLogURLString(logURL), log.WithIndexUint64(uint64(firstDifferentIndex)))
 
 				return firstDifferentIndex, allDifferentLogEntries, nil
 			}
@@ -348,7 +353,7 @@ func (c *Client) getDiscrepancyIndexAndAdditionalLogEntries(logURL string,
 		curEnd = curStart - 1
 	}
 
-	logger.Infof("log[%s]: there was no common log entry between store entries and log entries", logURL)
+	logger.Info("There was no common log entry between store entries and log entries", log.WithLogURLString(logURL))
 
 	// not found or zero index have same meaning, all current entries should be marked failed in the store and
 	// all log entries should be added to the store
@@ -389,14 +394,15 @@ func minimum(a, b int) int {
 }
 
 func (c *Client) verifySTHTree(logURL string, sth *command.GetSTHResponse, vctClient *vct.Client) error {
-	logger.Debugf("log[%s]: get STH tree[%d] and verify consistency", logURL, sth.TreeSize)
+	logger.Debug("Verifying STH tree consistency", log.WithLogURLString(logURL), log.WithSizeUint64(sth.TreeSize))
 
 	entries, err := c.getAllEntries(logURL, vctClient, sth.TreeSize)
 	if err != nil {
 		return fmt.Errorf("failed to get all entries: %w", err)
 	}
 
-	logger.Debugf("log[%s]: get all entries[%d] for tree size[%d]", logURL, len(entries), sth.TreeSize)
+	logger.Debug("Got all entries for tree", log.WithLogURLString(logURL), log.WithTotal(len(entries)),
+		log.WithSizeUint64(sth.TreeSize))
 
 	// Confirm that the tree made from the fetched entries produces the
 	// same hash as that in the STH.
@@ -409,7 +415,7 @@ func (c *Client) verifySTHTree(logURL string, sth *command.GetSTHResponse, vctCl
 		return fmt.Errorf("different root hash results from merkle tree building: %s and sth %s", root, sth.SHA256RootHash)
 	}
 
-	logger.Debugf("log[%s]: merkle tree hash from all entries matches latest STH", logURL)
+	logger.Debug("Merkle tree hash from all entries matches latest STH", log.WithLogURLString(logURL))
 
 	return nil
 }
@@ -431,7 +437,8 @@ func (c *Client) getLogEntries(logURL string, vctClient *vct.Client,
 			return nil, fmt.Errorf("failed to get entries for range[%d-%d]: %w", attemptStart, attemptEnd, err)
 		}
 
-		logger.Debugf("log[%s] fetched entries from %d to %d", logURL, attemptStart, attemptEnd)
+		logger.Debug("Fetched entries (from-to)", log.WithLogURLString(logURL),
+			log.WithFromIndexUint64(attemptStart), log.WithToIndexUint64(attemptEnd))
 
 		if c.entryStoreEnabled && store {
 			err = c.entryStore.StoreLogEntries(logURL, attemptStart, attemptEnd, entries.Entries)
@@ -463,16 +470,17 @@ func min(a, b uint64) uint64 {
 
 func (c *Client) verifySTHConsistency(logURL string, storedSTH, sth *command.GetSTHResponse, vctClient *vct.Client) error { //nolint:lll
 	if storedSTH.TreeSize > 0 {
-		logger.Debugf("log[%s]: get STH consistency for stored[%d] and latest[%d]",
-			logURL, storedSTH.TreeSize, sth.TreeSize)
+		logger.Debug("Getting STH consistency for stored[%d] and latest[%d]",
+			log.WithLogURLString(logURL), zap.Uint64("stored-size", storedSTH.TreeSize),
+			log.WithSizeUint64(sth.TreeSize))
 
 		sthConsistency, err := vctClient.GetSTHConsistency(context.Background(), storedSTH.TreeSize, sth.TreeSize)
 		if err != nil {
 			return fmt.Errorf("get STH consistency: %w", err)
 		}
 
-		logger.Debugf("log[%s]: found %d consistencies in STH consistency response",
-			logURL, len(sthConsistency.Consistency))
+		logger.Debug("Found %d consistencies in STH consistency response", log.WithLogURLString(logURL),
+			zap.Int("consistency-size", len(sthConsistency.Consistency)))
 
 		err = c.logVerifier.VerifyConsistencyProof(int64(storedSTH.TreeSize), int64(sth.TreeSize),
 			storedSTH.SHA256RootHash, sth.SHA256RootHash, sthConsistency.Consistency)
@@ -481,7 +489,7 @@ func (c *Client) verifySTHConsistency(logURL string, storedSTH, sth *command.Get
 		}
 	} else {
 		// any tree is consistent with tree size of zero - nothing to do
-		logger.Debugf("log[%s]: STH stored tree size is zero - nothing to do for STH consistency", logURL)
+		logger.Debug("STH stored tree size is zero - nothing to do for STH consistency", log.WithLogURLString(logURL))
 	}
 
 	_, err := c.getLogEntries(logURL, vctClient, storedSTH.TreeSize, sth.TreeSize-1, true)
@@ -548,7 +556,7 @@ func (c *Client) MonitorLogs() {
 	logs, err := c.monitorStore.GetActiveLogs()
 	if err != nil {
 		if !errors.Is(err, orberrors.ErrContentNotFound) {
-			logger.Errorf("failed to get active logs: %s", err.Error())
+			logger.Error("Failed to get active logs", log.WithError(err))
 		}
 
 		return
@@ -572,7 +580,7 @@ func (c *Client) MonitorLogs() {
 func (c *Client) processLog(logMonitor *logmonitor.LogMonitor) {
 	err := c.checkVCTConsistency(logMonitor)
 	if err != nil {
-		logger.Errorf("[%s] failed to check VCT consistency: %s", logMonitor.Log, err.Error())
+		logger.Error("failed to check VCT consistency", log.WithLogURLString(logMonitor.Log), log.WithError(err))
 	}
 }
 

@@ -20,7 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry"
 )
 
-var logger = log.New("did-anchor-info")
+var logger = log.NewStructured("did-anchor-info")
 
 const minDidParts = 4
 
@@ -79,7 +79,7 @@ func (h *DidAnchorInfo) GetResourceInfo(did string) (registry.Metadata, error) {
 	info[registry.AnchorOriginProperty] = resolutionResult.AnchorOrigin
 	info[registry.CanonicalReferenceProperty] = resolutionResult.CanonicalReference
 
-	logger.Debugf("latest anchor info for suffix[%s]: %+v", suffix, info)
+	logger.Debug("Latest anchor metadata for suffix", log.WithSuffix(suffix), log.WithMetadata(info))
 
 	return info, nil
 }

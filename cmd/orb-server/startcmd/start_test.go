@@ -19,6 +19,9 @@ import (
 	ariesspi "github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
 	awssvc "github.com/trustbloc/kms/pkg/aws"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
@@ -307,15 +310,49 @@ type mockActivityLogger struct {
 	mutex sync.Mutex
 }
 
-func (m *mockActivityLogger) Debugf(msg string, args ...interface{}) {
+func (m *mockActivityLogger) Debug(msg string, fields ...zap.Field) {
 	m.mutex.Lock()
-	m.infos = append(m.infos, fmt.Sprintf(msg, args...))
+
+	w := msg
+
+	for _, f := range fields {
+		var value string
+
+		switch f.Type {
+		case zapcore.StringType:
+			value = f.String
+		case zapcore.StringerType:
+			value = fmt.Sprintf("%s", f.Interface)
+		}
+
+		w += fmt.Sprintf(" %s=%s", f.Key, value)
+	}
+
+	m.infos = append(m.infos, w)
+
 	m.mutex.Unlock()
 }
 
-func (m *mockActivityLogger) Warnf(msg string, args ...interface{}) {
+func (m *mockActivityLogger) Warn(msg string, fields ...zap.Field) {
 	m.mutex.Lock()
-	m.warns = append(m.warns, fmt.Sprintf(msg, args...))
+
+	w := msg
+
+	for _, f := range fields {
+		var value string
+
+		switch f.Type {
+		case zapcore.StringType:
+			value = f.String
+		case zapcore.StringerType:
+			value = fmt.Sprintf("%s", f.Interface)
+		}
+
+		w += fmt.Sprintf(" %s=%s", f.Key, value)
+	}
+
+	m.warns = append(m.infos, w)
+
 	m.mutex.Unlock()
 }
 
@@ -355,7 +392,7 @@ func TestMonitorActivities(t *testing.T) {
 	close(activityChan)
 
 	require.Contains(t, l.getWarns(),
-		"Received activity [https://domain1.com/123] of type Reject from [https://domain2.com/456]")
+		"Received activity activity-id=https://domain1.com/123 activity-type=Reject actor-id=https://domain2.com/456")
 	require.Contains(t, l.getInfos(),
-		"Received activity [https://domain2.com/456] of type Accept from [https://domain1.com/123]")
+		"Received activity activity-id=https://domain2.com/456 activity-type=Accept actor-id=https://domain1.com/123")
 }

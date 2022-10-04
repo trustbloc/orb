@@ -9,6 +9,7 @@ package startcmd
 import (
 	"errors"
 	"fmt"
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"net/url"
 	"strconv"
 	"strings"
@@ -1532,7 +1533,7 @@ func getRequestTokens(cmd *cobra.Command) map[string]string {
 		case splitRequestTokenLength:
 			tokens[split[0]] = split[1]
 		default:
-			logger.Warnf("invalid token '%s'", token)
+			logger.Warn("Invalid token", log.WithAuthToken(token))
 		}
 	}
 
@@ -1588,7 +1589,7 @@ func getAuthTokenDefinitions(cmd *cobra.Command, flagName, envKey string, defaul
 		return defaultDefs, nil
 	}
 
-	logger.Debugf("Auth tokens definition: %s", authTokenDefsStr)
+	logger.Debug("Auth tokens definition", log.WithAuthTokens(authTokenDefsStr...))
 
 	var authTokenDefs []*auth.TokenDef
 
@@ -1615,8 +1616,11 @@ func getAuthTokenDefinitions(cmd *cobra.Command, flagName, envKey string, defaul
 			WriteTokens:        writeTokens,
 		}
 
-		logger.Debugf("Adding auth token definition for endpoint %s - Read Tokens: %s, Write Tokens: %s",
-			def.EndpointExpression, def.ReadTokens, def.WriteTokens)
+		logger.Debug("Adding write token definition for endpoint",
+			log.WithServiceEndpoint(def.EndpointExpression), log.WithAuthTokens(def.WriteTokens...))
+
+		logger.Debug("Adding read token definition for endpoint",
+			log.WithServiceEndpoint(def.EndpointExpression), log.WithAuthTokens(def.ReadTokens...))
 
 		authTokenDefs = append(authTokenDefs, def)
 	}
@@ -1677,7 +1681,7 @@ func getAuthTokens(cmd *cobra.Command, flagName, envKey string, defaultTokens ma
 			return nil, fmt.Errorf("invalid auth token string [%s]: %w", authTokensStr, err)
 		}
 
-		logger.Debugf("Adding token %s=%s", keyVal[0], keyVal[1])
+		logger.Debug("Adding token", log.WithKey(keyVal[0]), log.WithValue(keyVal[1]))
 
 		authTokens[keyVal[0]] = keyVal[1]
 	}

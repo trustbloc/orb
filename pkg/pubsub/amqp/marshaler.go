@@ -39,6 +39,8 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	amqp "github.com/rabbitmq/amqp091-go"
+
+	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 const defaultMessageUUIDHeaderKey = "_watermill_message_uuid"
@@ -79,11 +81,13 @@ type DefaultMarshaler struct {
 func (d DefaultMarshaler) Marshal(msg *message.Message) (amqp.Publishing, error) {
 	headers := make(amqp.Table, len(msg.Metadata)+1) // metadata + plus uuid
 
-	for key, value := range msg.Metadata {
-		logger.Debugf("Metadata [%s]: %s", key, value)
+	logger.Debug("Marshalling message with metadata", log.WithMessageID(msg.UUID),
+		log.WithMetadata(msg.Metadata))
 
+	for key, value := range msg.Metadata {
 		if key == metadataExpiration {
-			logger.Debugf("Ignoring metadata [%s] since it will be set in the message directly", key)
+			logger.Debug("Ignoring metadata property since it will be set in the message directly",
+				log.WithProperty(key))
 
 			continue
 		}
@@ -130,7 +134,7 @@ func (d DefaultMarshaler) Unmarshal(amqpMsg amqp.Delivery) (*message.Message, er
 			continue
 		}
 
-		logger.Debugf("Metadata [%s] is of type: %s", key, reflect.TypeOf(value))
+		logger.Debug("Got metadata property", log.WithProperty(key), log.WithType(reflect.TypeOf(value).String()))
 
 		msg.Metadata[key], err = marshalHeaderValue(value)
 		if err != nil {
@@ -233,8 +237,8 @@ func getExpiration(metadata message.Metadata) string {
 		return strconv.FormatInt(expirationDuration.Milliseconds(), 10)
 	}
 
-	logger.Warnf("Invalid value [%s] for metadata [%s]: %s. No expiration will be set.",
-		expirationValue, metadataExpiration, err)
+	logger.Warn("Invalid value for metadata property. No expiration will be set.",
+		log.WithValue(expirationValue), log.WithProperty(metadataExpiration), log.WithError(err))
 
 	return ""
 }

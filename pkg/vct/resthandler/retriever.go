@@ -13,11 +13,14 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+
+	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 // LogRetriever retrieves the current log URL.
 type LogRetriever struct {
 	configStore storage.Store
+	logger      *log.StructuredLog
 	unmarshal   func([]byte, interface{}) error
 }
 
@@ -40,6 +43,7 @@ func (lr *LogRetriever) Handler() common.HTTPRequestHandler {
 func NewRetriever(cfgStore storage.Store) *LogRetriever {
 	return &LogRetriever{
 		configStore: cfgStore,
+		logger:      log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
 		unmarshal:   json.Unmarshal,
 	}
 }
@@ -48,16 +52,16 @@ func (lr *LogRetriever) handle(w http.ResponseWriter, req *http.Request) {
 	logConfigBytes, err := lr.configStore.Get(logURLKey)
 	if err != nil {
 		if errors.Is(err, storage.ErrDataNotFound) {
-			logger.Debugf("[%s] log URL not found", endpoint)
+			lr.logger.Debug("Log URL not found")
 
-			writeResponse(w, http.StatusNotFound, nil)
+			writeResponse(lr.logger, w, http.StatusNotFound, nil)
 
 			return
 		}
 
-		logger.Errorf("[%s] Error retrieving log URL: %s", endpoint, err)
+		lr.logger.Error("Error retrieving log URL", log.WithError(err))
 
-		writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+		writeResponse(lr.logger, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
@@ -66,14 +70,14 @@ func (lr *LogRetriever) handle(w http.ResponseWriter, req *http.Request) {
 
 	err = lr.unmarshal(logConfigBytes, &logConfig)
 	if err != nil {
-		logger.Errorf("[%s] Error unmarshalling log configuration: %s", endpoint, err)
+		lr.logger.Error("Error unmarshalling log configuration", log.WithError(err))
 
-		writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
+		writeResponse(lr.logger, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
-	logger.Debugf("[%s] Retrieved log URL: %s", endpoint, logConfig.URL)
+	lr.logger.Debug("Retrieved log URL", log.WithLogURLString(logConfig.URL))
 
-	writeResponse(w, http.StatusOK, []byte(logConfig.URL))
+	writeResponse(lr.logger, w, http.StatusOK, []byte(logConfig.URL))
 }

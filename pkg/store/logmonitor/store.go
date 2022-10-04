@@ -32,7 +32,7 @@ const (
 	statusInactive status = "inactive"
 )
 
-var logger = log.New("log-monitor-store")
+var logger = log.NewStructured("log-monitor-store")
 
 // New returns new instance of log monitor store.
 func New(provider storage.Provider) (*Store, error) {
@@ -92,7 +92,7 @@ func (s *Store) Activate(logURL string) error {
 		return fmt.Errorf("failed to marshal log monitor record: %w", err)
 	}
 
-	logger.Debugf("storing log monitor: %s", string(recBytes))
+	logger.Debug("Storing log monitor record", log.WithLogMonitor(rec))
 
 	indexTag := storage.Tag{
 		Name:  statusIndex,
@@ -128,7 +128,7 @@ func (s *Store) Deactivate(logURL string) error {
 		return fmt.Errorf("failed to deactivate log[%s] monitor: marshall error: %w", logURL, err)
 	}
 
-	logger.Debugf("deactivating log monitor: %s", logURL)
+	logger.Debug("Deactivating log monitor", log.WithURIString(logURL))
 
 	indexTag := storage.Tag{
 		Name:  statusIndex,
@@ -174,7 +174,7 @@ func (s *Store) Update(logMonitor *LogMonitor) error {
 		return fmt.Errorf("failed to marshal log monitor record: %w", err)
 	}
 
-	logger.Debugf("updating log monitor: %s", string(recBytes))
+	logger.Debug("Updating log monitor record", log.WithLogMonitor(logMonitor))
 
 	indexTag := storage.Tag{
 		Name:  statusIndex,
@@ -194,7 +194,7 @@ func (s *Store) Delete(logURL string) error {
 		return fmt.Errorf("failed to delete log[%s] monitor: %w", logURL, err)
 	}
 
-	logger.Debugf("deleted log monitor: %s", logURL)
+	logger.Debug("Deleted log monitor", log.WithURIString(logURL))
 
 	return nil
 }
@@ -249,7 +249,8 @@ func (s *Store) getLogs(status status) ([]*LogMonitor, error) {
 		}
 	}
 
-	logger.Debugf("get '%s' log monitors: %+v", status, logMonitors)
+	logger.Debug("Returning log monitors with status", log.WithStatus(status),
+		log.WithLogMonitors(logMonitors))
 
 	return logMonitors, nil
 }

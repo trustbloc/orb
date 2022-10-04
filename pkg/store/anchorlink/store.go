@@ -21,7 +21,7 @@ import (
 
 const nameSpace = "anchor-link"
 
-var logger = log.New("anchor-link-store")
+var logger = log.NewStructured("anchor-link-store")
 
 // New returns new instance of anchor event store.
 func New(p storage.Provider) (*Store, error) {
@@ -55,7 +55,7 @@ func (s *Store) Put(anchorLink *linkset.Link) error {
 		return fmt.Errorf("failed to marshal anchor link: %w", err)
 	}
 
-	logger.Debugf("storing anchor link: %s", string(anchorLinkBytes))
+	logger.Debug("Storing anchor link", log.WithAnchorLink(anchorLinkBytes))
 
 	if e := s.store.Put(anchorLink.Anchor().String(), anchorLinkBytes); e != nil {
 		return orberrors.NewTransient(fmt.Errorf("failed to put anchor link: %w", e))
@@ -64,7 +64,7 @@ func (s *Store) Put(anchorLink *linkset.Link) error {
 	return nil
 }
 
-// Get retrieves anchor event by id.
+// Get retrieves anchor link by ID.
 func (s *Store) Get(id string) (*linkset.Link, error) {
 	anchorLinkBytes, err := s.store.Get(id)
 	if err != nil {
@@ -91,7 +91,7 @@ func (s *Store) Delete(id string) error {
 		return orberrors.NewTransient(fmt.Errorf("failed to delete anchor link id[%s]: %w", id, err))
 	}
 
-	logger.Debugf("deleted anchor link id[%s]", id)
+	logger.Debug("Deleted anchor link", log.WithAnchorURIString(id))
 
 	return nil
 }

@@ -28,7 +28,9 @@ import (
 	"github.com/trustbloc/orb/pkg/pubsub/wmlogger"
 )
 
-var logger = log.New("pubsub")
+const loggerModule = "pubsub"
+
+var logger = log.NewStructured(loggerModule)
 
 const (
 	defaultMaxConnectRetries                 = 25
@@ -188,12 +190,12 @@ func (p *PubSub) SubscribeWithOpts(ctx context.Context, topic string,
 	options := getOptions(opts)
 
 	if options.PoolSize <= 1 {
-		logger.Debugf("Subscribing to topic [%s]", topic)
+		logger.Debug("Subscribing to topic", log.WithTopic(topic))
 
 		return p.subscriber.Subscribe(ctx, topic)
 	}
 
-	logger.Debugf("Creating subscriber pool for topic [%s], Size [%d]", topic, options.PoolSize)
+	logger.Debug("Creating subscriber pool", log.WithTopic(topic), log.WithSubscriberPoolSize(options.PoolSize))
 
 	pool, err := newPooledSubscriber(ctx, options.PoolSize, p.subscriber, topic)
 	if err != nil {
@@ -215,11 +217,11 @@ func (p *PubSub) Publish(topic string, messages ...*message.Message) error {
 		return lifecycle.ErrNotStarted
 	}
 
-	logger.Debugf("Publishing messages to topic [%s]", topic)
+	logger.Debug("Publishing messages", log.WithTopic(topic))
 
 	if err := p.publisher.Publish(topic, messages...); err != nil {
 		for _, msg := range messages {
-			logger.Errorf("Error publishing message [%s] to topic: %s", msg.UUID, topic)
+			logger.Error("Error publishing message", log.WithMessageID(msg.UUID), log.WithTopic(topic))
 		}
 
 		return errors.NewTransientf("publish messages to topic [%s]: %w", topic, err)
@@ -242,7 +244,8 @@ func (p *PubSub) PublishWithOpts(topic string, msg *message.Message, opts ...spi
 }
 
 func (p *PubSub) publishWithDelay(topic string, msg *message.Message, delay time.Duration) error {
-	logger.Debugf("Publishing message [%s] to topic [%s] with a delay of %s", msg.UUID, topic, delay)
+	logger.Debug("Publishing message", log.WithMessageID(msg.UUID),
+		log.WithTopic(topic), log.WithDeliveryDelay(delay))
 
 	// Post the message to the wait queue with the given expiration so that it isn't immediately redelivered.
 	err := p.waitPublisher.Publish(waitQueue,
@@ -252,12 +255,13 @@ func (p *PubSub) publishWithDelay(topic string, msg *message.Message, delay time
 		),
 	)
 	if err != nil {
-		logger.Errorf("Error publishing message [%s] to wait queue", msg.UUID)
+		logger.Error("Error publishing message to wait queue", log.WithMessageID(msg.UUID), log.WithError(err))
 
 		return errors.NewTransientf("publish message to wait queue: %w", err)
 	}
 
-	logger.Debugf("Successfully published message [%s] to topic [%s] with a delay of %s", msg.UUID, topic, delay)
+	logger.Debug("Successfully published message", log.WithMessageID(msg.UUID),
+		log.WithTopic(topic), log.WithDeliveryDelay(delay))
 
 	return nil
 }
@@ -270,35 +274,35 @@ func (p *PubSub) Close() error {
 }
 
 func (p *PubSub) stop() {
-	logger.Debugf("Closing publisher...")
+	logger.Debug("Closing publisher...")
 
 	if err := p.publisher.Close(); err != nil {
-		logger.Warnf("Error closing publisher: %s", err)
+		logger.Warn("Error closing publisher", log.WithError(err))
 	}
 
 	if err := p.waitPublisher.Close(); err != nil {
-		logger.Warnf("Error closing wait publisher: %s", err)
+		logger.Warn("Error closing wait publisher", log.WithError(err))
 	}
 
-	logger.Debugf("Closing subscriber...")
+	logger.Debug("Closing subscriber...")
 
 	if err := p.subscriber.Close(); err != nil {
-		logger.Warnf("Error closing subscriber: %s", err)
+		logger.Warn("Error closing subscriber", log.WithError(err))
 	}
 
 	if err := p.redeliverySubscriber.Close(); err != nil {
-		logger.Warnf("Error closing redelivery subscriber: %s", err)
+		logger.Warn("Error closing redelivery subscriber", log.WithError(err))
 	}
 
 	if err := p.waitSubscriber.Close(); err != nil {
-		logger.Warnf("Error closing wait subscriber: %s", err)
+		logger.Warn("Error closing wait subscriber", log.WithError(err))
 	}
 
 	if err := p.connMgr.close(); err != nil {
-		logger.Warnf("Error closing connection manager: %s", err)
+		logger.Warn("Error closing connection manager", log.WithError(err))
 	}
 
-	logger.Debugf("Closing pools...")
+	logger.Debug("Closing pools...")
 
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
@@ -309,7 +313,7 @@ func (p *PubSub) stop() {
 }
 
 func (p *PubSub) start() {
-	logger.Infof("Connecting to message queue at %s", extractEndpoint(p.amqpConfig.Connection.AmqpURI))
+	logger.Info("Connecting to message queue", log.WithAddress(extractEndpoint(p.amqpConfig.Connection.AmqpURI)))
 
 	maxRetries := p.MaxConnectRetries
 	if maxRetries == 0 {
@@ -322,8 +326,9 @@ func (p *PubSub) start() {
 		},
 		backoff.WithMaxRetries(newConnectBackOff(), uint64(maxRetries)),
 		func(err error, duration time.Duration) {
-			logger.Debugf("Error connecting to AMQP service %s after %s: %s. Retrying...",
-				extractEndpoint(p.amqpConfig.Connection.AmqpURI), duration, err)
+			logger.Debug("Error connecting to AMQP service. Will retry with backoff...",
+				log.WithAddress(extractEndpoint(p.amqpConfig.Connection.AmqpURI)),
+				log.WithBackoff(duration), log.WithError(err))
 		},
 	)
 	if err != nil {
@@ -343,12 +348,13 @@ func (p *PubSub) start() {
 	// back on the redelivery queue.
 	err = p.waitSubscriber.SubscribeInitialize(waitQueue)
 	if err != nil {
-		panic(fmt.Sprintf("Unable to initialize to initialize queue [%s]: %s", redeliveryQueue, err))
+		panic(fmt.Sprintf("Unable to initialize queue [%s]: %s", waitQueue, err))
 	}
 
 	go p.processRedeliveryQueue()
 
-	logger.Infof("Successfully connected to message queue: %s", extractEndpoint(p.amqpConfig.Connection.AmqpURI))
+	logger.Info("Successfully connected to AMQP service",
+		log.WithAddress(extractEndpoint(p.amqpConfig.Connection.AmqpURI)))
 }
 
 func (p *PubSub) connect() error {
@@ -392,22 +398,23 @@ If the message metadata, 'reason', is set to "expired" then it is posted to the 
 maximum number of redelivery attempts has been reached, at which point redelivery for the message is aborted.
 */
 func (p *PubSub) processRedeliveryQueue() {
-	logger.Infof("Starting message redelivery listener")
+	logger.Info("Starting message redelivery listener")
 
 	for msg := range p.redeliveryChan {
 		p.handleRedelivery(msg)
 	}
 
-	logger.Infof("Message redelivery listener stopped")
+	logger.Info("Message redelivery listener stopped")
 }
 
 func (p *PubSub) handleRedelivery(msg *message.Message) {
-	logger.Debugf("Got new RETRY message [%s], Metadata: %s, Payload %s",
-		msg.UUID, msg.Metadata, msg.Payload)
+	logger.Debug("Got new RETRY message", log.WithMessageID(msg.UUID),
+		log.WithMetadata(msg.Metadata), log.WithData(msg.Payload))
 
 	queue, err := getQueue(msg)
 	if err != nil {
-		logger.Warnf("Error resolving queue for message [%s]: %s. Message will not be redelivered.", msg.UUID, err)
+		logger.Warn("Error resolving queue for message. Message will not be redelivered.",
+			log.WithMessageID(msg.UUID), log.WithError(err))
 
 		msg.Ack()
 
@@ -419,7 +426,8 @@ func (p *PubSub) handleRedelivery(msg *message.Message) {
 	if redeliveryAttempts < p.MaxRedeliveryAttempts {
 		err = p.redeliver(msg, queue, redeliveryAttempts)
 		if err != nil {
-			logger.Errorf("Error redelivering message [%s]: %s. The message will be nacked and retried.", msg.UUID, err)
+			logger.Error("Error redelivering message. The message will be nacked and retried.",
+				log.WithMessageID(msg.UUID), log.WithError(err))
 
 			// Nack the message so that it may be retried.
 			msg.Nack()
@@ -427,8 +435,8 @@ func (p *PubSub) handleRedelivery(msg *message.Message) {
 			return
 		}
 	} else {
-		logger.Errorf("Message [%s] will not be redelivered to queue [%s] since it has already been redelivered %d times",
-			msg.UUID, queue, redeliveryAttempts)
+		logger.Error("Message will not be redelivered since the maximum delivery attempts has been reached",
+			log.WithMessageID(msg.UUID), log.WithTopic(queue), log.WithDeliveryAttempts(redeliveryAttempts+1))
 	}
 
 	msg.Ack()
@@ -449,8 +457,8 @@ func (p *PubSub) redeliver(msg *message.Message, queue string, redeliveryAttempt
 			return fmt.Errorf("publish message to queue [%s]: %w", queue, err)
 		}
 
-		logger.Infof("Successfully posted message [%s] for redelivery to queue [%s] after %d redelivery attempts",
-			msg.UUID, queue, redeliveryAttempts-1)
+		logger.Info("Successfully posted message for redelivery", log.WithMessageID(msg.UUID),
+			log.WithTopic(queue), log.WithDeliveryAttempts(redeliveryAttempts))
 
 		return nil
 	}
@@ -469,8 +477,8 @@ func (p *PubSub) redeliver(msg *message.Message, queue string, redeliveryAttempt
 			waitQueue, expiration, redeliveryAttempts, err)
 	}
 
-	logger.Infof("Successfully posted message [%s] to queue [%s] with expiration %s for redelivery attempt %d",
-		msg.UUID, waitQueue, expiration, redeliveryAttempts)
+	logger.Info("Successfully posted message", log.WithMessageID(msg.UUID), log.WithTopic(waitQueue),
+		log.WithDeliveryDelay(expiration), log.WithDeliveryAttempts(redeliveryAttempts+1))
 
 	return nil
 }
@@ -552,7 +560,7 @@ func (m *connectionMgr) getConnection(shared bool) (connection, error) {
 
 		m.connections = append(m.connections, c)
 
-		logger.Infof("Created new connection. Total connections: %d.", len(m.connections))
+		logger.Info("Created new connection.", log.WithTotal(len(m.connections)))
 
 		return c, nil
 	}
@@ -568,12 +576,12 @@ func (m *connectionMgr) getConnection(shared bool) (connection, error) {
 		m.connections = append(m.connections, newCurrent)
 		m.current = newCurrent
 
-		logger.Infof("Created new shared connection. Total connections: %d.", len(m.connections))
+		logger.Info("Created new shared connection.", log.WithTotal(len(m.connections)))
 	}
 
 	numChannels := m.current.incrementChannelCount()
 
-	logger.Infof("Current connection has %d channels.", numChannels)
+	logger.Debug("Incremented channel count for current connection.", log.WithTotal(int(numChannels)))
 
 	return m.current, nil
 }
@@ -589,11 +597,11 @@ func (m *connectionMgr) close() error {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
-	logger.Infof("Closing %d connections", len(m.connections))
+	logger.Info("Closing connections", log.WithTotal(len(m.connections)))
 
 	for _, c := range m.connections {
 		if err := c.amqpConnection().Close(); err != nil {
-			logger.Warnf("Error closing connection: %s", err)
+			logger.Warn("Error closing connection", log.WithError(err))
 		}
 	}
 
@@ -641,11 +649,11 @@ func (m *subscriberMgr) Close() error {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
-	logger.Infof("Closing %d subscriber connections", len(m.subscribers))
+	logger.Info("Closing subscribers", log.WithTotal(len(m.subscribers)))
 
 	for _, s := range m.subscribers {
 		if err := s.subscriber.Close(); err != nil {
-			logger.Warnf("Error closing subscriber: %s", err)
+			logger.Warn("Error closing subscriber", log.WithError(err))
 		}
 	}
 
@@ -692,10 +700,10 @@ func (m *subscriberMgr) get() (initializingSubscriber, error) {
 
 		m.subscribers = append(m.subscribers, m.current)
 
-		logger.Debugf("Created a subscriber with a new connection. Num subscribers: %d", len(m.subscribers))
+		logger.Debug("Created a subscriber.", log.WithTotal(len(m.subscribers)))
 	}
 
-	logger.Debugf("Current connection has %d channels.", conn.numChannels())
+	logger.Debug("Incremented channel count for current connection.", log.WithTotal(int(conn.numChannels())))
 
 	return m.current.subscriber, nil
 }
@@ -724,8 +732,8 @@ func getRedeliveryAttempts(msg *message.Message) int {
 	if ok {
 		c, err := strconv.ParseInt(countValue, 10, 0)
 		if err != nil {
-			logger.Warnf("Message [%s] - Metadata [%s] is not a valid int. Redelivery count will be set to 0: %w",
-				msg.UUID, metadataRedeliveryCount)
+			logger.Warn("Message metadata property is not a valid int. Redelivery count will be set to 0",
+				log.WithMessageID(msg.UUID), log.WithProperty(metadataRedeliveryCount))
 		} else {
 			count = int(c)
 		}
@@ -745,8 +753,8 @@ func getQueue(msg *message.Message) (string, error) {
 		return queue, nil
 	}
 
-	logger.Warnf("Message [%s] - Metadata [%s] not found. Message will not be redelivered.",
-		msg.UUID, metadataFirstDeathQueue)
+	logger.Warn("Message metadata property not found. Message will not be redelivered.",
+		log.WithMessageID(msg.UUID), log.WithProperty(metadataFirstDeathQueue))
 
 	return "", fmt.Errorf("metadata not found: %s", metadataFirstDeathReason)
 }

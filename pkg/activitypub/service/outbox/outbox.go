@@ -379,8 +379,8 @@ func (h *Outbox) publishBroadcastMessage(activity *vocab.ActivityType, excludeIR
 
 	msg := message.NewMessage(watermill.NewUUID(), msgBytes)
 
-	h.logger.Debug("Publishing activity message to queue", log.WithMessageID(msg.UUID),
-		log.WithActivityID(activity.ID()), log.WithQueue(h.Topic))
+	h.logger.Debug("Publishing activity message to topic", log.WithMessageID(msg.UUID),
+		log.WithActivityID(activity.ID()), log.WithTopic(h.Topic))
 
 	return h.publisher.Publish(h.Topic, msg)
 }
@@ -401,8 +401,8 @@ func (h *Outbox) publishResolveAndDeliverMessage(activity *vocab.ActivityType, t
 
 	msg := message.NewMessage(watermill.NewUUID(), msgBytes)
 
-	h.logger.Debug("Publishing 'resolve-and-deliver' activity message to queue",
-		log.WithMessageID(msg.UUID), log.WithActivityID(activity.ID()), log.WithQueue(h.Topic))
+	h.logger.Debug("Publishing 'resolve-and-deliver' activity message to topic",
+		log.WithMessageID(msg.UUID), log.WithActivityID(activity.ID()), log.WithTopic(h.Topic))
 
 	return h.publisher.Publish(h.Topic, msg)
 }
@@ -421,9 +421,9 @@ func (h *Outbox) publishDeliverMessage(activity *vocab.ActivityType, target *url
 
 	msg := message.NewMessage(watermill.NewUUID(), msgBytes)
 
-	h.logger.Debug("Publishing 'deliver' activity message to queue",
+	h.logger.Debug("Publishing 'deliver' activity message to topic",
 		log.WithMessageID(msg.UUID), log.WithActivityID(activity.ID()),
-		log.WithQueue(h.Topic), log.WithTargetIRI(target))
+		log.WithTopic(h.Topic), log.WithTargetIRI(target))
 
 	return h.publisher.Publish(h.Topic, msg)
 }
