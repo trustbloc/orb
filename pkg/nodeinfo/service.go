@@ -154,7 +154,7 @@ func (r *Service) updateStatsUsingSingleTagQuery() error {
 	defer func() {
 		err = it.Close()
 		if err != nil {
-			log.CloseIteratorError(logger.Warn, err)
+			log.CloseIteratorError(logger, err)
 		}
 	}()
 

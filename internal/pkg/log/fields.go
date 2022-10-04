@@ -143,6 +143,9 @@ const (
 	FieldIndex                  = "index"
 	FieldFromIndex              = "from-index"
 	FieldToIndex                = "to-index"
+	FieldSource                 = "source"
+	FieldAge                    = "age"
+	FieldMinAge                 = "min-age"
 )
 
 // WithError sets the error field.
@@ -855,6 +858,21 @@ func WithFromIndexUint64(value uint64) zap.Field {
 // WithToIndexUint64 sets the to-index field.
 func WithToIndexUint64(value uint64) zap.Field {
 	return zap.Uint64(FieldToIndex, value)
+}
+
+// WithSource sets the source field.
+func WithSource(value string) zap.Field {
+	return zap.String(FieldSource, value)
+}
+
+// WithAge sets the age field.
+func WithAge(value time.Duration) zap.Field {
+	return zap.Duration(FieldAge, value)
+}
+
+// WithMinAge sets the min-age field.
+func WithMinAge(value time.Duration) zap.Field {
+	return zap.Duration(FieldMinAge, value)
 }
 
 type jsonMarshaller struct {

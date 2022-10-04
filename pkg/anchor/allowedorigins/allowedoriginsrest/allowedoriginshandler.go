@@ -154,12 +154,12 @@ func writeResponse(w http.ResponseWriter, status int, body []byte) {
 
 	if len(body) > 0 {
 		if _, err := w.Write(body); err != nil {
-			log.WriteResponseBodyError(logger.Warn, err)
+			log.WriteResponseBodyError(logger, err)
 
 			return
 		}
 
-		log.WroteResponse(logger.Debug, body)
+		log.WroteResponse(logger, body)
 	}
 }
 

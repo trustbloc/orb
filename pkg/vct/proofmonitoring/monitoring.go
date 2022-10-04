@@ -173,7 +173,7 @@ func (c *Client) handleEntities() error { //nolint:funlen,gocyclo,cyclop
 
 	defer func() {
 		if e := records.Close(); e != nil {
-			log.CloseIteratorError(logger.Warn, e)
+			log.CloseIteratorError(logger, e)
 		}
 	}()
 

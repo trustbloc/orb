@@ -80,7 +80,7 @@ func (o *HandlerWrapper) handler(rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusInternalServerError)
 
 		if _, errWrite := rw.Write([]byte("Internal Server Error.\n")); errWrite != nil {
-			log.WriteResponseBodyError(o.logger.Error, errWrite)
+			log.WriteResponseBodyError(o.logger, errWrite)
 		}
 
 		return
@@ -92,7 +92,7 @@ func (o *HandlerWrapper) handler(rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusUnauthorized)
 
 		if _, errWrite := rw.Write([]byte("Unauthorized.\n")); errWrite != nil {
-			log.WriteResponseBodyError(o.logger.Error, errWrite)
+			log.WriteResponseBodyError(o.logger, errWrite)
 		}
 
 		return

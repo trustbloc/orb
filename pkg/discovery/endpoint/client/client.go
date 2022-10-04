@@ -588,7 +588,7 @@ func (cs *Client) sendRequest(req []byte, method, endpointURL string, respObj in
 func closeResponseBody(respBody io.Closer) {
 	e := respBody.Close() // nolint: ifshort
 	if e != nil {
-		log.CloseResponseBodyError(logger.Warn, e)
+		log.CloseResponseBodyError(logger, e)
 	}
 }
 

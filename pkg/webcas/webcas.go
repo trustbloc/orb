@@ -92,7 +92,7 @@ func (w *WebCAS) handler(rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusInternalServerError)
 
 		if _, errWrite := rw.Write([]byte("Internal Server Error.\n")); errWrite != nil {
-			log.WriteResponseBodyError(w.logger.Error, errWrite)
+			log.WriteResponseBodyError(w.logger, errWrite)
 		}
 
 		return
@@ -104,7 +104,7 @@ func (w *WebCAS) handler(rw http.ResponseWriter, req *http.Request) {
 		rw.WriteHeader(http.StatusUnauthorized)
 
 		if _, errWrite := rw.Write([]byte("Unauthorized.\n")); errWrite != nil {
-			log.WriteResponseBodyError(w.logger.Error, errWrite)
+			log.WriteResponseBodyError(w.logger, errWrite)
 		}
 
 		return
@@ -121,7 +121,7 @@ func (w *WebCAS) handler(rw http.ResponseWriter, req *http.Request) {
 
 			_, errWrite := rw.Write([]byte(fmt.Sprintf("no content at %s was found: %s", cid, err.Error())))
 			if errWrite != nil {
-				log.WriteResponseBodyError(w.logger.Error, errWrite)
+				log.WriteResponseBodyError(w.logger, errWrite)
 			}
 
 			return
@@ -131,7 +131,7 @@ func (w *WebCAS) handler(rw http.ResponseWriter, req *http.Request) {
 
 		_, errWrite := rw.Write([]byte(fmt.Sprintf("failure while finding content at %s: %s", cid, err.Error())))
 		if errWrite != nil {
-			log.WriteResponseBodyError(w.logger.Error, errWrite)
+			log.WriteResponseBodyError(w.logger, errWrite)
 		}
 
 		return
@@ -139,6 +139,6 @@ func (w *WebCAS) handler(rw http.ResponseWriter, req *http.Request) {
 
 	_, err = rw.Write(content)
 	if err != nil {
-		log.WriteResponseBodyError(w.logger.Error, err)
+		log.WriteResponseBodyError(w.logger, err)
 	}
 }

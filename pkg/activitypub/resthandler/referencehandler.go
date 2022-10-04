@@ -184,7 +184,7 @@ func (h *Reference) getReference(id *url.URL) (interface{}, error) {
 	defer func() {
 		err = it.Close()
 		if err != nil {
-			log.CloseIteratorError(h.logger.Error, err)
+			log.CloseIteratorError(h.logger, err)
 		}
 	}()
 
@@ -225,7 +225,7 @@ func (h *Reference) getPage(id *url.URL, opts ...spi.QueryOpt) (interface{}, err
 	defer func() {
 		err = it.Close()
 		if err != nil {
-			log.CloseIteratorError(h.logger.Error, err)
+			log.CloseIteratorError(h.logger, err)
 		}
 	}()
 

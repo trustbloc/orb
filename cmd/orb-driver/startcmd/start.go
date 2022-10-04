@@ -73,7 +73,7 @@ const (
 	verifyTypeNone        = "none"
 )
 
-var logger = log.New("orb-driver")
+var logger = log.NewStructured("orb-driver")
 
 // HTTPServer represents an actual HTTP server implementation.
 type HTTPServer struct{}
@@ -84,7 +84,7 @@ func (s *HTTPServer) Start(srv *httpserver.Server) error {
 		return err
 	}
 
-	logger.Infof("started orb driver service")
+	logger.Info("started orb driver service")
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGINT, syscall.SIGTERM)

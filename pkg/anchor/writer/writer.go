@@ -858,7 +858,7 @@ func (c *Writer) getSystemWitnessesIRI() ([]*url.URL, error) {
 	defer func() {
 		err = it.Close()
 		if err != nil {
-			log.CloseIteratorError(logger.Warn, err)
+			log.CloseIteratorError(logger, err)
 		}
 	}()
 

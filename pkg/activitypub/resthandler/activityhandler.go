@@ -220,7 +220,7 @@ func (h *Activities) getActivities(objectIRI, id *url.URL,
 	defer func() {
 		err = it.Close()
 		if err != nil {
-			log.CloseIteratorError(h.logger.Error, err)
+			log.CloseIteratorError(h.logger, err)
 		}
 	}()
 
@@ -263,7 +263,7 @@ func (h *Activities) getPage(objectIRI, id *url.URL, refType spi.ReferenceType,
 	defer func() {
 		err = it.Close()
 		if err != nil {
-			log.CloseIteratorError(h.logger.Error, err)
+			log.CloseIteratorError(h.logger, err)
 		}
 	}()
 

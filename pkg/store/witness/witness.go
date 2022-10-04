@@ -120,7 +120,7 @@ func (s *Store) Delete(anchorID string) error {
 	defer func() {
 		err = iter.Close()
 		if err != nil {
-			log.CloseIteratorError(logger.Warn, err)
+			log.CloseIteratorError(logger, err)
 		}
 	}()
 
@@ -198,7 +198,7 @@ func (s *Store) getWitnesses(anchorID string) ([]*proof.Witness, error) {
 	defer func() {
 		err = iter.Close()
 		if err != nil {
-			log.CloseIteratorError(logger.Warn, err)
+			log.CloseIteratorError(logger, err)
 		}
 	}()
 
@@ -254,7 +254,7 @@ func (s *Store) getProofs(anchorID string) (proofs, error) {
 	defer func() {
 		err = iter.Close()
 		if err != nil {
-			log.CloseIteratorError(logger.Warn, err)
+			log.CloseIteratorError(logger, err)
 		}
 	}()
 
@@ -331,7 +331,7 @@ func (s *Store) UpdateWitnessSelection(anchorID string, witnesses []*url.URL, se
 
 	defer func() {
 		if e := iter.Close(); e != nil {
-			log.CloseIteratorError(logger.Warn, err)
+			log.CloseIteratorError(logger, err)
 		}
 	}()
 

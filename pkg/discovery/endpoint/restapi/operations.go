@@ -299,7 +299,7 @@ func (o *Operation) handleDIDWeb(did string, pubKeys []PublicKey, rw http.Respon
 	rw.WriteHeader(http.StatusOK)
 
 	if _, err = rw.Write(bytes); err != nil {
-		log.WriteResponseBodyError(logger.Error, err)
+		log.WriteResponseBodyError(logger, err)
 	}
 }
 
@@ -744,7 +744,7 @@ func writeResponse(rw http.ResponseWriter, v interface{}) {
 
 	err := json.NewEncoder(rw).Encode(v)
 	if err != nil {
-		log.WriteResponseBodyError(logger.Error, err)
+		log.WriteResponseBodyError(logger, err)
 	}
 }
 

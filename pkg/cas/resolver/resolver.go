@@ -371,7 +371,7 @@ func (w *WebCASResolver) GetDataViaWebCASEndpoint(webCASEndpoint *url.URL) ([]by
 	defer func() {
 		errClose := resp.Body.Close()
 		if errClose != nil {
-			log.CloseResponseBodyError(logger.Warn, err)
+			log.CloseResponseBodyError(logger, err)
 		}
 	}()
 

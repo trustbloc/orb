@@ -473,7 +473,7 @@ func (q *Queue) monitorOtherServers() {
 	defer func() {
 		errClose := it.Close()
 		if errClose != nil {
-			log.CloseIteratorError(q.logger.Warn, err)
+			log.CloseIteratorError(q.logger, err)
 		}
 	}()
 
@@ -591,7 +591,7 @@ func (q *Queue) repostOperations(serverID string) error { //nolint:gocyclo,cyclo
 	defer func() {
 		errClose := it.Close()
 		if errClose != nil {
-			log.CloseIteratorError(q.logger.Warn, err)
+			log.CloseIteratorError(q.logger, err)
 		}
 	}()
 

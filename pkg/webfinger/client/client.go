@@ -159,7 +159,7 @@ func (c *Client) resolveResource(domainWithScheme, resource string) (*restapi.JR
 	defer func() {
 		err = resp.Body.Close()
 		if err != nil {
-			log.CloseResponseBodyError(logger.Warn, err)
+			log.CloseResponseBodyError(logger, err)
 		}
 	}()
 

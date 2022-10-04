@@ -99,7 +99,7 @@ func (rr *Resolver) send(uri string) ([]byte, error) {
 
 	defer func() {
 		if errClose := resp.Body.Close(); errClose != nil {
-			log.CloseResponseBodyError(logger.Warn, errClose)
+			log.CloseResponseBodyError(logger, errClose)
 		}
 	}()
 

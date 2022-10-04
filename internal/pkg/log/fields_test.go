@@ -246,12 +246,27 @@ func TestStandardFields(t *testing.T) {
 
 		metadata := &mockObject{Field1: "meta1", Field2: 7676}
 		protocol := &mockObject{Field1: "proto1", Field2: 2314}
+		params := &mockObject{Field1: "param1", Field2: 4612}
+		op := &mockObject{Field1: "op1", Field2: 9486}
+		txn := &mockObject{Field1: "txn1", Field2: 5967}
+		jrd := &mockObject{Field1: "jrd1", Field2: 2312}
+		logMonitor := &mockObject{Field1: "mon1", Field2: 6732}
 
 		logger.Info("Some message",
 			WithMetadata(metadata), WithSidetreeProtocol(protocol), WithOriginActorID(u2.String()), WithTargetIRIs(u2, u3),
 			WithHTTPMethod(http.MethodPost), WithSuffixes("suffix1", "suffix2"), WithLocalHashlink(hl.String()),
 			WithAuthToken("token1"), WithAuthTokens("token1", "token2"), WithAddress(u1.String()),
 			WithAttributedTo(u2.String()), WithAnchorLinkset([]byte(`"linkset":"{}"`)), WithVersion("v1"),
+			WithSizeUint64(10), WithMaxSize(20),
+			WithParameters(params), WithURL(u1), WithAnchorURIStrings(u1.String(), u2.String()),
+			WithOperation(op), WithValue("value1"), WithTaskID("task1"), WithSidetreeTxn(txn),
+			WithAnchorLink([]byte(`{"link":"{}"}`)), WithDeliveryAttempts(37), WithProperty("prop1"),
+			WithStoreName("store1"), WithIssuer("issuer1"), WithStatus("status1"),
+			WithLogURL(u3), WithNamespace("ns1"), WithCanonicalRef("ref1"),
+			WithAnchorString("anchor1"), WithJRD(jrd), WithBackoff(5*time.Second), WithTimeout(2*time.Minute),
+			WithLogMonitor(logMonitor), WithLogMonitors([]*mockObject{logMonitor, logMonitor}),
+			WithMaxTime(time.Hour), WithIndex(3), WithFromIndexUint64(9), WithToIndexUint64(13),
+			WithSource("inbox"), WithAge(time.Minute), WithMinAge(10*time.Minute),
 		)
 
 		l := unmarshalLogData(t, stdOut.Bytes())
@@ -269,6 +284,54 @@ func TestStandardFields(t *testing.T) {
 		require.Equal(t, u2.String(), l.AttributedTo)
 		require.Equal(t, `"linkset":"{}"`, l.AnchorLinkset)
 		require.Equal(t, "v1", l.Version)
+		require.Equal(t, 10, l.Size)
+		require.Equal(t, 20, l.MaxSize)
+		require.Equal(t, params, l.Parameters)
+		require.Equal(t, u1.String(), l.URL)
+		require.Equal(t, []string{u1.String(), u2.String()}, l.AnchorURIs)
+		require.Equal(t, op, l.Operation)
+		require.Equal(t, "value1", l.Value)
+		require.Equal(t, "task1", l.TaskID)
+		require.Equal(t, txn, l.SidetreeTxn)
+		require.Equal(t, `{"link":"{}"}`, l.AnchorLink)
+		require.Equal(t, 37, l.DeliveryAttempts)
+		require.Equal(t, "prop1", l.Property)
+		require.Equal(t, "store1", l.StoreName)
+		require.Equal(t, "issuer1", l.Issuer)
+		require.Equal(t, "status1", l.Status)
+		require.Equal(t, u3.String(), l.LogURL)
+		require.Equal(t, "ns1", l.Namespace)
+		require.Equal(t, "ref1", l.CanonicalRef)
+		require.Equal(t, "anchor1", l.AnchorString)
+		require.Equal(t, jrd, l.JRD)
+		require.Equal(t, "5s", l.Backoff)
+		require.Equal(t, "2m0s", l.Timeout)
+		require.Equal(t, logMonitor, l.LogMonitor)
+		require.Equal(t, []*mockObject{logMonitor, logMonitor}, l.LogMonitors)
+		require.Equal(t, "1h0m0s", l.MaxTime)
+		require.Equal(t, 3, l.Index)
+		require.Equal(t, 9, l.FromIndex)
+		require.Equal(t, 13, l.ToIndex)
+		require.Equal(t, "inbox", l.Source)
+		require.Equal(t, "1m0s", l.Age)
+		require.Equal(t, "10m0s", l.MinAge)
+	})
+
+	t.Run("json fields 4", func(t *testing.T) {
+		stdOut := newMockWriter()
+
+		logger := NewStructured(module, WithStdOut(stdOut), WithEncoding(JSON))
+
+		logger.Info("Some message",
+			WithMaxSizeUInt64(30), WithURLString(u1.String()), WithLogURLString(u3.String()), WithIndexUint64(7),
+		)
+
+		l := unmarshalLogData(t, stdOut.Bytes())
+
+		require.Equal(t, 30, l.MaxSize)
+		require.Equal(t, u1.String(), l.URL)
+		require.Equal(t, u3.String(), l.LogURL)
+		require.Equal(t, 7, l.Index)
 	})
 }
 
@@ -382,6 +445,36 @@ type logData struct {
 	AttributedTo           string              `json:"attributed-to"`
 	AnchorLinkset          string              `json:"anchor-linkset"`
 	Version                string              `json:"version"`
+	MaxSize                int                 `json:"max-size"`
+	Parameters             *mockObject         `json:"parameters"`
+	URL                    string              `json:"url"`
+	AnchorURIs             []string            `json:"anchor-uris"`
+	Operation              *mockObject         `json:"operation"`
+	Value                  string              `json:"value"`
+	TaskID                 string              `json:"task-id"`
+	SidetreeTxn            *mockObject         `json:"sidetree-txn"`
+	AnchorLink             string              `json:"anchor-link"`
+	DeliveryAttempts       int                 `json:"delivery-attempts"`
+	Property               string              `json:"property"`
+	StoreName              string              `json:"store-name"`
+	Issuer                 string              `json:"issuer"`
+	Status                 string              `json:"status"`
+	LogURL                 string              `json:"log-url"`
+	Namespace              string              `json:"namespace"`
+	CanonicalRef           string              `json:"canonical-ref"`
+	AnchorString           string              `json:"anchor-string"`
+	JRD                    *mockObject         `json:"jrd"`
+	Backoff                string              `json:"backoff"`
+	Timeout                string              `json:"timeout"`
+	LogMonitor             *mockObject         `json:"log-monitor"`
+	LogMonitors            []*mockObject       `json:"log-monitors"`
+	MaxTime                string              `json:"max-time"`
+	Index                  int                 `json:"index"`
+	FromIndex              int                 `json:"from-index"`
+	ToIndex                int                 `json:"to-index"`
+	Source                 string              `json:"source"`
+	Age                    string              `json:"age"`
+	MinAge                 string              `json:"min-age"`
 }
 
 func unmarshalLogData(t *testing.T, b []byte) *logData {

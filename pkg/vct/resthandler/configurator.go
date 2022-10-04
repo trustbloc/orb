@@ -72,7 +72,7 @@ func New(cfgStore storage.Store, lmStore logMonitorStore) *LogConfigurator {
 func (c *LogConfigurator) handle(w http.ResponseWriter, req *http.Request) {
 	logURLBytes, err := ioutil.ReadAll(req.Body)
 	if err != nil {
-		log.ReadRequestBodyError(c.logger.Error, err)
+		log.ReadRequestBodyError(c.logger, err)
 
 		writeResponse(c.logger, w, http.StatusBadRequest, []byte(badRequestResponse))
 
@@ -140,12 +140,12 @@ func writeResponse(logger *log.StructuredLog, w http.ResponseWriter, status int,
 
 	if len(body) > 0 {
 		if _, err := w.Write(body); err != nil {
-			log.WriteResponseBodyError(logger.Error, err)
+			log.WriteResponseBodyError(logger, err)
 
 			return
 		}
 
-		log.WroteResponse(logger.Debug, body)
+		log.WroteResponse(logger, body)
 	}
 }
 
