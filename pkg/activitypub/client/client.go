@@ -336,7 +336,7 @@ func (c *Client) get(iri *url.URL) ([]byte, error) {
 
 	defer func() {
 		if e := resp.Body.Close(); e != nil {
-			log.CloseResponseBodyError(logger.Warn, e)
+			log.CloseResponseBodyError(logger, e)
 		}
 	}()
 

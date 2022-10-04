@@ -28,7 +28,7 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
-var logger = log.New("orb-cli")
+var logger = log.NewStructured("orb-cli")
 
 func main() {
 	rootCmd := &cobra.Command{
@@ -77,6 +77,6 @@ func main() {
 	rootCmd.AddCommand(allowedoriginscmd.GetCmd())
 
 	if err := rootCmd.Execute(); err != nil {
-		logger.Fatalf("Failed to run orb-cli: %s", err.Error())
+		logger.Fatal("Failed to run orb-cli", log.WithError(err))
 	}
 }

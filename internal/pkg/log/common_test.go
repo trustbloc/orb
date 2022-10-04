@@ -24,7 +24,7 @@ func TestCommonLogs(t *testing.T) {
 			WithFields(WithServiceName("myservice")),
 		)
 
-		InvalidParameterValue(logger.Error, "param1", errors.New("invalid integer"))
+		InvalidParameterValue(logger, "param1", errors.New("invalid integer"))
 
 		t.Logf(stdErr.String())
 
@@ -32,6 +32,7 @@ func TestCommonLogs(t *testing.T) {
 		require.Contains(t, stdErr.Buffer.String(), `"service": "myservice"`)
 		require.Contains(t, stdErr.Buffer.String(), `"parameter": "param1"`)
 		require.Contains(t, stdErr.Buffer.String(), `"error": "invalid integer"`)
+		require.Contains(t, stdErr.Buffer.String(), "log/common_test.go")
 	})
 
 	t.Run("CloseIteratorError", func(t *testing.T) {
@@ -42,11 +43,12 @@ func TestCommonLogs(t *testing.T) {
 			WithFields(WithServiceName("myservice")),
 		)
 
-		CloseIteratorError(logger.Info, errors.New("iterator error"))
+		CloseIteratorError(logger, errors.New("iterator error"))
 
 		require.Contains(t, stdOut.Buffer.String(), `Error closing iterator`)
 		require.Contains(t, stdOut.Buffer.String(), `"service": "myservice"`)
 		require.Contains(t, stdOut.Buffer.String(), `"error": "iterator error"`)
+		require.Contains(t, stdOut.Buffer.String(), "log/common_test.go")
 	})
 
 	t.Run("CloseResponseBodyError", func(t *testing.T) {
@@ -57,29 +59,49 @@ func TestCommonLogs(t *testing.T) {
 			WithFields(WithServiceName("myservice")),
 		)
 
-		CloseResponseBodyError(logger.Info, errors.New("response body error"))
+		CloseResponseBodyError(logger, errors.New("response body error"))
 
 		require.Contains(t, stdOut.Buffer.String(), `Error closing response body`)
 		require.Contains(t, stdOut.Buffer.String(), `"service": "myservice"`)
 		require.Contains(t, stdOut.Buffer.String(), `"error": "response body error"`)
+		require.Contains(t, stdOut.Buffer.String(), "log/common_test.go")
 	})
 
 	t.Run("WriteResponseBodyError", func(t *testing.T) {
-		stdOut := newMockWriter()
+		stdErr := newMockWriter()
 
 		logger := NewStructured(module,
-			WithStdOut(stdOut),
+			WithStdErr(stdErr),
 			WithFields(WithServiceName("myservice")),
 		)
 
-		WriteResponseBodyError(logger.Info, errors.New("response body error"))
+		WriteResponseBodyError(logger, errors.New("response body error"))
 
-		require.Contains(t, stdOut.Buffer.String(), `Error writing response body`)
-		require.Contains(t, stdOut.Buffer.String(), `"service": "myservice"`)
-		require.Contains(t, stdOut.Buffer.String(), `"error": "response body error"`)
+		require.Contains(t, stdErr.Buffer.String(), `Error writing response body`)
+		require.Contains(t, stdErr.Buffer.String(), `"service": "myservice"`)
+		require.Contains(t, stdErr.Buffer.String(), `"error": "response body error"`)
+		require.Contains(t, stdErr.Buffer.String(), "log/common_test.go")
+	})
+
+	t.Run("ReadRequestBodyError", func(t *testing.T) {
+		stdErr := newMockWriter()
+
+		logger := NewStructured(module,
+			WithStdErr(stdErr),
+			WithFields(WithServiceName("myservice")),
+		)
+
+		ReadRequestBodyError(logger, errors.New("request body error"))
+
+		require.Contains(t, stdErr.Buffer.String(), `Error reading request body`)
+		require.Contains(t, stdErr.Buffer.String(), `"service": "myservice"`)
+		require.Contains(t, stdErr.Buffer.String(), `"error": "request body error"`)
+		require.Contains(t, stdErr.Buffer.String(), "log/common_test.go")
 	})
 
 	t.Run("WroteResponse", func(t *testing.T) {
+		SetLevel(module, DEBUG)
+
 		stdOut := newMockWriter()
 
 		logger := NewStructured(module,
@@ -87,10 +109,11 @@ func TestCommonLogs(t *testing.T) {
 			WithFields(WithServiceName("myservice")),
 		)
 
-		WroteResponse(logger.Info, []byte("some response"))
+		WroteResponse(logger, []byte("some response"))
 
 		require.Contains(t, stdOut.Buffer.String(), `Wrote response`)
 		require.Contains(t, stdOut.Buffer.String(), `"service": "myservice"`)
 		require.Contains(t, stdOut.Buffer.String(), `"response": "some response"`)
+		require.Contains(t, stdOut.Buffer.String(), "log/common_test.go")
 	})
 }

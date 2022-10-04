@@ -74,7 +74,7 @@ func (o *Operation) resolveDIDHandler(rw http.ResponseWriter, req *http.Request)
 	rw.WriteHeader(http.StatusOK)
 
 	if _, err := rw.Write(bytes); err != nil {
-		log.WriteResponseBodyError(logger.Error, err)
+		log.WriteResponseBodyError(logger, err)
 	}
 }
 
@@ -83,7 +83,7 @@ func (o *Operation) writeErrorResponse(rw http.ResponseWriter, status int, msg s
 	rw.WriteHeader(status)
 
 	if _, err := rw.Write([]byte(msg)); err != nil {
-		log.WriteResponseBodyError(logger.Error, err)
+		log.WriteResponseBodyError(logger, err)
 	}
 }
 

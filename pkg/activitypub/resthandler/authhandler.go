@@ -62,7 +62,7 @@ func NewAuthHandler(cfg *Config, endpoint, method string, s store.Store, verifie
 					return
 				}
 
-				log.WroteResponse(logger.Debug, body)
+				log.WroteResponse(logger, body)
 			}
 		},
 	}
@@ -156,7 +156,7 @@ func (h *AuthHandler) hasReference(refType store.ReferenceType, refIRI *url.URL)
 	defer func() {
 		err = it.Close()
 		if err != nil {
-			log.CloseIteratorError(h.logger.Error, err)
+			log.CloseIteratorError(h.logger, err)
 		}
 	}()
 

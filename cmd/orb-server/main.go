@@ -22,7 +22,7 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
-var logger = log.New("orb-server")
+var logger = log.NewStructured("orb-server")
 
 func main() {
 	rootCmd := &cobra.Command{
@@ -35,6 +35,6 @@ func main() {
 	rootCmd.AddCommand(startcmd.GetStartCmd())
 
 	if err := rootCmd.Execute(); err != nil {
-		logger.Fatalf("Failed to run orb-rest: %s", err.Error())
+		logger.Fatal("Failed to run Orb server.", log.WithError(err))
 	}
 }

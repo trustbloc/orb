@@ -43,7 +43,7 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/tlsutil"
 )
 
-var logger = log.New("orb-cli")
+var logger = log.NewStructured("orb-cli")
 
 const (
 	// TLSSystemCertPoolFlagName defines the flag for the system certificate pool.
@@ -390,7 +390,7 @@ func SendHTTPRequest(cmd *cobra.Command, reqBytes []byte, method, endpointURL st
 
 func closeResponseBody(respBody io.Closer) {
 	if err := respBody.Close(); err != nil {
-		logger.Errorf("Failed to close response body: %v", err)
+		log.CloseResponseBodyError(logger, err)
 	}
 }
 

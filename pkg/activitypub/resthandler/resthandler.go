@@ -225,7 +225,7 @@ func (h *handler) paramAsInt(req *http.Request, param string) (int, bool) {
 
 	size, err := strconv.Atoi(values[0])
 	if err != nil {
-		log.InvalidParameterValue(h.logger.Error, param, err)
+		log.InvalidParameterValue(h.logger, param, err)
 
 		return 0, false
 	}
@@ -243,7 +243,7 @@ func (h *handler) paramAsBool(req *http.Request, param string) bool {
 
 	b, err := strconv.ParseBool(values[0])
 	if err != nil {
-		log.InvalidParameterValue(h.logger.Error, param, err)
+		log.InvalidParameterValue(h.logger, param, err)
 
 		return false
 	}

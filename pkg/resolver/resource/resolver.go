@@ -184,7 +184,7 @@ func (c *Resolver) getHostMetaDocumentViaHTTP(urlToGetHostMetaDocumentFrom strin
 	defer func() {
 		err = resp.Body.Close()
 		if err != nil {
-			log.CloseResponseBodyError(logger.Warn, err)
+			log.CloseResponseBodyError(logger, err)
 		}
 	}()
 
