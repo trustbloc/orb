@@ -21,7 +21,7 @@ const (
 	didLDJson          = "application/did+ld+json"
 )
 
-var logger = log.NewStructured("driver")
+var logger = log.New("driver")
 
 // Handler http handler for each controller API endpoint.
 type Handler interface {

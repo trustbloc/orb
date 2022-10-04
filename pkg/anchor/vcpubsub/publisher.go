@@ -19,7 +19,7 @@ import (
 	"github.com/trustbloc/orb/pkg/linkset"
 )
 
-var logger = log.NewStructured("anchor")
+var logger = log.New("anchor")
 
 const anchorTopic = "orb.anchor_linkset"
 

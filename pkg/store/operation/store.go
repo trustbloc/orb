@@ -25,7 +25,7 @@ const (
 	index     = "uniqueSuffix"
 )
 
-var logger = log.NewStructured("operation-store")
+var logger = log.New("operation-store")
 
 type metricsProvider interface {
 	PutPublishedOperations(duration time.Duration)

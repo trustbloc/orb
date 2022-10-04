@@ -35,7 +35,7 @@ const loggerModule = "log-monitor-rest-handler"
 type UpdateHandler struct {
 	logMonitorStore logMonitorStore
 
-	logger    *log.StructuredLog
+	logger    *log.Log
 	unmarshal func([]byte, interface{}) error
 }
 
@@ -65,7 +65,7 @@ func (a *UpdateHandler) Handler() common.HTTPRequestHandler {
 func NewUpdateHandler(store logMonitorStore) *UpdateHandler {
 	h := &UpdateHandler{
 		logMonitorStore: store,
-		logger:          log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
+		logger:          log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
 		unmarshal:       json.Unmarshal,
 	}
 
@@ -119,7 +119,7 @@ func (a *UpdateHandler) handle(w http.ResponseWriter, req *http.Request) {
 	writeResponse(a.logger, w, http.StatusOK, nil)
 }
 
-func writeResponse(logger *log.StructuredLog, w http.ResponseWriter, status int, body []byte) {
+func writeResponse(logger *log.Log, w http.ResponseWriter, status int, body []byte) {
 	if len(body) > 0 {
 		w.Header().Set("Content-Type", "text/plain")
 	}

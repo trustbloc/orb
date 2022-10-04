@@ -32,7 +32,7 @@ const (
 	statusInactive status = "inactive"
 )
 
-var logger = log.NewStructured("log-monitor-store")
+var logger = log.New("log-monitor-store")
 
 // New returns new instance of log monitor store.
 func New(provider storage.Provider) (*Store, error) {

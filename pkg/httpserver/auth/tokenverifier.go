@@ -43,7 +43,7 @@ type tokenManager interface {
 type TokenVerifier struct {
 	endpoint   string
 	authTokens []string
-	logger     *log.StructuredLog
+	logger     *log.Log
 }
 
 // NewTokenVerifier returns a verifier that performs bearer token authorization.
@@ -57,7 +57,7 @@ func NewTokenVerifier(tm tokenManager, endpoint, method string) *TokenVerifier {
 	return &TokenVerifier{
 		endpoint:   endpoint,
 		authTokens: authTokens,
-		logger:     log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
+		logger:     log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
 	}
 }
 
@@ -103,7 +103,7 @@ type tokenDef struct {
 type TokenManager struct {
 	tokenDefs  []*tokenDef
 	authTokens map[string]string
-	logger     *log.StructuredLog
+	logger     *log.Log
 }
 
 // NewTokenManager returns a token mapper that performs bearer token authorization.
@@ -126,7 +126,7 @@ func NewTokenManager(cfg Config) (*TokenManager, error) {
 	return &TokenManager{
 		tokenDefs:  defs,
 		authTokens: cfg.AuthTokens,
-		logger:     log.NewStructured(loggerModule),
+		logger:     log.New(loggerModule),
 	}, nil
 }
 

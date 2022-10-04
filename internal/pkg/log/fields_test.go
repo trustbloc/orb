@@ -29,7 +29,7 @@ func TestStandardFields(t *testing.T) {
 	t.Run("console error", func(t *testing.T) {
 		stdErr := newMockWriter()
 
-		logger := NewStructured(module,
+		logger := New(module,
 			WithStdErr(stdErr),
 			WithFields(WithServiceName("myservice")),
 		)
@@ -42,7 +42,7 @@ func TestStandardFields(t *testing.T) {
 	t.Run("json error", func(t *testing.T) {
 		stdErr := newMockWriter()
 
-		logger := NewStructured(module,
+		logger := New(module,
 			WithStdErr(stdErr), WithEncoding(JSON),
 			WithFields(WithServiceName("myservice")),
 		)
@@ -62,7 +62,7 @@ func TestStandardFields(t *testing.T) {
 	t.Run("json fields 1", func(t *testing.T) {
 		stdOut := newMockWriter()
 
-		logger := NewStructured(module, WithStdOut(stdOut), WithEncoding(JSON))
+		logger := New(module, WithStdOut(stdOut), WithEncoding(JSON))
 
 		now := time.Now()
 
@@ -157,7 +157,7 @@ func TestStandardFields(t *testing.T) {
 	t.Run("json fields 2", func(t *testing.T) {
 		stdOut := newMockWriter()
 
-		logger := NewStructured(module, WithStdOut(stdOut), WithEncoding(JSON))
+		logger := New(module, WithStdOut(stdOut), WithEncoding(JSON))
 
 		cfg := &mockObject{Field1: "value1", Field2: 1234}
 		aoep := &mockObject{Field1: "value11", Field2: 999}
@@ -242,7 +242,7 @@ func TestStandardFields(t *testing.T) {
 	t.Run("json fields 3", func(t *testing.T) {
 		stdOut := newMockWriter()
 
-		logger := NewStructured(module, WithStdOut(stdOut), WithEncoding(JSON))
+		logger := New(module, WithStdOut(stdOut), WithEncoding(JSON))
 
 		metadata := &mockObject{Field1: "meta1", Field2: 7676}
 		protocol := &mockObject{Field1: "proto1", Field2: 2314}
@@ -320,7 +320,7 @@ func TestStandardFields(t *testing.T) {
 	t.Run("json fields 4", func(t *testing.T) {
 		stdOut := newMockWriter()
 
-		logger := NewStructured(module, WithStdOut(stdOut), WithEncoding(JSON))
+		logger := New(module, WithStdOut(stdOut), WithEncoding(JSON))
 
 		logger.Info("Some message",
 			WithMaxSizeUInt64(30), WithURLString(u1.String()), WithLogURLString(u3.String()), WithIndexUint64(7),
@@ -348,133 +348,133 @@ type logData struct {
 	Msg    string `json:"msg"`
 	Error  string `json:"error"`
 
-	MessageID              string              `json:"message-id"`
+	MessageID              string              `json:"messageID"`
 	Data                   string              `json:"data"`
-	ActorID                string              `json:"actor-id"`
-	ActivityID             string              `json:"activity-id"`
-	ActivityType           string              `json:"activity-type"`
-	ServiceIri             string              `json:"service-iri"`
+	ActorID                string              `json:"actorID"`
+	ActivityID             string              `json:"activityID"`
+	ActivityType           string              `json:"activityType"`
+	ServiceIri             string              `json:"serviceIRI"`
 	Service                string              `json:"service"`
-	ServiceEndpoint        string              `json:"service-endpoint"`
+	ServiceEndpoint        string              `json:"serviceEndpoint"`
 	Size                   int                 `json:"size"`
-	CacheExpiration        string              `json:"cache-expiration"`
+	CacheExpiration        string              `json:"cacheExpiration"`
 	Target                 string              `json:"target"`
 	Topic                  string              `json:"topic"`
-	HTTPStatus             int                 `json:"http-status"`
+	HTTPStatus             int                 `json:"httpStatus"`
 	Parameter              string              `json:"parameter"`
-	ReferenceType          string              `json:"reference-type"`
+	ReferenceType          string              `json:"referenceType"`
 	URI                    string              `json:"uri"`
 	URIs                   []string            `json:"uris"`
 	Sender                 string              `json:"sender"`
-	AnchorURI              string              `json:"anchor-uri"`
-	AnchorEventURI         string              `json:"anchor-event-uri"`
+	AnchorURI              string              `json:"anchorURI"`
+	AnchorEventURI         string              `json:"anchorEventURI"`
 	Config                 *mockObject         `json:"config"`
-	AcceptListType         string              `json:"accept-list-type"`
+	AcceptListType         string              `json:"acceptListType"`
 	Additions              []string            `json:"additions"`
 	Deletions              []string            `json:"deletions"`
-	RequestURL             string              `json:"request-url"`
-	RequestHeaders         map[string][]string `json:"request-headers"`
-	RequestBody            string              `json:"request-body"`
+	RequestURL             string              `json:"requestURL"`
+	RequestHeaders         map[string][]string `json:"requestHeaders"`
+	RequestBody            string              `json:"requestBody"`
 	Response               string              `json:"response"`
-	ObjectIRI              string              `json:"object-iri"`
+	ObjectIRI              string              `json:"objectIRI"`
 	Reference              string              `json:"reference"`
-	KeyID                  string              `json:"key-id"`
-	KeyOwnerID             string              `json:"key-owner"`
-	KeyType                string              `json:"key-type"`
+	KeyID                  string              `json:"keyID"`
+	KeyOwnerID             string              `json:"keyOwner"`
+	KeyType                string              `json:"keyType"`
 	Current                string              `json:"current"`
 	Next                   string              `json:"next"`
 	Total                  int                 `json:"total"`
 	Minimum                int                 `json:"minimum"`
 	Type                   string              `json:"type"`
 	Query                  *mockObject         `json:"query"`
-	AnchorHash             string              `json:"anchor-hash"`
+	AnchorHash             string              `json:"anchorHash"`
 	Suffix                 string              `json:"suffix"`
 	VerifiableCredential   string              `json:"vc"`
-	VerifiableCredentialID string              `json:"vc-id"`
+	VerifiableCredentialID string              `json:"vcID"`
 	Hashlink               string              `json:"hashlink"`
 	Parent                 string              `json:"parent"`
 	Parents                []string            `json:"parents"`
 	Proof                  string              `json:"proof"`
-	CreatedTime            string              `json:"created-time"`
-	WitnessURI             string              `json:"witness-uri"`
-	WitnessURIs            []string            `json:"witness-uris"`
-	WitnessPolicy          string              `json:"witness-policy"`
-	AnchorOrigin           string              `json:"anchor-origin"`
-	OperationType          string              `json:"operation-type"`
-	CoreIndex              string              `json:"core-index"`
+	CreatedTime            string              `json:"createdTime"`
+	WitnessURI             string              `json:"witnessURI"`
+	WitnessURIs            []string            `json:"WitnessURIs"`
+	WitnessPolicy          string              `json:"witnessPolicy"`
+	AnchorOrigin           string              `json:"anchorOrigin"`
+	OperationType          string              `json:"operationType"`
+	CoreIndex              string              `json:"coreIndex"`
 	Hash                   string              `json:"hash"`
-	AnchorOriginEndpoint   *mockObject         `json:"anchor-origin-endpoint"`
+	AnchorOriginEndpoint   *mockObject         `json:"anchorOriginEndpoint"`
 	Key                    string              `json:"key"`
 	CID                    string              `json:"cid"`
-	ResolvedCID            string              `json:"resolved-cid"`
-	AnchorCID              string              `json:"anchor-cid"`
-	CIDVersion             int                 `json:"cid-version"`
+	ResolvedCID            string              `json:"resolvedCID"`
+	AnchorCID              string              `json:"anchorCID"`
+	CIDVersion             int                 `json:"cidVersion"`
 	Multihash              string              `json:"multihash"`
-	CASData                string              `json:"cas-data"`
+	CASData                string              `json:"casData"`
 	Domain                 string              `json:"domain"`
 	Link                   string              `json:"link"`
 	Links                  []string            `json:"links"`
-	TaskMgrInstanceID      string              `json:"task-mgr-instance"`
+	TaskMgrInstanceID      string              `json:"taskMgrInstanceID"`
 	Retries                int                 `json:"retries"`
-	MaxRetries             int                 `json:"max-retries"`
-	SubscriberPoolSize     int                 `json:"subscriber-pool-size"`
-	TaskMonitorInterval    string              `json:"task-monitor-interval"`
-	TaskExpiration         string              `json:"task-expiration"`
-	DeliveryDelay          string              `json:"delivery-delay"`
-	OperationID            string              `json:"operation-id"`
-	PermitHolder           string              `json:"permit-holder"`
-	TimeSinceLastUpdate    string              `json:"time-since-last-update"`
-	GenesisTime            int                 `json:"genesis-time"`
+	MaxRetries             int                 `json:"maxRetries"`
+	SubscriberPoolSize     int                 `json:"subscriberPoolSize"`
+	TaskMonitorInterval    string              `json:"taskMonitorInterval"`
+	TaskExpiration         string              `json:"taskExpiration"`
+	DeliveryDelay          string              `json:"deliveryDelay"`
+	OperationID            string              `json:"operationID"`
+	PermitHolder           string              `json:"permitHolder"`
+	TimeSinceLastUpdate    string              `json:"timeSinceLastUpdate"`
+	GenesisTime            int                 `json:"genesisTime"`
 	DID                    string              `json:"did"`
 	HRef                   string              `json:"href"`
 	ID                     string              `json:"id"`
 	Resource               string              `json:"resource"`
-	ResolutionResult       *mockObject         `json:"resolution-result"`
-	ResolutionModel        *mockObject         `json:"resolution-model"`
-	ResolutionEndpoints    []string            `json:"resolution-endpoints"`
+	ResolutionResult       *mockObject         `json:"resolutionResult"`
+	ResolutionModel        *mockObject         `json:"resolutionModel"`
+	ResolutionEndpoints    []string            `json:"resolutionEndpoints"`
 	Metadata               *mockObject         `json:"metadata"`
-	SidetreeProtocol       *mockObject         `json:"sidetree-protocol"`
-	OriginActorID          string              `json:"origin-actor-id"`
+	SidetreeProtocol       *mockObject         `json:"sidetreeProtocol"`
+	OriginActorID          string              `json:"originActorID"`
 	Targets                []string            `json:"targets"`
-	HTTPMethod             string              `json:"http-method"`
+	HTTPMethod             string              `json:"httpMethod"`
 	Suffixes               []string            `json:"suffixes"`
-	LocalHashlink          string              `json:"local-hashlink"`
-	AuthToken              string              `json:"auth-token"`
-	AuthTokens             []string            `json:"auth-tokens"`
+	LocalHashlink          string              `json:"localHashlink"`
+	AuthToken              string              `json:"authToken"`
+	AuthTokens             []string            `json:"authTokens"`
 	Address                string              `json:"address"`
-	AttributedTo           string              `json:"attributed-to"`
-	AnchorLinkset          string              `json:"anchor-linkset"`
+	AttributedTo           string              `json:"attributedTo"`
+	AnchorLinkset          string              `json:"anchorLinkset"`
 	Version                string              `json:"version"`
-	MaxSize                int                 `json:"max-size"`
+	MaxSize                int                 `json:"maxSize"`
 	Parameters             *mockObject         `json:"parameters"`
 	URL                    string              `json:"url"`
-	AnchorURIs             []string            `json:"anchor-uris"`
+	AnchorURIs             []string            `json:"anchorURIs"`
 	Operation              *mockObject         `json:"operation"`
 	Value                  string              `json:"value"`
-	TaskID                 string              `json:"task-id"`
-	SidetreeTxn            *mockObject         `json:"sidetree-txn"`
-	AnchorLink             string              `json:"anchor-link"`
-	DeliveryAttempts       int                 `json:"delivery-attempts"`
+	TaskID                 string              `json:"taskID"`
+	SidetreeTxn            *mockObject         `json:"sidetreeTxn"`
+	AnchorLink             string              `json:"anchorLink"`
+	DeliveryAttempts       int                 `json:"deliveryAttempts"`
 	Property               string              `json:"property"`
-	StoreName              string              `json:"store-name"`
+	StoreName              string              `json:"storeName"`
 	Issuer                 string              `json:"issuer"`
 	Status                 string              `json:"status"`
-	LogURL                 string              `json:"log-url"`
+	LogURL                 string              `json:"logURL"`
 	Namespace              string              `json:"namespace"`
-	CanonicalRef           string              `json:"canonical-ref"`
-	AnchorString           string              `json:"anchor-string"`
+	CanonicalRef           string              `json:"canonicalRef"`
+	AnchorString           string              `json:"anchorString"`
 	JRD                    *mockObject         `json:"jrd"`
 	Backoff                string              `json:"backoff"`
 	Timeout                string              `json:"timeout"`
-	LogMonitor             *mockObject         `json:"log-monitor"`
-	LogMonitors            []*mockObject       `json:"log-monitors"`
-	MaxTime                string              `json:"max-time"`
+	LogMonitor             *mockObject         `json:"logMonitor"`
+	LogMonitors            []*mockObject       `json:"logMonitors"`
+	MaxTime                string              `json:"maxTime"`
 	Index                  int                 `json:"index"`
-	FromIndex              int                 `json:"from-index"`
-	ToIndex                int                 `json:"to-index"`
+	FromIndex              int                 `json:"fromIndex"`
+	ToIndex                int                 `json:"toIndex"`
 	Source                 string              `json:"source"`
 	Age                    string              `json:"age"`
-	MinAge                 string              `json:"min-age"`
+	MinAge                 string              `json:"minAge"`
 }
 
 func unmarshalLogData(t *testing.T, b []byte) *logData {

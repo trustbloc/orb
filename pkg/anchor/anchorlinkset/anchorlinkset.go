@@ -22,7 +22,7 @@ import (
 	"github.com/trustbloc/orb/pkg/linkset"
 )
 
-var logger = log.NewStructured("anchorevent")
+var logger = log.New("anchorevent")
 
 // Builder constructs an anchor linkset.
 type Builder struct {

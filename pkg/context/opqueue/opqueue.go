@@ -131,12 +131,12 @@ type Queue struct {
 	redeliveryInitialInterval time.Duration
 	maxRedeliveryInterval     time.Duration
 	redeliveryMultiplier      float64
-	logger                    *log.StructuredLog
+	logger                    *log.Log
 }
 
 // New returns a new operation queue.
 func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager, metrics metricsProvider) (*Queue, error) {
-	logger := log.NewStructured(loggerModule, log.WithFields(log.WithTaskMgrInstanceID(taskMgr.InstanceID())))
+	logger := log.New(loggerModule, log.WithFields(log.WithTaskMgrInstanceID(taskMgr.InstanceID())))
 
 	msgChan, err := pubSub.SubscribeWithOpts(context.Background(), topic, spi.WithPool(cfg.PoolSize))
 	if err != nil {

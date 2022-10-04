@@ -188,7 +188,7 @@ const (
 	unpublishedDIDLabel = "uAAA"
 )
 
-var logger = log.NewStructured("orb-server")
+var logger = log.New("orb-server")
 
 const (
 	basePath = "/sidetree/v1"

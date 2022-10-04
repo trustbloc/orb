@@ -18,7 +18,7 @@ import (
 
 const taskName = "data-expiry"
 
-var logger = log.NewStructured("expiry-service")
+var logger = log.New("expiry-service")
 
 type taskManager interface {
 	RegisterTask(taskType string, interval time.Duration, handler func())

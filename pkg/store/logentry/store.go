@@ -44,7 +44,7 @@ const (
 	EntryStatusFailed EntryStatus = "failed"
 )
 
-var logger = log.NewStructured("log-entry-store")
+var logger = log.New("log-entry-store")
 
 // ErrDataNotFound is returned when data is not found.
 var ErrDataNotFound = errors.New("data not found")

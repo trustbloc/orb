@@ -30,7 +30,7 @@ const (
 	sha2_256      = 18
 )
 
-var logger = log.NewStructured("unpublished-operation-store")
+var logger = log.New("unpublished-operation-store")
 
 // New returns a new instance of an unpublished operation store.
 // This method will also register the unpublished operation store with the given expiry service which will then take

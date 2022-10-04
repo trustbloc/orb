@@ -21,7 +21,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 )
 
-var logger = log.NewStructured("remote-resolver")
+var logger = log.New("remote-resolver")
 
 const (
 	didLDJson = "application/did+ld+json"

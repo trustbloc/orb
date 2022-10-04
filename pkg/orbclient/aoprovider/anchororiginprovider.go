@@ -30,7 +30,7 @@ import (
 	"github.com/trustbloc/orb/pkg/protocolversion/clientregistry"
 )
 
-var logger = log.NewStructured("orb-client")
+var logger = log.New("orb-client")
 
 const v1 = "1.0"
 

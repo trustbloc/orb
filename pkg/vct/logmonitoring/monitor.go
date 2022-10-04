@@ -30,7 +30,7 @@ import (
 	"github.com/trustbloc/orb/pkg/vct/logmonitoring/verifier"
 )
 
-var logger = log.NewStructured("vct-consistency-monitor")
+var logger = log.New("vct-consistency-monitor")
 
 const (
 	// VCT limits maximum number of entries to 1000.

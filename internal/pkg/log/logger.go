@@ -138,45 +138,24 @@ func WithEncoding(encoding Encoding) Option {
 	}
 }
 
-// Log uses the Zap SugaredLogger to log messages.
+// Log uses the Zap Logger to log messages in a structured way.
 type Log struct {
-	*zap.SugaredLogger
-	module string
-}
-
-// New creates a Logger implementation based on given module name.
-func New(module string, opts ...Option) *Log {
-	options := getOptions(opts)
-
-	return &Log{
-		SugaredLogger: newZap(module, options.encoding, options.stdOut, options.stdErr).With(options.fields...).Sugar(),
-		module:        module,
-	}
-}
-
-// IsEnabled returns true if given log level is enabled.
-func (l *Log) IsEnabled(level Level) bool {
-	return levels.isEnabled(l.module, level)
-}
-
-// StructuredLog uses the Zap Logger to log messages in a structured way.
-type StructuredLog struct {
 	*zap.Logger
 	module string
 }
 
-// NewStructured creates a structured Logger implementation based on given module name.
-func NewStructured(module string, opts ...Option) *StructuredLog {
+// New creates a structured Logger implementation based on given module name.
+func New(module string, opts ...Option) *Log {
 	options := getOptions(opts)
 
-	return &StructuredLog{
+	return &Log{
 		Logger: newZap(module, options.encoding, options.stdOut, options.stdErr).With(options.fields...),
 		module: module,
 	}
 }
 
 // IsEnabled returns true if given log level is enabled.
-func (l *StructuredLog) IsEnabled(level Level) bool {
+func (l *Log) IsEnabled(level Level) bool {
 	return levels.isEnabled(l.module, level)
 }
 

@@ -1,3 +1,9 @@
+/*
+Copyright SecureKey Technologies Inc. All Rights Reserved.
+
+SPDX-License-Identifier: Apache-2.0
+*/
+
 package prometheus
 
 import (
@@ -8,6 +14,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
+	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/observability/metrics"
 )
@@ -338,14 +345,14 @@ func registerMetrics(pm *PromMetrics) { //nolint:funlen,gocyclo,cyclop
 func (pm *PromMetrics) OutboxPostTime(value time.Duration) {
 	pm.apOutboxPostTime.Observe(value.Seconds())
 
-	logger.Debugf("OutboxPost time: %s", value)
+	logger.Debug("OutboxPost time", log.WithDuration(value))
 }
 
 // OutboxResolveInboxesTime records the time it takes to resolve inboxes for an outbox post.
 func (pm *PromMetrics) OutboxResolveInboxesTime(value time.Duration) {
 	pm.apOutboxResolveInboxesTime.Observe(value.Seconds())
 
-	logger.Debugf("OutboxResolveInboxes time: %s", value)
+	logger.Debug("OutboxResolveInboxes time", log.WithDuration(value))
 }
 
 // InboxHandlerTime records the time it takes to handle an activity posted to the inbox.
@@ -354,7 +361,7 @@ func (pm *PromMetrics) InboxHandlerTime(activityType string, value time.Duration
 		c.Observe(value.Seconds())
 	}
 
-	logger.Debugf("InboxHandler time for activity [%s]: %s", activityType, value)
+	logger.Debug("InboxHandler time for activity", log.WithActivityType(activityType), log.WithDuration(value))
 }
 
 // OutboxIncrementActivityCount increments the number of activities of the given type posted to the outbox.
@@ -368,91 +375,91 @@ func (pm *PromMetrics) OutboxIncrementActivityCount(activityType string) {
 func (pm *PromMetrics) WriteAnchorTime(value time.Duration) {
 	pm.anchorWriteTime.Observe(value.Seconds())
 
-	logger.Debugf("WriteAnchor time: %s", value)
+	logger.Debug("WriteAnchor time", log.WithDuration(value))
 }
 
 // WriteAnchorBuildCredentialTime records the time it takes to build credential inside write anchor.
 func (pm *PromMetrics) WriteAnchorBuildCredentialTime(value time.Duration) {
 	pm.anchorWriteBuildCredTime.Observe(value.Seconds())
 
-	logger.Debugf("WriteAnchor build credential time: %s", value)
+	logger.Debug("WriteAnchor build credential time", log.WithDuration(value))
 }
 
 // WriteAnchorGetWitnessesTime records the time it takes to get witnesses inside write anchor.
 func (pm *PromMetrics) WriteAnchorGetWitnessesTime(value time.Duration) {
 	pm.anchorWriteGetWitnessesTime.Observe(value.Seconds())
 
-	logger.Debugf("WriteAnchor get witness time: %s", value)
+	logger.Debug("WriteAnchor get witness time", log.WithDuration(value))
 }
 
 // WriteAnchorSignCredentialTime records the time it takes to sign credential inside write anchor.
 func (pm *PromMetrics) WriteAnchorSignCredentialTime(value time.Duration) {
 	pm.anchorWriteSignCredTime.Observe(value.Seconds())
 
-	logger.Debugf("WriteAnchor sign credential time: %s", value)
+	logger.Debug("WriteAnchor sign credential time", log.WithDuration(value))
 }
 
 // WriteAnchorPostOfferActivityTime records the time it takes to post offer activity inside write anchor.
 func (pm *PromMetrics) WriteAnchorPostOfferActivityTime(value time.Duration) {
 	pm.anchorWritePostOfferActivityTime.Observe(value.Seconds())
 
-	logger.Debugf("WriteAnchor sign credential time: %s", value)
+	logger.Debug("WriteAnchor sign credential time", log.WithDuration(value))
 }
 
 // WriteAnchorGetPreviousAnchorsGetBulkTime records the time it takes to get bulk inside previous anchor.
 func (pm *PromMetrics) WriteAnchorGetPreviousAnchorsGetBulkTime(value time.Duration) {
 	pm.anchorWriteGetPreviousAnchorsGetBulkTime.Observe(value.Seconds())
 
-	logger.Debugf("WriteAnchor getPreviousAnchor geBulk time: %s", value)
+	logger.Debug("WriteAnchor getPreviousAnchor geBulk time", log.WithDuration(value))
 }
 
 // WriteAnchorGetPreviousAnchorsTime records the time it takes to get previous anchor.
 func (pm *PromMetrics) WriteAnchorGetPreviousAnchorsTime(value time.Duration) {
 	pm.anchorWriteGetPreviousAnchorsTime.Observe(value.Seconds())
 
-	logger.Debugf("WriteAnchor getPreviousAnchor time: %s", value)
+	logger.Debug("WriteAnchor getPreviousAnchor time", log.WithDuration(value))
 }
 
 // WriteAnchorSignWithLocalWitnessTime records the time it takes to sign with local witness.
 func (pm *PromMetrics) WriteAnchorSignWithLocalWitnessTime(value time.Duration) {
 	pm.anchorWriteSignWithLocalWitnessTime.Observe(value.Seconds())
 
-	logger.Debugf("WriteAnchor sign with local witness time: %s", value)
+	logger.Debug("WriteAnchor sign with local witness time", log.WithDuration(value))
 }
 
 // WriteAnchorSignWithServerKeyTime records the time it takes to sign with server key.
 func (pm *PromMetrics) WriteAnchorSignWithServerKeyTime(value time.Duration) {
 	pm.anchorWriteSignWithServerKeyTime.Observe(value.Seconds())
 
-	logger.Debugf("WriteAnchor sign with server key time: %s", value)
+	logger.Debug("WriteAnchor sign with server key time", log.WithDuration(value))
 }
 
 // WriteAnchorSignLocalWitnessLogTime records the time it takes to witness log inside sign local.
 func (pm *PromMetrics) WriteAnchorSignLocalWitnessLogTime(value time.Duration) {
 	pm.anchorWriteSignLocalWitnessLogTime.Observe(value.Seconds())
 
-	logger.Debugf("WriteAnchor witness log inside sign local time: %s", value)
+	logger.Debug("WriteAnchor witness log inside sign local time", log.WithDuration(value))
 }
 
 // WriteAnchorStoreTime records the time it takes to store an anchor event.
 func (pm *PromMetrics) WriteAnchorStoreTime(value time.Duration) {
 	pm.anchorWriteStoreTime.Observe(value.Seconds())
 
-	logger.Debugf("WriteAnchor store time: %s", value)
+	logger.Debug("WriteAnchor store time", log.WithDuration(value))
 }
 
 // WriteAnchorSignLocalWatchTime records the time it takes to watch inside sign local.
 func (pm *PromMetrics) WriteAnchorSignLocalWatchTime(value time.Duration) {
 	pm.anchorWriteSignLocalWatchTime.Observe(value.Seconds())
 
-	logger.Debugf("WriteAnchor watch inside sign local time: %s", value)
+	logger.Debug("WriteAnchor watch inside sign local time", log.WithDuration(value))
 }
 
 // WriteAnchorResolveHostMetaLinkTime records the time it takes to resolve host meta link.
 func (pm *PromMetrics) WriteAnchorResolveHostMetaLinkTime(value time.Duration) {
 	pm.anchorWriteResolveHostMetaLinkTime.Observe(value.Seconds())
 
-	logger.Debugf("WriteAnchor resolve host meta link time: %s", value)
+	logger.Debug("WriteAnchor resolve host meta link time", log.WithDuration(value))
 }
 
 // WitnessAnchorCredentialTime records the time it takes for a verifiable credential to gather proofs from all
@@ -461,7 +468,7 @@ func (pm *PromMetrics) WriteAnchorResolveHostMetaLinkTime(value time.Duration) {
 func (pm *PromMetrics) WitnessAnchorCredentialTime(value time.Duration) {
 	pm.anchorWitnessTime.Observe(value.Seconds())
 
-	logger.Debugf("WitnessAnchorCredential time: %s", value)
+	logger.Debug("WitnessAnchorCredential time", log.WithDuration(value))
 }
 
 // ProcessWitnessedAnchorCredentialTime records the time it takes to process a witnessed anchor credential
@@ -469,14 +476,14 @@ func (pm *PromMetrics) WitnessAnchorCredentialTime(value time.Duration) {
 func (pm *PromMetrics) ProcessWitnessedAnchorCredentialTime(value time.Duration) {
 	pm.anchorProcessWitnessedTime.Observe(value.Seconds())
 
-	logger.Debugf("ProcessWitnessedAnchorCredential time: %s", value)
+	logger.Debug("ProcessWitnessedAnchorCredential time", log.WithDuration(value))
 }
 
 // AddOperationTime records the time it takes to add an operation to the queue.
 func (pm *PromMetrics) AddOperationTime(value time.Duration) {
 	pm.opqueueAddOperationTime.Observe(value.Seconds())
 
-	logger.Debugf("AddOperation time: %s", value)
+	logger.Debug("AddOperation time", log.WithDuration(value))
 }
 
 // BatchCutTime records the time it takes to cut an operation batch. The duration is from the time
@@ -484,7 +491,7 @@ func (pm *PromMetrics) AddOperationTime(value time.Duration) {
 func (pm *PromMetrics) BatchCutTime(value time.Duration) {
 	pm.opqueueBatchCutTime.Observe(value.Seconds())
 
-	logger.Infof("BatchCut time: %s", value)
+	logger.Info("BatchCut time", log.WithDuration(value))
 }
 
 // BatchRollbackTime records the time it takes to roll back an operation batch (in case of a
@@ -493,42 +500,42 @@ func (pm *PromMetrics) BatchCutTime(value time.Duration) {
 func (pm *PromMetrics) BatchRollbackTime(value time.Duration) {
 	pm.opqueueBatchRollbackTime.Observe(value.Seconds())
 
-	logger.Debugf("BatchRollback time: %s", value)
+	logger.Debug("BatchRollback time", log.WithDuration(value))
 }
 
 // BatchSize records the size of an operation batch.
 func (pm *PromMetrics) BatchSize(value float64) {
 	pm.opqueueBatchSize.Set(value)
 
-	logger.Infof("BatchSize: %s", value)
+	logger.Info("BatchSize", log.WithSizeUint64(uint64(value)))
 }
 
 // ProcessAnchorTime records the time it takes for the Observer to process an anchor credential.
 func (pm *PromMetrics) ProcessAnchorTime(value time.Duration) {
 	pm.observerProcessAnchorTime.Observe(value.Seconds())
 
-	logger.Infof("ProcessAnchor time: %s", value)
+	logger.Info("ProcessAnchor time", log.WithDuration(value))
 }
 
 // ProcessDIDTime records the time it takes for the Observer to process a DID.
 func (pm *PromMetrics) ProcessDIDTime(value time.Duration) {
 	pm.observerProcessDIDTime.Observe(value.Seconds())
 
-	logger.Infof("ProcessDID time: %s", value)
+	logger.Debug("ProcessDID time", log.WithDuration(value))
 }
 
 // CASWriteTime records the time it takes to write a document to CAS.
 func (pm *PromMetrics) CASWriteTime(value time.Duration) {
 	pm.casWriteTime.Observe(value.Seconds())
 
-	logger.Debugf("CASWrite time: %s", value)
+	logger.Debug("CASWrite time", log.WithDuration(value))
 }
 
 // CASResolveTime records the time it takes to resolve a document from CAS.
 func (pm *PromMetrics) CASResolveTime(value time.Duration) {
 	pm.casResolveTime.Observe(value.Seconds())
 
-	logger.Debugf("CASResolve time: %s", value)
+	logger.Debug("CASResolve time", log.WithDuration(value))
 }
 
 // CASIncrementCacheHitCount increments the number of CAS cache hits.
@@ -547,14 +554,14 @@ func (pm *PromMetrics) CASReadTime(casType string, value time.Duration) {
 func (pm *PromMetrics) DocumentCreateUpdateTime(value time.Duration) {
 	pm.docCreateUpdateTime.Observe(value.Seconds())
 
-	logger.Debugf("DocumentCreateUpdate time: %s", value)
+	logger.Debug("DocumentCreateUpdate time", log.WithDuration(value))
 }
 
 // DocumentResolveTime records the time it takes the REST handler to resolve a document.
 func (pm *PromMetrics) DocumentResolveTime(value time.Duration) {
 	pm.docResolveTime.Observe(value.Seconds())
 
-	logger.Debugf("DocumentResolve time: %s", value)
+	logger.Debug("DocumentResolve time", log.WithDuration(value))
 }
 
 // DBPutTime records the time it takes to store data in db.
@@ -610,126 +617,126 @@ func (pm *PromMetrics) DBBatchTime(dbType string, value time.Duration) {
 func (pm *PromMetrics) WitnessAddProofVctNil(value time.Duration) {
 	pm.vctWitnessAddProofVCTNilTimes.Observe(value.Seconds())
 
-	logger.Debugf("vct witness add proof when vct nil time: %s", value)
+	logger.Debug("vct witness add proof when vct nil time", log.WithDuration(value))
 }
 
 // WitnessAddVC records vct witness add vc.
 func (pm *PromMetrics) WitnessAddVC(value time.Duration) {
 	pm.vctWitnessAddVCTimes.Observe(value.Seconds())
 
-	logger.Debugf("vct witness add vc time: %s", value)
+	logger.Debug("vct witness add vc time", log.WithDuration(value))
 }
 
 // WitnessAddProof records vct witness add proof.
 func (pm *PromMetrics) WitnessAddProof(value time.Duration) {
 	pm.vctWitnessAddProofTimes.Observe(value.Seconds())
 
-	logger.Debugf("vct witness add vc proof: %s", value)
+	logger.Debug("vct witness add vc proof", log.WithDuration(value))
 }
 
 // WitnessWebFinger records vct witness web finger.
 func (pm *PromMetrics) WitnessWebFinger(value time.Duration) {
 	pm.vctWitnessAddWebFingerTimes.Observe(value.Seconds())
 
-	logger.Debugf("vct witness web finger: %s", value)
+	logger.Debug("vct witness web finger", log.WithDuration(value))
 }
 
 // WitnessVerifyVCTSignature records vct witness verify vct.
 func (pm *PromMetrics) WitnessVerifyVCTSignature(value time.Duration) {
 	pm.vctWitnessVerifyVCTimes.Observe(value.Seconds())
 
-	logger.Debugf("vct witness verify vct signature: %s", value)
+	logger.Debug("vct witness verify vct signature", log.WithDuration(value))
 }
 
 // AddProofParseCredential records vct parse credential in add proof.
 func (pm *PromMetrics) AddProofParseCredential(value time.Duration) {
 	pm.vctAddProofParseCredentialTimes.Observe(value.Seconds())
 
-	logger.Debugf("vct parse credential add proof: %s", value)
+	logger.Debug("vct parse credential add proof", log.WithDuration(value))
 }
 
 // AddProofSign records vct sign in add proof.
 func (pm *PromMetrics) AddProofSign(value time.Duration) {
 	pm.vctAddProofSignTimes.Observe(value.Seconds())
 
-	logger.Debugf("vct sign add proof: %s", value)
+	logger.Debug("vct sign add proof", log.WithDuration(value))
 }
 
 // SignerGetKey records get key time.
 func (pm *PromMetrics) SignerGetKey(value time.Duration) {
 	pm.signerGetKeyTimes.Observe(value.Seconds())
 
-	logger.Debugf("signer get key time: %s", value)
+	logger.Debug("signer get key time", log.WithDuration(value))
 }
 
 // SignerAddLinkedDataProof records add data linked proof.
 func (pm *PromMetrics) SignerAddLinkedDataProof(value time.Duration) {
 	pm.signerAddLinkedDataProofTimes.Observe(value.Seconds())
 
-	logger.Debugf("signer add linked data proof time: %s", value)
+	logger.Debug("signer add linked data proof time", log.WithDuration(value))
 }
 
 // WebDocumentResolveTime records resolving web document.
 func (pm *PromMetrics) WebDocumentResolveTime(value time.Duration) {
 	pm.webResolverResolveDocument.Observe(value.Seconds())
 
-	logger.Debugf("web resolver resolve document time: %s", value)
+	logger.Debug("web resolver resolve document time", log.WithDuration(value))
 }
 
 // ResolveDocumentLocallyTime records resolving document locally.
 func (pm *PromMetrics) ResolveDocumentLocallyTime(value time.Duration) {
 	pm.resolverResolveDocumentLocallyTimes.Observe(value.Seconds())
 
-	logger.Debugf("resolver resolve document locally time: %s", value)
+	logger.Debug("resolver resolve document locally time", log.WithDuration(value))
 }
 
 // GetAnchorOriginEndpointTime records getting anchor origin endpoint information.
 func (pm *PromMetrics) GetAnchorOriginEndpointTime(value time.Duration) {
 	pm.resolverGetAnchorOriginEndpointTimes.Observe(value.Seconds())
 
-	logger.Debugf("resolver get anchor origin endpoint time: %s", value)
+	logger.Debug("resolver get anchor origin endpoint time", log.WithDuration(value))
 }
 
 // ResolveDocumentFromAnchorOriginTime records resolving document from anchor origin.
 func (pm *PromMetrics) ResolveDocumentFromAnchorOriginTime(value time.Duration) {
 	pm.resolverResolveDocumentFromAnchorOriginTimes.Observe(value.Seconds())
 
-	logger.Debugf("resolver resolve document from anchor origin time: %s", value)
+	logger.Debug("resolver resolve document from anchor origin time", log.WithDuration(value))
 }
 
 // DeleteDocumentFromCreateDocumentStoreTime records deleting document from create document store.
 func (pm *PromMetrics) DeleteDocumentFromCreateDocumentStoreTime(value time.Duration) {
 	pm.resolverDeleteDocumentFromCreateStoreTimes.Observe(value.Seconds())
 
-	logger.Debugf("resolver delete document from create store time: %s", value)
+	logger.Debug("resolver delete document from create store time", log.WithDuration(value))
 }
 
 // ResolveDocumentFromCreateDocumentStoreTime records resolving document from create document store.
 func (pm *PromMetrics) ResolveDocumentFromCreateDocumentStoreTime(value time.Duration) {
 	pm.resolverResolveDocumentFromCreateStoreTimes.Observe(value.Seconds())
 
-	logger.Debugf("resolver resolve document from create store time: %s", value)
+	logger.Debug("resolver resolve document from create store time", log.WithDuration(value))
 }
 
 // VerifyCIDTime records verifying CID for document resolution.
 func (pm *PromMetrics) VerifyCIDTime(value time.Duration) {
 	pm.resolverVerifyCIDTimes.Observe(value.Seconds())
 
-	logger.Debugf("resolver verify CID time: %s", value)
+	logger.Debug("resolver verify CID time", log.WithDuration(value))
 }
 
 // RequestDiscoveryTime records the time it takes to request discovery.
 func (pm *PromMetrics) RequestDiscoveryTime(value time.Duration) {
 	pm.resolverRequestDiscoveryTimes.Observe(value.Seconds())
 
-	logger.Debugf("resolver request discovery time: %s", value)
+	logger.Debug("resolver request discovery time", log.WithDuration(value))
 }
 
 // DecorateTime records the time it takes to decorate operation (for update handler).
 func (pm *PromMetrics) DecorateTime(value time.Duration) {
 	pm.decoratorDecorateTime.Observe(value.Seconds())
 
-	logger.Debugf("decorator decorate time: %s", value)
+	logger.Debug("decorator decorate time", log.WithDuration(value))
 }
 
 // ProcessorResolveTime records the time it takes for processor to resolve document
@@ -737,7 +744,7 @@ func (pm *PromMetrics) DecorateTime(value time.Duration) {
 func (pm *PromMetrics) ProcessorResolveTime(value time.Duration) {
 	pm.decoratorProcessorResolveTime.Observe(value.Seconds())
 
-	logger.Debugf("decorator processor resolve time: %s", value)
+	logger.Debug("decorator processor resolve time", log.WithDuration(value))
 }
 
 // GetAOEndpointAndResolveDocumentFromAOTime records the time it takes to get anchor origin endpoint
@@ -745,112 +752,113 @@ func (pm *PromMetrics) ProcessorResolveTime(value time.Duration) {
 func (pm *PromMetrics) GetAOEndpointAndResolveDocumentFromAOTime(value time.Duration) {
 	pm.decoratorGetAOEndpointAndResolveFromAOTime.Observe(value.Seconds())
 
-	logger.Debugf("decorator get anchor origin endpoint and resolve from anchor origin time: %s", value)
+	logger.Debug("decorator get anchor origin endpoint and resolve from anchor origin time",
+		log.WithDuration(value))
 }
 
 // PutUnpublishedOperation records the time it takes to store unpublished operation.
 func (pm *PromMetrics) PutUnpublishedOperation(value time.Duration) {
 	pm.unpublishedPutOperationTime.Observe(value.Seconds())
 
-	logger.Debugf("unpublished put operation time: %s", value)
+	logger.Debug("unpublished put operation time", log.WithDuration(value))
 }
 
 // GetUnpublishedOperations records the time it takes to get unpublished operations for suffix.
 func (pm *PromMetrics) GetUnpublishedOperations(value time.Duration) {
 	pm.unpublishedGetOperationsTime.Observe(value.Seconds())
 
-	logger.Debugf("unpublished get operations for suffix time: %s", value)
+	logger.Debug("unpublished get operations for suffix time", log.WithDuration(value))
 }
 
 // CalculateUnpublishedOperationKey records the time to create unpublished operation key.
 func (pm *PromMetrics) CalculateUnpublishedOperationKey(value time.Duration) {
 	pm.unpublishedCalculateOperationKeyTime.Observe(value.Seconds())
 
-	logger.Debugf("unpublished calculate operation key time: %s", value)
+	logger.Debug("unpublished calculate operation key time", log.WithDuration(value))
 }
 
 // PutPublishedOperations records the time to store published operations.
 func (pm *PromMetrics) PutPublishedOperations(value time.Duration) {
 	pm.publishedPutOperationsTime.Observe(value.Seconds())
 
-	logger.Debugf("published put operations time: %s", value)
+	logger.Debug("published put operations time", log.WithDuration(value))
 }
 
 // GetPublishedOperations records the time to get published operations for suffix.
 func (pm *PromMetrics) GetPublishedOperations(value time.Duration) {
 	pm.publishedGetOperationsTime.Observe(value.Seconds())
 
-	logger.Debugf("published get operations for suffix time: %s", value)
+	logger.Debug("published get operations for suffix time", log.WithDuration(value))
 }
 
 // ProcessOperation records the overall time to process operation.
 func (pm *PromMetrics) ProcessOperation(value time.Duration) {
 	pm.coreProcessOperationTime.Observe(value.Seconds())
 
-	logger.Debugf("core process operation time: %s", value)
+	logger.Debug("core process operation time", log.WithDuration(value))
 }
 
 // GetProtocolVersionTime records the time to get protocol version.
 func (pm *PromMetrics) GetProtocolVersionTime(value time.Duration) {
 	pm.coreGetProtocolVersionTime.Observe(value.Seconds())
 
-	logger.Debugf("core get protocol version(process operation): %s", value)
+	logger.Debug("core get protocol version(process operation)", log.WithDuration(value))
 }
 
 // ParseOperationTime records the time to parse operation.
 func (pm *PromMetrics) ParseOperationTime(value time.Duration) {
 	pm.coreParseOperationTime.Observe(value.Seconds())
 
-	logger.Debugf("core parse operation(process operation): %s", value)
+	logger.Debug("core parse operation(process operation)", log.WithDuration(value))
 }
 
 // ValidateOperationTime records the time to validate operation.
 func (pm *PromMetrics) ValidateOperationTime(value time.Duration) {
 	pm.coreValidateOperationTime.Observe(value.Seconds())
 
-	logger.Debugf("core validate operation(process operation): %s", value)
+	logger.Debug("core validate operation(process operation)", log.WithDuration(value))
 }
 
 // DecorateOperationTime records the time to decorate operation.
 func (pm *PromMetrics) DecorateOperationTime(value time.Duration) {
 	pm.coreDecorateOperationTime.Observe(value.Seconds())
 
-	logger.Debugf("core decorate operation(process operation): %s", value)
+	logger.Debug("core decorate operation(process operation)", log.WithDuration(value))
 }
 
 // AddUnpublishedOperationTime records the time to add unpublished operation.
 func (pm *PromMetrics) AddUnpublishedOperationTime(value time.Duration) {
 	pm.coreAddUnpublishedOperationTime.Observe(value.Seconds())
 
-	logger.Debugf("core add unpublished operation(process operation): %s", value)
+	logger.Debug("core add unpublished operation(process operation)", log.WithDuration(value))
 }
 
 // AddOperationToBatchTime records the time to add operation to batch.
 func (pm *PromMetrics) AddOperationToBatchTime(value time.Duration) {
 	pm.coreAddOperationToBatchTime.Observe(value.Seconds())
 
-	logger.Debugf("core add operation to batch(process operation): %s", value)
+	logger.Debug("core add operation to batch(process operation)", log.WithDuration(value))
 }
 
 // GetCreateOperationResultTime records the time to create operation result response.
 func (pm *PromMetrics) GetCreateOperationResultTime(value time.Duration) {
 	pm.coreGetCreateOperationResultTime.Observe(value.Seconds())
 
-	logger.Debugf("core get create operation result(process operation): %s", value)
+	logger.Debug("core get create operation result(process operation)", log.WithDuration(value))
 }
 
 // HTTPCreateUpdateTime records the time rest call for create or update.
 func (pm *PromMetrics) HTTPCreateUpdateTime(value time.Duration) {
 	pm.coreHTTPCreateUpdateTime.Observe(value.Seconds())
 
-	logger.Debugf("core http create update: %s", value)
+	logger.Debug("core http create update", log.WithDuration(value))
 }
 
 // HTTPResolveTime records the time rest call for resolve.
 func (pm *PromMetrics) HTTPResolveTime(value time.Duration) {
 	pm.coreHTTPResolveTime.Observe(value.Seconds())
 
-	logger.Debugf("core http resolve: %s", value)
+	logger.Debug("core http resolve", log.WithDuration(value))
 }
 
 // CASWriteSize the size (in bytes) of the data written to CAS for the given model type.
@@ -858,17 +866,18 @@ func (pm *PromMetrics) CASWriteSize(modelType string, size int) {
 	if c, ok := pm.coreCASWriteSize[modelType]; ok {
 		c.Set(float64(size))
 	} else {
-		logger.Warnf("Metric for CAS model type [%s] not registered. Reason: Unsupported model type.", modelType)
+		logger.Warn("Metric for CAS model type not registered. Reason: Unsupported model type.",
+			log.WithType(modelType))
 	}
 
-	logger.Debugf("CAS write size for model [%s]: %s bytes", modelType, size)
+	logger.Debug("CAS write size for model type", log.WithType(modelType), log.WithSize(size))
 }
 
 // SignerSign records sign.
 func (pm *PromMetrics) SignerSign(value time.Duration) {
 	pm.signerSignTimes.Observe(value.Seconds())
 
-	logger.Debugf("signer sign time: %s", value)
+	logger.Debug("signer sign time", log.WithDuration(value))
 }
 
 // SignCount increments the number of sign hits.
@@ -880,7 +889,7 @@ func (pm *PromMetrics) SignCount() {
 func (pm *PromMetrics) SignTime(value time.Duration) {
 	pm.awsSignTime.Observe(value.Seconds())
 
-	logger.Debugf("aws sign time: %s", value)
+	logger.Debug("aws sign time", log.WithDuration(value))
 }
 
 // ExportPublicKeyCount increments the number of export public key hits.
@@ -892,7 +901,7 @@ func (pm *PromMetrics) ExportPublicKeyCount() {
 func (pm *PromMetrics) ExportPublicKeyTime(value time.Duration) {
 	pm.awsExportPublicKeyTime.Observe(value.Seconds())
 
-	logger.Debugf("aws export public key time: %s", value)
+	logger.Debug("aws export public key time", log.WithDuration(value))
 }
 
 // VerifyCount increments the number of verify hits.
@@ -904,7 +913,7 @@ func (pm *PromMetrics) VerifyCount() {
 func (pm *PromMetrics) VerifyTime(value time.Duration) {
 	pm.awsVerifyTime.Observe(value.Seconds())
 
-	logger.Debugf("aws verify time: %s", value)
+	logger.Debug("aws verify time", log.WithDuration(value))
 }
 
 func newCounter(subsystem, name, help string, labels prometheus.Labels) prometheus.Counter {

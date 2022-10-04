@@ -25,7 +25,7 @@ const (
 	hashTag   = "anchorHash"
 )
 
-var logger = log.NewStructured("anchor-ref-store")
+var logger = log.New("anchor-ref-store")
 
 // New creates a new anchor link store.
 func New(provider storage.Provider) (*Store, error) {

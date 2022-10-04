@@ -33,7 +33,7 @@ import (
 	"github.com/trustbloc/orb/pkg/versions/1_0/txnprocessor"
 )
 
-var logger = log.NewStructured("protocol-v1_0")
+var logger = log.New("protocol-v1_0")
 
 // Factory implements version 0.1 of the Sidetree protocol.
 type Factory struct{}

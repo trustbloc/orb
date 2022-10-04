@@ -29,7 +29,7 @@ type HandlerWrapper struct {
 
 	handleRequest common.HTTPRequestHandler
 	resolver      common.HTTPHandler
-	logger        *log.StructuredLog
+	logger        *log.Log
 }
 
 type authTokenManager interface {
@@ -39,7 +39,7 @@ type authTokenManager interface {
 // NewHandlerWrapper returns a new 'authenticated' handler. It verifies both tokens and signatures before proceeding.
 func NewHandlerWrapper(handler common.HTTPHandler, authCfg *resthandler.Config, s spi.Store,
 	verifier signatureVerifier, tm authTokenManager) *HandlerWrapper {
-	logger := log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(handler.Path())))
+	logger := log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(handler.Path())))
 
 	ah := &HandlerWrapper{
 		resolver:      handler,

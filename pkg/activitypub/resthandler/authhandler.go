@@ -30,7 +30,7 @@ type AuthHandler struct {
 	activityStore  store.Store
 	authorizeActor authorizeActorFunc
 	writeResponse  func(w http.ResponseWriter, status int, body []byte)
-	logger         *log.StructuredLog
+	logger         *log.Log
 }
 
 type authTokenManager interface {
@@ -42,7 +42,7 @@ func NewAuthHandler(cfg *Config, endpoint, method string, s store.Store, verifie
 	tm authTokenManager, authorizeActor authorizeActorFunc) *AuthHandler {
 	ep := fmt.Sprintf("%s%s", cfg.BasePath, endpoint)
 
-	logger := log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(ep)))
+	logger := log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(ep)))
 
 	h := &AuthHandler{
 		Config:         cfg,

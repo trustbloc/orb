@@ -26,7 +26,7 @@ import (
 )
 
 var (
-	logger = log.NewStructured("httpserver")
+	logger = log.New("httpserver")
 
 	// BuildVersion contains the version of the Orb build.
 	//nolint:gochecknoglobals

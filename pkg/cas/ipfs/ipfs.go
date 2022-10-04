@@ -27,7 +27,7 @@ import (
 
 const logModule = "cas-ipfs"
 
-var logger = log.NewStructured(logModule)
+var logger = log.New(logModule)
 
 const (
 	defaultCacheSize = 1000

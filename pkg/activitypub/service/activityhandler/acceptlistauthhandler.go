@@ -14,7 +14,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
-var logger = log.NewStructured(loggerModule)
+var logger = log.New(loggerModule)
 
 const (
 	// FollowType defines the 'follow' accept list type.

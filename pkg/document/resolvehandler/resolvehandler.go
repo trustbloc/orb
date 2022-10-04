@@ -24,7 +24,7 @@ import (
 	"github.com/trustbloc/orb/pkg/hashlink"
 )
 
-var logger = log.NewStructured("orb-resolver")
+var logger = log.New("orb-resolver")
 
 // ErrDocumentNotFound is document not found error.
 var ErrDocumentNotFound = fmt.Errorf("document not found")

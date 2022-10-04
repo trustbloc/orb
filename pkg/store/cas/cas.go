@@ -21,7 +21,7 @@ import (
 	"github.com/trustbloc/orb/pkg/hashlink"
 )
 
-var logger = log.NewStructured("cas-store")
+var logger = log.New("cas-store")
 
 const (
 	defaultCacheSize = 1000

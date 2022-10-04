@@ -43,7 +43,7 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/tlsutil"
 )
 
-var logger = log.NewStructured("orb-cli")
+var logger = log.New("orb-cli")
 
 const (
 	// TLSSystemCertPoolFlagName defines the flag for the system certificate pool.

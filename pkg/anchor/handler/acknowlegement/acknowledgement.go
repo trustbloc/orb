@@ -16,7 +16,7 @@ import (
 	"github.com/trustbloc/orb/pkg/hashlink"
 )
 
-var logger = log.NewStructured("anchor-acknowledgement-handler")
+var logger = log.New("anchor-acknowledgement-handler")
 
 type anchorLinkStore interface {
 	PutLinks(links []*url.URL) error

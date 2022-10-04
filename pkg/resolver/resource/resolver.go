@@ -28,7 +28,7 @@ const (
 	defaultCacheSize     = 100
 )
 
-var logger = log.NewStructured("resource-resolver")
+var logger = log.New("resource-resolver")
 
 type domainResolver interface {
 	ResolveDomainForDID(did string) (string, error)

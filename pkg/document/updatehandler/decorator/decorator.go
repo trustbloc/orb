@@ -20,7 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/document/util"
 )
 
-var logger = log.NewStructured("operation-decorator")
+var logger = log.New("operation-decorator")
 
 // New creates operation decorator that will verify that local domain has latest operations from anchor origin.
 func New(namespace, domain string, processor operationProcessor,

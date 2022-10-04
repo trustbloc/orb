@@ -25,7 +25,7 @@ import (
 	"github.com/trustbloc/orb/pkg/webfinger/model"
 )
 
-var logger = log.NewStructured("webfinger-client")
+var logger = log.New("webfinger-client")
 
 const (
 	defaultCacheLifetime = 300 * time.Second // five minutes

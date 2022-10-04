@@ -55,7 +55,7 @@ type Manager struct {
 	interval          time.Duration
 	tasks             map[string]*registration
 	done              chan struct{}
-	logger            *log.StructuredLog
+	logger            *log.Log
 	coordinationStore storage.Store
 	instanceID        string
 	mutex             sync.RWMutex
@@ -81,7 +81,7 @@ func New(coordinationStore storage.Store, interval time.Duration) *Manager {
 	s := &Manager{
 		interval:          interval,
 		done:              make(chan struct{}),
-		logger:            log.NewStructured(loggerModule, log.WithFields(log.WithTaskMgrInstanceID(instanceID))),
+		logger:            log.New(loggerModule, log.WithFields(log.WithTaskMgrInstanceID(instanceID))),
 		coordinationStore: coordinationStore,
 		instanceID:        instanceID,
 		tasks:             make(map[string]*registration),

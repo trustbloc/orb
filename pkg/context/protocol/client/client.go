@@ -15,7 +15,7 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
-var logger = log.NewStructured("protocol-client")
+var logger = log.New("protocol-client")
 
 // Client implements protocol client.
 type Client struct {

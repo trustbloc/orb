@@ -76,7 +76,7 @@ type Inbox struct {
 	jsonUnmarshal          func(data []byte, v interface{}) error
 	metrics                metricsProvider
 	verifyActorInSignature bool
-	logger                 *log.StructuredLog
+	logger                 *log.Log
 }
 
 // New returns a new ActivityPub inbox.
@@ -90,7 +90,7 @@ func New(cnfg *Config, s store.Store, pubSub pubSub, activityHandler service.Act
 		activityStore:   s,
 		jsonUnmarshal:   json.Unmarshal,
 		metrics:         metrics,
-		logger:          log.NewStructured(loggerModule, log.WithFields(log.WithServiceName(cfg.ServiceEndpoint))),
+		logger:          log.New(loggerModule, log.WithFields(log.WithServiceName(cfg.ServiceEndpoint))),
 	}
 
 	h.Lifecycle = lifecycle.New(cfg.ServiceEndpoint,

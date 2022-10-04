@@ -20,7 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
-var logger = log.NewStructured("allowed-origins", log.WithFields(log.WithServiceEndpoint(allowedOriginsPath)))
+var logger = log.New("allowed-origins", log.WithFields(log.WithServiceEndpoint(allowedOriginsPath)))
 
 const (
 	allowedOriginsPath          = "/allowedorigins"

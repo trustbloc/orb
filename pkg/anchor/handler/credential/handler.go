@@ -25,7 +25,7 @@ import (
 	"github.com/trustbloc/orb/pkg/linkset"
 )
 
-var logger = log.NewStructured("anchor-credential-handler")
+var logger = log.New("anchor-credential-handler")
 
 type anchorLinkStore interface {
 	GetLinks(anchorHash string) ([]*url.URL, error)

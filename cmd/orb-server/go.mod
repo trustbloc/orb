@@ -21,9 +21,10 @@ require (
 	github.com/stretchr/testify v1.7.5
 	github.com/trustbloc/kms v0.1.9-0.20220927102932-412f152996fa
 	github.com/trustbloc/orb v0.1.3
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20220923202310-696e9936c60c
-	github.com/trustbloc/vct v1.0.0-rc3.0.20220923211225-330d08937d67
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221005183541-1b59b4a9dd99
+	github.com/trustbloc/vct v1.0.0-rc3.0.20221005225741-acba00018d6b
 	go.mongodb.org/mongo-driver v1.9.1
+	go.uber.org/zap v1.17.0
 )
 
 require (
@@ -112,7 +113,6 @@ require (
 	go.opencensus.io v0.23.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
-	go.uber.org/zap v1.17.0 // indirect
 	golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e // indirect
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd // indirect
 	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect

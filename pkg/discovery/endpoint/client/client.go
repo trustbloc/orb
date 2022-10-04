@@ -37,7 +37,7 @@ import (
 	"github.com/trustbloc/orb/pkg/orbclient/aoprovider"
 )
 
-var logger = log.NewStructured("endpoint-client")
+var logger = log.New("endpoint-client")
 
 const (
 	minResolvers         = "https://trustbloc.dev/ns/min-resolvers"

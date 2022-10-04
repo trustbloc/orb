@@ -28,7 +28,7 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
-var logger = log.NewStructured("orb-cli")
+var logger = log.New("orb-cli")
 
 func main() {
 	rootCmd := &cobra.Command{

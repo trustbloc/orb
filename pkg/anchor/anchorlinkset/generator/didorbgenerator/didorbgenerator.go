@@ -23,7 +23,7 @@ import (
 	"github.com/trustbloc/orb/pkg/linkset"
 )
 
-var logger = log.NewStructured("anchorevent")
+var logger = log.New("anchorevent")
 
 const (
 	// ID specifies the ID of the generator.

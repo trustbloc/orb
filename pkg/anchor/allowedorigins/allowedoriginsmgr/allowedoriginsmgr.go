@@ -17,7 +17,7 @@ import (
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
-var logger = log.NewStructured("allowed-origins-mgr")
+var logger = log.New("allowed-origins-mgr")
 
 const (
 	allowedOriginKeyPrefix = "allowed-origin_"

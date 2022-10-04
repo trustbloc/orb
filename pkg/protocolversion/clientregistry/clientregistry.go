@@ -18,7 +18,7 @@ import (
 	versioncommon "github.com/trustbloc/orb/pkg/protocolversion/common"
 )
 
-var logger = log.NewStructured("client-factory-registry")
+var logger = log.New("client-factory-registry")
 
 type factory interface {
 	Create(version string, casClient common.CASReader, sidetreeCfg *config.Sidetree) (protocol.Version, error)

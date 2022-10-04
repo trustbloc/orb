@@ -24,14 +24,14 @@ const loggerModule = "activitypub_memstore"
 type Store struct {
 	activityStore   *activityStore
 	referenceStores map[spi.ReferenceType]*referenceStore
-	logger          *log.StructuredLog
+	logger          *log.Log
 }
 
 // New returns a new in-memory ActivityPub store.
 func New(serviceName string) *Store {
 	return &Store{
 		activityStore: newActivitiesStore(),
-		logger:        log.NewStructured(loggerModule, log.WithFields(log.WithServiceName(serviceName))),
+		logger:        log.New(loggerModule, log.WithFields(log.WithServiceName(serviceName))),
 		referenceStores: map[spi.ReferenceType]*referenceStore{
 			spi.Inbox:         newReferenceStore(),
 			spi.Outbox:        newReferenceStore(),
