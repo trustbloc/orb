@@ -2285,6 +2285,6 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringArray(requestTokensFlagName, []string{}, requestTokensFlagUsage)
 	startCmd.Flags().StringP(allowedOriginsCacheExpirationFlagName, "", "", allowedOriginsCacheExpirationFlagUsage)
 	startCmd.Flags().String(kmsRegionFlagName, "", kmsRegionFlagUsage)	
-        startCmd.Flags().StringP(metricsProviderFlagName, "", "", allowedMetricsProviderFlagUsage)
+	startCmd.Flags().StringP(metricsProviderFlagName, "", "", allowedMetricsProviderFlagUsage)
 	startCmd.Flags().StringP(promHttpUrlFlagName, "", "", allowedPromHttpUrlFlagNameUsage)
 }

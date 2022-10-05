@@ -525,7 +525,7 @@ func startOrbServices(parameters *orbParameters) error {
 	switch {
 	case strings.EqualFold(parameters.casType, "ipfs"):
 		logger.Info("Initializing Orb CAS with IPFS.")
-		coreCASClient = ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout, defaultCasCacheSize, metrics.Get(),
+		coreCASClient = ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout, defaultCasCacheSize, metrics,
 			extendedcasclient.WithCIDVersion(parameters.cidVersion))
 	case strings.EqualFold(parameters.casType, "local"):
 		logger.Info("Initializing Orb CAS with local storage provider.")
