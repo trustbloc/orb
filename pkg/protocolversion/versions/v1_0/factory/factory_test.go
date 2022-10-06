@@ -39,7 +39,7 @@ func TestFactory_Create(t *testing.T) {
 	storeProvider := &storemocks.Provider{}
 
 	t.Run("success", func(t *testing.T) {
-		pv, err := f.Create("1.0", casClient, casResolver, opStore, storeProvider, &config.Sidetree{})
+		pv, err := f.Create("1.0", casClient, casResolver, opStore, storeProvider, &config.Sidetree{}, nil)
 		require.NoError(t, err)
 		require.NotNil(t, pv)
 	})
@@ -54,7 +54,7 @@ func TestFactory_Create(t *testing.T) {
 			UnpublishedOperationStoreOperationTypes: []operation.Type{operation.TypeUpdate},
 		}
 
-		pv, err := f.Create("1.0", casClient, casResolver, opStore, storeProvider, cfg)
+		pv, err := f.Create("1.0", casClient, casResolver, opStore, storeProvider, cfg, nil)
 		require.NoError(t, err)
 		require.NotNil(t, pv)
 	})

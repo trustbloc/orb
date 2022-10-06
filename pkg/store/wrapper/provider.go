@@ -25,13 +25,14 @@ type mongoDBProvider interface {
 
 // ProviderWrapper wrap aries provider.
 type ProviderWrapper struct {
-	p      provider
-	dbType string
+	p       provider
+	dbType  string
+	metrics metricsProvider
 }
 
 // NewProvider return new store provider wrapper.
-func NewProvider(p provider, dbType string) *ProviderWrapper {
-	return &ProviderWrapper{p: p, dbType: dbType}
+func NewProvider(p provider, dbType string, metrics metricsProvider) *ProviderWrapper {
+	return &ProviderWrapper{p: p, dbType: dbType, metrics: metrics}
 }
 
 // OpenStore open store.
@@ -41,7 +42,7 @@ func (prov *ProviderWrapper) OpenStore(name string) (storage.Store, error) {
 		return nil, err
 	}
 
-	return NewStore(s, prov.dbType), nil
+	return NewStore(s, prov.dbType, prov.metrics), nil
 }
 
 // SetStoreConfig set store config.
@@ -77,9 +78,9 @@ type MongoDBProviderWrapper struct {
 }
 
 // NewMongoDBProvider return new store provider wrapper.
-func NewMongoDBProvider(p mongoDBProvider) *MongoDBProviderWrapper {
+func NewMongoDBProvider(p mongoDBProvider, metrics metricsProvider) *MongoDBProviderWrapper {
 	return &MongoDBProviderWrapper{
-		ProviderWrapper: NewProvider(p, "MongoDB"),
+		ProviderWrapper: NewProvider(p, "MongoDB", metrics),
 		mp:              p,
 	}
 }
@@ -91,7 +92,7 @@ func (prov *MongoDBProviderWrapper) OpenStore(name string) (storage.Store, error
 		return nil, err
 	}
 
-	return NewMongoDBStore(s), nil
+	return NewMongoDBStore(s, prov.metrics), nil
 }
 
 // CreateCustomIndexes creates MongoDB indexes.

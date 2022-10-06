@@ -41,11 +41,11 @@ func TestRegistry(t *testing.T) {
 	casResolver := &mocks.CASResolver{}
 	storeProvider := &storemocks.Provider{}
 
-	pv, err := r.CreateProtocolVersion(version, casClient, casResolver, opStore, storeProvider, &config.Sidetree{})
+	pv, err := r.CreateProtocolVersion(version, casClient, casResolver, opStore, storeProvider, &config.Sidetree{}, nil)
 	require.NoError(t, err)
 	require.NotNil(t, pv)
 
-	pv, err = r.CreateProtocolVersion("99", casClient, casResolver, opStore, storeProvider, &config.Sidetree{})
+	pv, err = r.CreateProtocolVersion("99", casClient, casResolver, opStore, storeProvider, &config.Sidetree{}, nil)
 	require.EqualError(t, err, "protocol version factory for version [99] not found")
 	require.Nil(t, pv)
 }

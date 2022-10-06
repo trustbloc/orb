@@ -14,11 +14,12 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/mongo"
 
+	"github.com/trustbloc/orb/pkg/observability/metrics/noop"
 	"github.com/trustbloc/orb/pkg/store/mocks"
 )
 
 func TestProviderWrapper(t *testing.T) {
-	s := NewProvider(&mockProvider{}, "CouchDB")
+	s := NewProvider(&mockProvider{}, "CouchDB", &noop.NoOptMetrics{})
 	require.NotNil(t, s)
 
 	t.Run("open store", func(t *testing.T) {
@@ -51,7 +52,7 @@ func TestProviderWrapper(t *testing.T) {
 func TestMongoDBProviderWrapper(t *testing.T) {
 	mp := &mocks.MongoDBProvider{}
 
-	p := NewMongoDBProvider(mp)
+	p := NewMongoDBProvider(mp, &noop.NoOptMetrics{})
 	require.NotNil(t, p)
 
 	t.Run("open store", func(t *testing.T) {

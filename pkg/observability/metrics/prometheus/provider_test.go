@@ -1,10 +1,4 @@
-/*
-Copyright SecureKey Technologies Inc. All Rights Reserved.
-
-SPDX-License-Identifier: Apache-2.0
-*/
-
-package metrics
+package prometheus
 
 import (
 	"testing"
@@ -15,9 +9,9 @@ import (
 )
 
 func TestMetrics(t *testing.T) {
-	m := Get()
+	m := GetMetrics()
 	require.NotNil(t, m)
-	require.True(t, m == Get())
+	require.True(t, m == GetMetrics())
 
 	t.Run("ActivityPub", func(t *testing.T) {
 		require.NotPanics(t, func() { m.InboxHandlerTime("Create", time.Second) })
@@ -104,6 +98,10 @@ func TestMetrics(t *testing.T) {
 	})
 }
 
+func TestNewGauge(t *testing.T) {
+	require.NotNil(t, newGauge("activityPub", "metric_name", "Some help", nil))
+}
+
 func TestNewCounter(t *testing.T) {
 	labels := prometheus.Labels{"type": "create"}
 
@@ -114,8 +112,4 @@ func TestNewHistogram(t *testing.T) {
 	labels := prometheus.Labels{"type": "create"}
 
 	require.NotNil(t, newHistogram("activityPub", "metric_name", "Some help", labels))
-}
-
-func TestNewGuage(t *testing.T) {
-	require.NotNil(t, newGauge("activityPub", "metric_name", "Some help", nil))
 }

@@ -1,165 +1,71 @@
-/*
-Copyright SecureKey Technologies Inc. All Rights Reserved.
-
-SPDX-License-Identifier: Apache-2.0
-*/
-
-package metrics
+package prometheus
 
 import (
+	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/orb/pkg/httpserver"
+	"github.com/trustbloc/orb/pkg/observability/metrics"
 )
 
-const (
-	namespace = "orb"
-
-	// ActivityPub.
-	activityPub                   = "activitypub"
-	apPostTimeMetric              = "outbox_post_seconds"
-	apResolveInboxesTimeMetric    = "outbox_resolve_inboxes_seconds"
-	apInboxHandlerTimeMetric      = "inbox_handler_seconds"
-	apOutboxActivityCounterMetric = "outbox_count"
-
-	// Anchor.
-	anchor                                         = "anchor"
-	anchorWriteTimeMetric                          = "write_seconds"
-	anchorWitnessMetric                            = "witness_seconds"
-	anchorProcessWitnessedMetric                   = "process_witnessed_seconds"
-	anchorWriteBuildCredTimeMetric                 = "write_build_cred_seconds"
-	anchorWriteGetWitnessesTimeMetric              = "write_get_witnesses_seconds"
-	anchorWriteSignCredTimeMetric                  = "write_sign_cred_seconds"
-	anchorWritePostOfferActivityTimeMetric         = "write_post_offer_activity_seconds"
-	anchorWriteGetPreviousAnchorsGetBulkTimeMetric = "write_get_previous_anchor_get_bulk_seconds"
-	anchorWriteGetPreviousAnchorsTimeMetric        = "write_get_previous_anchor_seconds"
-	anchorWriteStoreTimeMetric                     = "write_store_seconds"
-	anchorWriteSignWithLocalWitnessTimeMetric      = "write_sign_with_local_witness_seconds"
-	anchorWriteSignWithServerKeyTimeMetric         = "write_sign_with_server_key_seconds"
-	anchorWriteSignLocalWitnessLogTimeMetric       = "write_sign_local_witness_log_seconds"
-	anchorWriteSignLocalWatchTimeMetric            = "write_sign_local_watch_seconds"
-	anchorWriteResolveHostMetaLinkTimeMetric       = "write_resolve_host_meta_link_seconds"
-
-	// Operation queue.
-	operationQueue                 = "opqueue"
-	opQueueAddOperationTimeMetric  = "add_operation_seconds"
-	opQueueBatchCutTimeMetric      = "batch_cut_seconds"
-	opQueueBatchRollbackTimeMetric = "batch_rollback_seconds"
-	opQueueBatchSizeMetric         = "batch_size"
-
-	// Observer.
-	observer                        = "observer"
-	observerProcessAnchorTimeMetric = "process_anchor_seconds"
-	observerProcessDIDTimeMetric    = "process_did_seconds"
-
-	// CAS.
-	cas                    = "cas"
-	casWriteTimeMetric     = "write_seconds"
-	casResolveTimeMetric   = "resolve_seconds"
-	casCacheHitCountMetric = "cache_hit_count"
-	casReadTimeMetric      = "read_seconds"
-
-	// Document handler.
-	document                  = "document"
-	docCreateUpdateTimeMetric = "create_update_seconds"
-	docResolveTimeMetric      = "resolve_seconds"
-
-	// DB.
-	db                  = "db"
-	dbPutTimeMetric     = "put_seconds"
-	dbGetTimeMetric     = "get_seconds"
-	dbGetTagsTimeMetric = "get_tags_seconds"
-	dbGetBulkTimeMetric = "get_bulk_seconds"
-	dbQueryTimeMetric   = "query_seconds"
-	dbDeleteTimeMetric  = "delete_seconds"
-	dbBatchTimeMetric   = "batch_seconds"
-
-	// VCT.
-	vct                                  = "vct"
-	vctWitnessAddProofVCTNilTimeMetric   = "witness_add_proof_vct_nil_seconds"
-	vctWitnessAddVCTimeMetric            = "witness_add_vc_seconds"
-	vctWitnessAddProofTimeMetric         = "witness_add_proof_seconds"
-	vctWitnessWebFingerTimeMetric        = "witness_webfinger_seconds"
-	vctWitnessVerifyVCTTimeMetric        = "witness_verify_vct_signature_seconds"
-	vctAddProofParseCredentialTimeMetric = "witness_add_proof_parse_credential_seconds"
-	vctAddProofSignTimeMetric            = "witness_add_proof_sign_seconds"
-
-	// Signer.
-	signer                         = "signer"
-	signerGetKeyTimeMetric         = "get_key_seconds"
-	signerSignMetric               = "sign_seconds"
-	signerAddLinkedDataProofMetric = "add_linked_data_proof_seconds"
-
-	// Resolver.
-	resolver = "resolver"
-
-	resolverResolveDocumentLocallyTimeMetric          = "resolve_document_locally_seconds"
-	resolverGetAnchorOriginEndpointTimeMetric         = "get_anchor_origin_endpoint_seconds"
-	resolverResolveDocumentFromAnchorOriginTimeMetric = "resolve_document_from_anchor_origin_seconds"
-	resolverResolveDocumentFromCreateStoreTimeMetric  = "resolve_document_from_create_document_store_seconds"
-	resolverDeleteDocumentFromCreateStoreTimeMetric   = "delete_document_from_create_document_store_seconds"
-	resolverVerifyCIDTimeMetric                       = "verify_cid_seconds"
-	resolverRequestDiscoveryTimeMetric                = "request_discovery_seconds"
-
-	// Resolver.
-	webResolver = "web_resolver"
-
-	webResolverResolveDocument = "resolve_document"
-
-	// Decorator.
-	decorator = "decorator"
-
-	decoratorDecorateTimeMetric                      = "decorate_seconds"
-	decoratorProcessorResolveTimeMetric              = "processor_resolve_seconds"
-	decoratorGetAOEndpointAndResolveFromAOTimeMetric = "get_ao_endpoint_and_resolve_from_ao_seconds"
-
-	// Operations.
-	operations = "operations"
-
-	unpublishedPutOperationTimeMetric          = "put_unpublished_operation_seconds"
-	unpublishedGetOperationsTimeMetric         = "get_unpublished_operations_seconds"
-	unpublishedCalculateOperationKeyTimeMetric = "calculate_unpublished_operation_key_seconds"
-
-	publishedPutOperationsTimeMetric = "put_published_operations_seconds"
-	publishedGetOperationsTimeMetric = "get_published_operations_seconds"
-
-	// Core operations processor.
-	coreOperations = "core"
-
-	coreProcessOperationTimeMetrics       = "process_operation_seconds"
-	coreGetProtocolVersionTimeMetrics     = "get_protocol_version_seconds"
-	coreParseOperationTimeMetrics         = "parse_operation_seconds"
-	coreValidateOperationTimeMetrics      = "validate_operation_seconds"
-	coreDecorateOperationTimeMetrics      = "decorate_operation_seconds"
-	coreAddUnpublishedOperationTimeMatrix = "add_unpublished_operation_seconds"
-	coreAddOperationToBatchTimeMatrix     = "add_operation_to_batch_seconds"
-	coreGetCreateOperationResult          = "get_create_operation_result_seconds"
-	coreHTTPCreateUpdateTimeMetrics       = "http_create_update_seconds"
-	coreHTTPResolveTimeMetrics            = "http_resolve_seconds"
-	coreCASWriteSizeMetrics               = "cas_write_size"
-
-	// AWS kms.
-	aws                           = "aws"
-	awsSignCountMetric            = "sign_count"
-	awsSignTimeMetric             = "sign_seconds"
-	awsExportPublicKeyCountMetric = "export_publickey_count"
-	awsExportPublicKeyTimeMetric  = "export_publickey_seconds"
-	awsVerifyCountMetric          = "Verify_count"
-	awsVerifyTimeMetric           = "Verify_seconds"
-)
-
-var logger = log.New("metrics")
+var logger = metrics.Logger
 
 var (
-	createOnce sync.Once //nolint:gochecknoglobals
-	instance   *Metrics  //nolint:gochecknoglobals
+	createOnce sync.Once       //nolint:gochecknoglobals
+	instance   metrics.Metrics //nolint:gochecknoglobals
 )
 
-// Metrics manages the metrics for Orb.
-type Metrics struct {
+type promProvider struct {
+	httpServer *httpserver.Server
+}
+
+// NewPrometheusProvider creates new instance of Prometheus Metrics Provider.
+func NewPrometheusProvider(httpServer *httpserver.Server) metrics.Provider {
+	return &promProvider{httpServer: httpServer}
+}
+
+// Create creates/initializes the prometheus metrics provider.
+func (pp *promProvider) Create() error {
+	if pp.httpServer != nil {
+		return nil
+	}
+
+	if err := pp.httpServer.Start(); err != nil {
+		return fmt.Errorf("start metrics HTTP server: %w", err)
+	}
+
+	return nil
+}
+
+// Metrics returns supported metrics.
+func (pp *promProvider) Metrics() metrics.Metrics {
+	return GetMetrics()
+}
+
+// Destroy destroys the prometheus metrics provider.
+func (pp *promProvider) Destroy() error {
+	if pp.httpServer != nil {
+		return pp.httpServer.Stop(context.Background())
+	}
+
+	return nil
+}
+
+// GetMetrics returns metrics implementation.
+func GetMetrics() metrics.Metrics {
+	createOnce.Do(func() {
+		instance = NewMetrics()
+	})
+
+	return instance
+}
+
+// PromMetrics manages the metrics for Orb.
+type PromMetrics struct {
 	apOutboxPostTime           prometheus.Histogram
 	apOutboxResolveInboxesTime prometheus.Histogram
 	apInboxHandlerTimes        map[string]prometheus.Histogram
@@ -256,21 +162,13 @@ type Metrics struct {
 	awsVerifyTime           prometheus.Histogram
 }
 
-// Get returns an Orb metrics provider.
-func Get() *Metrics {
-	createOnce.Do(func() {
-		instance = newMetrics()
-	})
-
-	return instance
-}
-
-func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
+// NewMetrics creates instance of prometheus metrics.
+func NewMetrics() metrics.Metrics { //nolint:funlen
 	activityTypes := []string{"Create", "Announce", "Offer", "Like", "Follow", "InviteWitness", "Accept", "Reject"}
 	dbTypes := []string{"CouchDB", "MongoDB"}
 	modelTypes := []string{"core index", "core proof", "provisional proof", "chunk", "provisional index"}
 
-	m := &Metrics{
+	pm := &PromMetrics{
 		apOutboxPostTime:                             newOutboxPostTime(),
 		apOutboxResolveInboxesTime:                   newOutboxResolveInboxesTime(),
 		anchorWriteTime:                              newAnchorWriteTime(),
@@ -354,101 +252,105 @@ func newMetrics() *Metrics { //nolint:funlen,gocyclo,cyclop
 		awsVerifyTime:                                newAWSVerifyTime(),
 	}
 
+	registerMetrics(pm)
+
+	return pm
+}
+
+func registerMetrics(pm *PromMetrics) { //nolint:funlen,gocyclo,cyclop
 	prometheus.MustRegister(
-		m.apOutboxPostTime, m.apOutboxResolveInboxesTime,
-		m.anchorWriteTime, m.anchorWitnessTime, m.anchorProcessWitnessedTime, m.anchorWriteBuildCredTime,
-		m.anchorWriteGetWitnessesTime, m.anchorWriteSignCredTime, m.anchorWritePostOfferActivityTime,
-		m.anchorWriteGetPreviousAnchorsGetBulkTime, m.anchorWriteGetPreviousAnchorsTime,
-		m.anchorWriteSignWithLocalWitnessTime, m.anchorWriteSignWithServerKeyTime, m.anchorWriteSignLocalWitnessLogTime,
-		m.anchorWriteStoreTime, m.anchorWriteSignLocalWatchTime,
-		m.opqueueAddOperationTime, m.opqueueBatchCutTime, m.opqueueBatchRollbackTime,
-		m.opqueueBatchSize, m.observerProcessAnchorTime, m.observerProcessDIDTime,
-		m.casWriteTime, m.casResolveTime, m.casCacheHitCount,
-		m.docCreateUpdateTime, m.docResolveTime,
-		m.vctWitnessAddProofVCTNilTimes, m.vctWitnessAddVCTimes, m.vctWitnessAddProofTimes,
-		m.vctWitnessAddWebFingerTimes, m.vctWitnessVerifyVCTimes, m.vctAddProofParseCredentialTimes,
-		m.vctAddProofSignTimes, m.signerSignTimes, m.signerGetKeyTimes, m.signerAddLinkedDataProofTimes,
-		m.anchorWriteResolveHostMetaLinkTime,
-		m.webResolverResolveDocument,
-		m.resolverResolveDocumentLocallyTimes, m.resolverGetAnchorOriginEndpointTimes,
-		m.resolverResolveDocumentFromAnchorOriginTimes,
-		m.resolverResolveDocumentFromCreateStoreTimes, m.resolverDeleteDocumentFromCreateStoreTimes,
-		m.resolverVerifyCIDTimes, m.resolverRequestDiscoveryTimes,
-		m.decoratorDecorateTime, m.decoratorProcessorResolveTime, m.decoratorGetAOEndpointAndResolveFromAOTime,
-		m.unpublishedPutOperationTime, m.unpublishedGetOperationsTime, m.unpublishedCalculateOperationKeyTime,
-		m.publishedPutOperationsTime, m.publishedGetOperationsTime,
-		m.coreProcessOperationTime, m.coreGetProtocolVersionTime,
-		m.coreParseOperationTime, m.coreValidateOperationTime, m.coreDecorateOperationTime,
-		m.coreAddUnpublishedOperationTime, m.coreAddOperationToBatchTime, m.coreGetCreateOperationResultTime,
-		m.coreHTTPCreateUpdateTime, m.coreHTTPResolveTime, m.awsSignCount, m.awsSignTime,
-		m.awsExportPublicKeyCount,
-		m.awsExportPublicKeyTime, m.awsVerifyTime, m.awsVerifyCount,
+		pm.apOutboxPostTime, pm.apOutboxResolveInboxesTime,
+		pm.anchorWriteTime, pm.anchorWitnessTime, pm.anchorProcessWitnessedTime, pm.anchorWriteBuildCredTime,
+		pm.anchorWriteGetWitnessesTime, pm.anchorWriteSignCredTime, pm.anchorWritePostOfferActivityTime,
+		pm.anchorWriteGetPreviousAnchorsGetBulkTime, pm.anchorWriteGetPreviousAnchorsTime,
+		pm.anchorWriteSignWithLocalWitnessTime, pm.anchorWriteSignWithServerKeyTime, pm.anchorWriteSignLocalWitnessLogTime,
+		pm.anchorWriteStoreTime, pm.anchorWriteSignLocalWatchTime,
+		pm.opqueueAddOperationTime, pm.opqueueBatchCutTime, pm.opqueueBatchRollbackTime,
+		pm.opqueueBatchSize, pm.observerProcessAnchorTime, pm.observerProcessDIDTime,
+		pm.casWriteTime, pm.casResolveTime, pm.casCacheHitCount,
+		pm.docCreateUpdateTime, pm.docResolveTime,
+		pm.vctWitnessAddProofVCTNilTimes, pm.vctWitnessAddVCTimes, pm.vctWitnessAddProofTimes,
+		pm.vctWitnessAddWebFingerTimes, pm.vctWitnessVerifyVCTimes, pm.vctAddProofParseCredentialTimes,
+		pm.vctAddProofSignTimes, pm.signerSignTimes, pm.signerGetKeyTimes, pm.signerAddLinkedDataProofTimes,
+		pm.anchorWriteResolveHostMetaLinkTime,
+		pm.webResolverResolveDocument,
+		pm.resolverResolveDocumentLocallyTimes, pm.resolverGetAnchorOriginEndpointTimes,
+		pm.resolverResolveDocumentFromAnchorOriginTimes,
+		pm.resolverResolveDocumentFromCreateStoreTimes, pm.resolverDeleteDocumentFromCreateStoreTimes,
+		pm.resolverVerifyCIDTimes, pm.resolverRequestDiscoveryTimes,
+		pm.decoratorDecorateTime, pm.decoratorProcessorResolveTime, pm.decoratorGetAOEndpointAndResolveFromAOTime,
+		pm.unpublishedPutOperationTime, pm.unpublishedGetOperationsTime, pm.unpublishedCalculateOperationKeyTime,
+		pm.publishedPutOperationsTime, pm.publishedGetOperationsTime,
+		pm.coreProcessOperationTime, pm.coreGetProtocolVersionTime,
+		pm.coreParseOperationTime, pm.coreValidateOperationTime, pm.coreDecorateOperationTime,
+		pm.coreAddUnpublishedOperationTime, pm.coreAddOperationToBatchTime, pm.coreGetCreateOperationResultTime,
+		pm.coreHTTPCreateUpdateTime, pm.coreHTTPResolveTime, pm.awsSignCount, pm.awsSignTime,
+		pm.awsExportPublicKeyCount,
+		pm.awsExportPublicKeyTime, pm.awsVerifyTime, pm.awsVerifyCount,
 	)
 
-	for _, c := range m.apInboxHandlerTimes {
+	for _, c := range pm.apInboxHandlerTimes {
 		prometheus.MustRegister(c)
 	}
 
-	for _, c := range m.dbPutTimes {
+	for _, c := range pm.dbPutTimes {
 		prometheus.MustRegister(c)
 	}
 
-	for _, c := range m.dbGetTimes {
+	for _, c := range pm.dbGetTimes {
 		prometheus.MustRegister(c)
 	}
 
-	for _, c := range m.dbGetTagsTimes {
+	for _, c := range pm.dbGetTagsTimes {
 		prometheus.MustRegister(c)
 	}
 
-	for _, c := range m.dbGetBulkTimes {
+	for _, c := range pm.dbGetBulkTimes {
 		prometheus.MustRegister(c)
 	}
 
-	for _, c := range m.dbBatchTimes {
+	for _, c := range pm.dbBatchTimes {
 		prometheus.MustRegister(c)
 	}
 
-	for _, c := range m.dbDeleteTimes {
+	for _, c := range pm.dbDeleteTimes {
 		prometheus.MustRegister(c)
 	}
 
-	for _, c := range m.dbQueryTimes {
+	for _, c := range pm.dbQueryTimes {
 		prometheus.MustRegister(c)
 	}
 
-	for _, c := range m.apOutboxActivityCounts {
+	for _, c := range pm.apOutboxActivityCounts {
 		prometheus.MustRegister(c)
 	}
 
-	for _, c := range m.casReadTimes {
+	for _, c := range pm.casReadTimes {
 		prometheus.MustRegister(c)
 	}
 
-	for _, c := range m.coreCASWriteSize {
+	for _, c := range pm.coreCASWriteSize {
 		prometheus.MustRegister(c)
 	}
-
-	return m
 }
 
 // OutboxPostTime records the time it takes to post a message to the outbox.
-func (m *Metrics) OutboxPostTime(value time.Duration) {
-	m.apOutboxPostTime.Observe(value.Seconds())
+func (pm *PromMetrics) OutboxPostTime(value time.Duration) {
+	pm.apOutboxPostTime.Observe(value.Seconds())
 
 	logger.Debugf("OutboxPost time: %s", value)
 }
 
 // OutboxResolveInboxesTime records the time it takes to resolve inboxes for an outbox post.
-func (m *Metrics) OutboxResolveInboxesTime(value time.Duration) {
-	m.apOutboxResolveInboxesTime.Observe(value.Seconds())
+func (pm *PromMetrics) OutboxResolveInboxesTime(value time.Duration) {
+	pm.apOutboxResolveInboxesTime.Observe(value.Seconds())
 
 	logger.Debugf("OutboxResolveInboxes time: %s", value)
 }
 
 // InboxHandlerTime records the time it takes to handle an activity posted to the inbox.
-func (m *Metrics) InboxHandlerTime(activityType string, value time.Duration) {
-	if c, ok := m.apInboxHandlerTimes[activityType]; ok {
+func (pm *PromMetrics) InboxHandlerTime(activityType string, value time.Duration) {
+	if c, ok := pm.apInboxHandlerTimes[activityType]; ok {
 		c.Observe(value.Seconds())
 	}
 
@@ -456,99 +358,99 @@ func (m *Metrics) InboxHandlerTime(activityType string, value time.Duration) {
 }
 
 // OutboxIncrementActivityCount increments the number of activities of the given type posted to the outbox.
-func (m *Metrics) OutboxIncrementActivityCount(activityType string) {
-	if c, ok := m.apOutboxActivityCounts[activityType]; ok {
+func (pm *PromMetrics) OutboxIncrementActivityCount(activityType string) {
+	if c, ok := pm.apOutboxActivityCounts[activityType]; ok {
 		c.Inc()
 	}
 }
 
 // WriteAnchorTime records the time it takes to write an anchor credential and post an 'Offer' activity.
-func (m *Metrics) WriteAnchorTime(value time.Duration) {
-	m.anchorWriteTime.Observe(value.Seconds())
+func (pm *PromMetrics) WriteAnchorTime(value time.Duration) {
+	pm.anchorWriteTime.Observe(value.Seconds())
 
 	logger.Debugf("WriteAnchor time: %s", value)
 }
 
 // WriteAnchorBuildCredentialTime records the time it takes to build credential inside write anchor.
-func (m *Metrics) WriteAnchorBuildCredentialTime(value time.Duration) {
-	m.anchorWriteBuildCredTime.Observe(value.Seconds())
+func (pm *PromMetrics) WriteAnchorBuildCredentialTime(value time.Duration) {
+	pm.anchorWriteBuildCredTime.Observe(value.Seconds())
 
 	logger.Debugf("WriteAnchor build credential time: %s", value)
 }
 
 // WriteAnchorGetWitnessesTime records the time it takes to get witnesses inside write anchor.
-func (m *Metrics) WriteAnchorGetWitnessesTime(value time.Duration) {
-	m.anchorWriteGetWitnessesTime.Observe(value.Seconds())
+func (pm *PromMetrics) WriteAnchorGetWitnessesTime(value time.Duration) {
+	pm.anchorWriteGetWitnessesTime.Observe(value.Seconds())
 
 	logger.Debugf("WriteAnchor get witness time: %s", value)
 }
 
 // WriteAnchorSignCredentialTime records the time it takes to sign credential inside write anchor.
-func (m *Metrics) WriteAnchorSignCredentialTime(value time.Duration) {
-	m.anchorWriteSignCredTime.Observe(value.Seconds())
+func (pm *PromMetrics) WriteAnchorSignCredentialTime(value time.Duration) {
+	pm.anchorWriteSignCredTime.Observe(value.Seconds())
 
 	logger.Debugf("WriteAnchor sign credential time: %s", value)
 }
 
 // WriteAnchorPostOfferActivityTime records the time it takes to post offer activity inside write anchor.
-func (m *Metrics) WriteAnchorPostOfferActivityTime(value time.Duration) {
-	m.anchorWritePostOfferActivityTime.Observe(value.Seconds())
+func (pm *PromMetrics) WriteAnchorPostOfferActivityTime(value time.Duration) {
+	pm.anchorWritePostOfferActivityTime.Observe(value.Seconds())
 
 	logger.Debugf("WriteAnchor sign credential time: %s", value)
 }
 
 // WriteAnchorGetPreviousAnchorsGetBulkTime records the time it takes to get bulk inside previous anchor.
-func (m *Metrics) WriteAnchorGetPreviousAnchorsGetBulkTime(value time.Duration) {
-	m.anchorWriteGetPreviousAnchorsGetBulkTime.Observe(value.Seconds())
+func (pm *PromMetrics) WriteAnchorGetPreviousAnchorsGetBulkTime(value time.Duration) {
+	pm.anchorWriteGetPreviousAnchorsGetBulkTime.Observe(value.Seconds())
 
 	logger.Debugf("WriteAnchor getPreviousAnchor geBulk time: %s", value)
 }
 
 // WriteAnchorGetPreviousAnchorsTime records the time it takes to get previous anchor.
-func (m *Metrics) WriteAnchorGetPreviousAnchorsTime(value time.Duration) {
-	m.anchorWriteGetPreviousAnchorsTime.Observe(value.Seconds())
+func (pm *PromMetrics) WriteAnchorGetPreviousAnchorsTime(value time.Duration) {
+	pm.anchorWriteGetPreviousAnchorsTime.Observe(value.Seconds())
 
 	logger.Debugf("WriteAnchor getPreviousAnchor time: %s", value)
 }
 
 // WriteAnchorSignWithLocalWitnessTime records the time it takes to sign with local witness.
-func (m *Metrics) WriteAnchorSignWithLocalWitnessTime(value time.Duration) {
-	m.anchorWriteSignWithLocalWitnessTime.Observe(value.Seconds())
+func (pm *PromMetrics) WriteAnchorSignWithLocalWitnessTime(value time.Duration) {
+	pm.anchorWriteSignWithLocalWitnessTime.Observe(value.Seconds())
 
 	logger.Debugf("WriteAnchor sign with local witness time: %s", value)
 }
 
 // WriteAnchorSignWithServerKeyTime records the time it takes to sign with server key.
-func (m *Metrics) WriteAnchorSignWithServerKeyTime(value time.Duration) {
-	m.anchorWriteSignWithServerKeyTime.Observe(value.Seconds())
+func (pm *PromMetrics) WriteAnchorSignWithServerKeyTime(value time.Duration) {
+	pm.anchorWriteSignWithServerKeyTime.Observe(value.Seconds())
 
 	logger.Debugf("WriteAnchor sign with server key time: %s", value)
 }
 
 // WriteAnchorSignLocalWitnessLogTime records the time it takes to witness log inside sign local.
-func (m *Metrics) WriteAnchorSignLocalWitnessLogTime(value time.Duration) {
-	m.anchorWriteSignLocalWitnessLogTime.Observe(value.Seconds())
+func (pm *PromMetrics) WriteAnchorSignLocalWitnessLogTime(value time.Duration) {
+	pm.anchorWriteSignLocalWitnessLogTime.Observe(value.Seconds())
 
 	logger.Debugf("WriteAnchor witness log inside sign local time: %s", value)
 }
 
 // WriteAnchorStoreTime records the time it takes to store an anchor event.
-func (m *Metrics) WriteAnchorStoreTime(value time.Duration) {
-	m.anchorWriteStoreTime.Observe(value.Seconds())
+func (pm *PromMetrics) WriteAnchorStoreTime(value time.Duration) {
+	pm.anchorWriteStoreTime.Observe(value.Seconds())
 
 	logger.Debugf("WriteAnchor store time: %s", value)
 }
 
 // WriteAnchorSignLocalWatchTime records the time it takes to watch inside sign local.
-func (m *Metrics) WriteAnchorSignLocalWatchTime(value time.Duration) {
-	m.anchorWriteSignLocalWatchTime.Observe(value.Seconds())
+func (pm *PromMetrics) WriteAnchorSignLocalWatchTime(value time.Duration) {
+	pm.anchorWriteSignLocalWatchTime.Observe(value.Seconds())
 
 	logger.Debugf("WriteAnchor watch inside sign local time: %s", value)
 }
 
 // WriteAnchorResolveHostMetaLinkTime records the time it takes to resolve host meta link.
-func (m *Metrics) WriteAnchorResolveHostMetaLinkTime(value time.Duration) {
-	m.anchorWriteResolveHostMetaLinkTime.Observe(value.Seconds())
+func (pm *PromMetrics) WriteAnchorResolveHostMetaLinkTime(value time.Duration) {
+	pm.anchorWriteResolveHostMetaLinkTime.Observe(value.Seconds())
 
 	logger.Debugf("WriteAnchor resolve host meta link time: %s", value)
 }
@@ -556,31 +458,31 @@ func (m *Metrics) WriteAnchorResolveHostMetaLinkTime(value time.Duration) {
 // WitnessAnchorCredentialTime records the time it takes for a verifiable credential to gather proofs from all
 // required witnesses (according to witness policy). The start time is when the verifiable credential is issued
 // and the end time is the time that the witness policy is satisfied.
-func (m *Metrics) WitnessAnchorCredentialTime(value time.Duration) {
-	m.anchorWitnessTime.Observe(value.Seconds())
+func (pm *PromMetrics) WitnessAnchorCredentialTime(value time.Duration) {
+	pm.anchorWitnessTime.Observe(value.Seconds())
 
 	logger.Debugf("WitnessAnchorCredential time: %s", value)
 }
 
 // ProcessWitnessedAnchorCredentialTime records the time it takes to process a witnessed anchor credential
 // by publishing it to the Observer and posting a 'Create' activity.
-func (m *Metrics) ProcessWitnessedAnchorCredentialTime(value time.Duration) {
-	m.anchorProcessWitnessedTime.Observe(value.Seconds())
+func (pm *PromMetrics) ProcessWitnessedAnchorCredentialTime(value time.Duration) {
+	pm.anchorProcessWitnessedTime.Observe(value.Seconds())
 
 	logger.Debugf("ProcessWitnessedAnchorCredential time: %s", value)
 }
 
 // AddOperationTime records the time it takes to add an operation to the queue.
-func (m *Metrics) AddOperationTime(value time.Duration) {
-	m.opqueueAddOperationTime.Observe(value.Seconds())
+func (pm *PromMetrics) AddOperationTime(value time.Duration) {
+	pm.opqueueAddOperationTime.Observe(value.Seconds())
 
 	logger.Debugf("AddOperation time: %s", value)
 }
 
 // BatchCutTime records the time it takes to cut an operation batch. The duration is from the time
 // that the first operation was added to the time that the batch is cut.
-func (m *Metrics) BatchCutTime(value time.Duration) {
-	m.opqueueBatchCutTime.Observe(value.Seconds())
+func (pm *PromMetrics) BatchCutTime(value time.Duration) {
+	pm.opqueueBatchCutTime.Observe(value.Seconds())
 
 	logger.Infof("BatchCut time: %s", value)
 }
@@ -588,372 +490,372 @@ func (m *Metrics) BatchCutTime(value time.Duration) {
 // BatchRollbackTime records the time it takes to roll back an operation batch (in case of a
 // transient error). The duration is from the time that the first operation was added to the time
 // that the batch is cut.
-func (m *Metrics) BatchRollbackTime(value time.Duration) {
-	m.opqueueBatchRollbackTime.Observe(value.Seconds())
+func (pm *PromMetrics) BatchRollbackTime(value time.Duration) {
+	pm.opqueueBatchRollbackTime.Observe(value.Seconds())
 
 	logger.Debugf("BatchRollback time: %s", value)
 }
 
 // BatchSize records the size of an operation batch.
-func (m *Metrics) BatchSize(value float64) {
-	m.opqueueBatchSize.Set(value)
+func (pm *PromMetrics) BatchSize(value float64) {
+	pm.opqueueBatchSize.Set(value)
 
 	logger.Infof("BatchSize: %s", value)
 }
 
 // ProcessAnchorTime records the time it takes for the Observer to process an anchor credential.
-func (m *Metrics) ProcessAnchorTime(value time.Duration) {
-	m.observerProcessAnchorTime.Observe(value.Seconds())
+func (pm *PromMetrics) ProcessAnchorTime(value time.Duration) {
+	pm.observerProcessAnchorTime.Observe(value.Seconds())
 
 	logger.Infof("ProcessAnchor time: %s", value)
 }
 
 // ProcessDIDTime records the time it takes for the Observer to process a DID.
-func (m *Metrics) ProcessDIDTime(value time.Duration) {
-	m.observerProcessDIDTime.Observe(value.Seconds())
+func (pm *PromMetrics) ProcessDIDTime(value time.Duration) {
+	pm.observerProcessDIDTime.Observe(value.Seconds())
 
 	logger.Infof("ProcessDID time: %s", value)
 }
 
 // CASWriteTime records the time it takes to write a document to CAS.
-func (m *Metrics) CASWriteTime(value time.Duration) {
-	m.casWriteTime.Observe(value.Seconds())
+func (pm *PromMetrics) CASWriteTime(value time.Duration) {
+	pm.casWriteTime.Observe(value.Seconds())
 
 	logger.Debugf("CASWrite time: %s", value)
 }
 
 // CASResolveTime records the time it takes to resolve a document from CAS.
-func (m *Metrics) CASResolveTime(value time.Duration) {
-	m.casResolveTime.Observe(value.Seconds())
+func (pm *PromMetrics) CASResolveTime(value time.Duration) {
+	pm.casResolveTime.Observe(value.Seconds())
 
 	logger.Debugf("CASResolve time: %s", value)
 }
 
 // CASIncrementCacheHitCount increments the number of CAS cache hits.
-func (m *Metrics) CASIncrementCacheHitCount() {
-	m.casCacheHitCount.Inc()
+func (pm *PromMetrics) CASIncrementCacheHitCount() {
+	pm.casCacheHitCount.Inc()
 }
 
 // CASReadTime records the time it takes to read a document from CAS storage.
-func (m *Metrics) CASReadTime(casType string, value time.Duration) {
-	if c, ok := m.casReadTimes[casType]; ok {
+func (pm *PromMetrics) CASReadTime(casType string, value time.Duration) {
+	if c, ok := pm.casReadTimes[casType]; ok {
 		c.Observe(value.Seconds())
 	}
 }
 
 // DocumentCreateUpdateTime records the time it takes the REST handler to process a create/update operation.
-func (m *Metrics) DocumentCreateUpdateTime(value time.Duration) {
-	m.docCreateUpdateTime.Observe(value.Seconds())
+func (pm *PromMetrics) DocumentCreateUpdateTime(value time.Duration) {
+	pm.docCreateUpdateTime.Observe(value.Seconds())
 
 	logger.Debugf("DocumentCreateUpdate time: %s", value)
 }
 
 // DocumentResolveTime records the time it takes the REST handler to resolve a document.
-func (m *Metrics) DocumentResolveTime(value time.Duration) {
-	m.docResolveTime.Observe(value.Seconds())
+func (pm *PromMetrics) DocumentResolveTime(value time.Duration) {
+	pm.docResolveTime.Observe(value.Seconds())
 
 	logger.Debugf("DocumentResolve time: %s", value)
 }
 
 // DBPutTime records the time it takes to store data in db.
-func (m *Metrics) DBPutTime(dbType string, value time.Duration) {
-	if c, ok := m.dbPutTimes[dbType]; ok {
+func (pm *PromMetrics) DBPutTime(dbType string, value time.Duration) {
+	if c, ok := pm.dbPutTimes[dbType]; ok {
 		c.Observe(value.Seconds())
 	}
 }
 
 // DBGetTime records the time it takes to get data in db.
-func (m *Metrics) DBGetTime(dbType string, value time.Duration) {
-	if c, ok := m.dbGetTimes[dbType]; ok {
+func (pm *PromMetrics) DBGetTime(dbType string, value time.Duration) {
+	if c, ok := pm.dbGetTimes[dbType]; ok {
 		c.Observe(value.Seconds())
 	}
 }
 
 // DBGetTagsTime records the time it takes to get tags in db.
-func (m *Metrics) DBGetTagsTime(dbType string, value time.Duration) {
-	if c, ok := m.dbGetTagsTimes[dbType]; ok {
+func (pm *PromMetrics) DBGetTagsTime(dbType string, value time.Duration) {
+	if c, ok := pm.dbGetTagsTimes[dbType]; ok {
 		c.Observe(value.Seconds())
 	}
 }
 
 // DBGetBulkTime records the time it takes to get bulk in db.
-func (m *Metrics) DBGetBulkTime(dbType string, value time.Duration) {
-	if c, ok := m.dbGetBulkTimes[dbType]; ok {
+func (pm *PromMetrics) DBGetBulkTime(dbType string, value time.Duration) {
+	if c, ok := pm.dbGetBulkTimes[dbType]; ok {
 		c.Observe(value.Seconds())
 	}
 }
 
 // DBQueryTime records the time it takes to query in db.
-func (m *Metrics) DBQueryTime(dbType string, value time.Duration) {
-	if c, ok := m.dbQueryTimes[dbType]; ok {
+func (pm *PromMetrics) DBQueryTime(dbType string, value time.Duration) {
+	if c, ok := pm.dbQueryTimes[dbType]; ok {
 		c.Observe(value.Seconds())
 	}
 }
 
 // DBDeleteTime records the time it takes to delete in db.
-func (m *Metrics) DBDeleteTime(dbType string, value time.Duration) {
-	if c, ok := m.dbDeleteTimes[dbType]; ok {
+func (pm *PromMetrics) DBDeleteTime(dbType string, value time.Duration) {
+	if c, ok := pm.dbDeleteTimes[dbType]; ok {
 		c.Observe(value.Seconds())
 	}
 }
 
 // DBBatchTime records the time it takes to batch in db.
-func (m *Metrics) DBBatchTime(dbType string, value time.Duration) {
-	if c, ok := m.dbBatchTimes[dbType]; ok {
+func (pm *PromMetrics) DBBatchTime(dbType string, value time.Duration) {
+	if c, ok := pm.dbBatchTimes[dbType]; ok {
 		c.Observe(value.Seconds())
 	}
 }
 
 // WitnessAddProofVctNil records vct witness.
-func (m *Metrics) WitnessAddProofVctNil(value time.Duration) {
-	m.vctWitnessAddProofVCTNilTimes.Observe(value.Seconds())
+func (pm *PromMetrics) WitnessAddProofVctNil(value time.Duration) {
+	pm.vctWitnessAddProofVCTNilTimes.Observe(value.Seconds())
 
 	logger.Debugf("vct witness add proof when vct nil time: %s", value)
 }
 
 // WitnessAddVC records vct witness add vc.
-func (m *Metrics) WitnessAddVC(value time.Duration) {
-	m.vctWitnessAddVCTimes.Observe(value.Seconds())
+func (pm *PromMetrics) WitnessAddVC(value time.Duration) {
+	pm.vctWitnessAddVCTimes.Observe(value.Seconds())
 
 	logger.Debugf("vct witness add vc time: %s", value)
 }
 
 // WitnessAddProof records vct witness add proof.
-func (m *Metrics) WitnessAddProof(value time.Duration) {
-	m.vctWitnessAddProofTimes.Observe(value.Seconds())
+func (pm *PromMetrics) WitnessAddProof(value time.Duration) {
+	pm.vctWitnessAddProofTimes.Observe(value.Seconds())
 
 	logger.Debugf("vct witness add vc proof: %s", value)
 }
 
 // WitnessWebFinger records vct witness web finger.
-func (m *Metrics) WitnessWebFinger(value time.Duration) {
-	m.vctWitnessAddWebFingerTimes.Observe(value.Seconds())
+func (pm *PromMetrics) WitnessWebFinger(value time.Duration) {
+	pm.vctWitnessAddWebFingerTimes.Observe(value.Seconds())
 
 	logger.Debugf("vct witness web finger: %s", value)
 }
 
 // WitnessVerifyVCTSignature records vct witness verify vct.
-func (m *Metrics) WitnessVerifyVCTSignature(value time.Duration) {
-	m.vctWitnessVerifyVCTimes.Observe(value.Seconds())
+func (pm *PromMetrics) WitnessVerifyVCTSignature(value time.Duration) {
+	pm.vctWitnessVerifyVCTimes.Observe(value.Seconds())
 
 	logger.Debugf("vct witness verify vct signature: %s", value)
 }
 
 // AddProofParseCredential records vct parse credential in add proof.
-func (m *Metrics) AddProofParseCredential(value time.Duration) {
-	m.vctAddProofParseCredentialTimes.Observe(value.Seconds())
+func (pm *PromMetrics) AddProofParseCredential(value time.Duration) {
+	pm.vctAddProofParseCredentialTimes.Observe(value.Seconds())
 
 	logger.Debugf("vct parse credential add proof: %s", value)
 }
 
 // AddProofSign records vct sign in add proof.
-func (m *Metrics) AddProofSign(value time.Duration) {
-	m.vctAddProofSignTimes.Observe(value.Seconds())
+func (pm *PromMetrics) AddProofSign(value time.Duration) {
+	pm.vctAddProofSignTimes.Observe(value.Seconds())
 
 	logger.Debugf("vct sign add proof: %s", value)
 }
 
 // SignerGetKey records get key time.
-func (m *Metrics) SignerGetKey(value time.Duration) {
-	m.signerGetKeyTimes.Observe(value.Seconds())
+func (pm *PromMetrics) SignerGetKey(value time.Duration) {
+	pm.signerGetKeyTimes.Observe(value.Seconds())
 
 	logger.Debugf("signer get key time: %s", value)
 }
 
 // SignerAddLinkedDataProof records add data linked proof.
-func (m *Metrics) SignerAddLinkedDataProof(value time.Duration) {
-	m.signerAddLinkedDataProofTimes.Observe(value.Seconds())
+func (pm *PromMetrics) SignerAddLinkedDataProof(value time.Duration) {
+	pm.signerAddLinkedDataProofTimes.Observe(value.Seconds())
 
 	logger.Debugf("signer add linked data proof time: %s", value)
 }
 
 // WebDocumentResolveTime records resolving web document.
-func (m *Metrics) WebDocumentResolveTime(value time.Duration) {
-	m.webResolverResolveDocument.Observe(value.Seconds())
+func (pm *PromMetrics) WebDocumentResolveTime(value time.Duration) {
+	pm.webResolverResolveDocument.Observe(value.Seconds())
 
 	logger.Debugf("web resolver resolve document time: %s", value)
 }
 
 // ResolveDocumentLocallyTime records resolving document locally.
-func (m *Metrics) ResolveDocumentLocallyTime(value time.Duration) {
-	m.resolverResolveDocumentLocallyTimes.Observe(value.Seconds())
+func (pm *PromMetrics) ResolveDocumentLocallyTime(value time.Duration) {
+	pm.resolverResolveDocumentLocallyTimes.Observe(value.Seconds())
 
 	logger.Debugf("resolver resolve document locally time: %s", value)
 }
 
 // GetAnchorOriginEndpointTime records getting anchor origin endpoint information.
-func (m *Metrics) GetAnchorOriginEndpointTime(value time.Duration) {
-	m.resolverGetAnchorOriginEndpointTimes.Observe(value.Seconds())
+func (pm *PromMetrics) GetAnchorOriginEndpointTime(value time.Duration) {
+	pm.resolverGetAnchorOriginEndpointTimes.Observe(value.Seconds())
 
 	logger.Debugf("resolver get anchor origin endpoint time: %s", value)
 }
 
 // ResolveDocumentFromAnchorOriginTime records resolving document from anchor origin.
-func (m *Metrics) ResolveDocumentFromAnchorOriginTime(value time.Duration) {
-	m.resolverResolveDocumentFromAnchorOriginTimes.Observe(value.Seconds())
+func (pm *PromMetrics) ResolveDocumentFromAnchorOriginTime(value time.Duration) {
+	pm.resolverResolveDocumentFromAnchorOriginTimes.Observe(value.Seconds())
 
 	logger.Debugf("resolver resolve document from anchor origin time: %s", value)
 }
 
 // DeleteDocumentFromCreateDocumentStoreTime records deleting document from create document store.
-func (m *Metrics) DeleteDocumentFromCreateDocumentStoreTime(value time.Duration) {
-	m.resolverDeleteDocumentFromCreateStoreTimes.Observe(value.Seconds())
+func (pm *PromMetrics) DeleteDocumentFromCreateDocumentStoreTime(value time.Duration) {
+	pm.resolverDeleteDocumentFromCreateStoreTimes.Observe(value.Seconds())
 
 	logger.Debugf("resolver delete document from create store time: %s", value)
 }
 
 // ResolveDocumentFromCreateDocumentStoreTime records resolving document from create document store.
-func (m *Metrics) ResolveDocumentFromCreateDocumentStoreTime(value time.Duration) {
-	m.resolverResolveDocumentFromCreateStoreTimes.Observe(value.Seconds())
+func (pm *PromMetrics) ResolveDocumentFromCreateDocumentStoreTime(value time.Duration) {
+	pm.resolverResolveDocumentFromCreateStoreTimes.Observe(value.Seconds())
 
 	logger.Debugf("resolver resolve document from create store time: %s", value)
 }
 
 // VerifyCIDTime records verifying CID for document resolution.
-func (m *Metrics) VerifyCIDTime(value time.Duration) {
-	m.resolverVerifyCIDTimes.Observe(value.Seconds())
+func (pm *PromMetrics) VerifyCIDTime(value time.Duration) {
+	pm.resolverVerifyCIDTimes.Observe(value.Seconds())
 
 	logger.Debugf("resolver verify CID time: %s", value)
 }
 
 // RequestDiscoveryTime records the time it takes to request discovery.
-func (m *Metrics) RequestDiscoveryTime(value time.Duration) {
-	m.resolverRequestDiscoveryTimes.Observe(value.Seconds())
+func (pm *PromMetrics) RequestDiscoveryTime(value time.Duration) {
+	pm.resolverRequestDiscoveryTimes.Observe(value.Seconds())
 
 	logger.Debugf("resolver request discovery time: %s", value)
 }
 
 // DecorateTime records the time it takes to decorate operation (for update handler).
-func (m *Metrics) DecorateTime(value time.Duration) {
-	m.decoratorDecorateTime.Observe(value.Seconds())
+func (pm *PromMetrics) DecorateTime(value time.Duration) {
+	pm.decoratorDecorateTime.Observe(value.Seconds())
 
 	logger.Debugf("decorator decorate time: %s", value)
 }
 
 // ProcessorResolveTime records the time it takes for processor to resolve document
 // when decorating operation (for update handler).
-func (m *Metrics) ProcessorResolveTime(value time.Duration) {
-	m.decoratorProcessorResolveTime.Observe(value.Seconds())
+func (pm *PromMetrics) ProcessorResolveTime(value time.Duration) {
+	pm.decoratorProcessorResolveTime.Observe(value.Seconds())
 
 	logger.Debugf("decorator processor resolve time: %s", value)
 }
 
 // GetAOEndpointAndResolveDocumentFromAOTime records the time it takes to get anchor origin endpoint
 // and resolve document from anchor origin when decorating operation (for update handler).
-func (m *Metrics) GetAOEndpointAndResolveDocumentFromAOTime(value time.Duration) {
-	m.decoratorGetAOEndpointAndResolveFromAOTime.Observe(value.Seconds())
+func (pm *PromMetrics) GetAOEndpointAndResolveDocumentFromAOTime(value time.Duration) {
+	pm.decoratorGetAOEndpointAndResolveFromAOTime.Observe(value.Seconds())
 
 	logger.Debugf("decorator get anchor origin endpoint and resolve from anchor origin time: %s", value)
 }
 
 // PutUnpublishedOperation records the time it takes to store unpublished operation.
-func (m *Metrics) PutUnpublishedOperation(value time.Duration) {
-	m.unpublishedPutOperationTime.Observe(value.Seconds())
+func (pm *PromMetrics) PutUnpublishedOperation(value time.Duration) {
+	pm.unpublishedPutOperationTime.Observe(value.Seconds())
 
 	logger.Debugf("unpublished put operation time: %s", value)
 }
 
 // GetUnpublishedOperations records the time it takes to get unpublished operations for suffix.
-func (m *Metrics) GetUnpublishedOperations(value time.Duration) {
-	m.unpublishedGetOperationsTime.Observe(value.Seconds())
+func (pm *PromMetrics) GetUnpublishedOperations(value time.Duration) {
+	pm.unpublishedGetOperationsTime.Observe(value.Seconds())
 
 	logger.Debugf("unpublished get operations for suffix time: %s", value)
 }
 
 // CalculateUnpublishedOperationKey records the time to create unpublished operation key.
-func (m *Metrics) CalculateUnpublishedOperationKey(value time.Duration) {
-	m.unpublishedCalculateOperationKeyTime.Observe(value.Seconds())
+func (pm *PromMetrics) CalculateUnpublishedOperationKey(value time.Duration) {
+	pm.unpublishedCalculateOperationKeyTime.Observe(value.Seconds())
 
 	logger.Debugf("unpublished calculate operation key time: %s", value)
 }
 
 // PutPublishedOperations records the time to store published operations.
-func (m *Metrics) PutPublishedOperations(value time.Duration) {
-	m.publishedPutOperationsTime.Observe(value.Seconds())
+func (pm *PromMetrics) PutPublishedOperations(value time.Duration) {
+	pm.publishedPutOperationsTime.Observe(value.Seconds())
 
 	logger.Debugf("published put operations time: %s", value)
 }
 
 // GetPublishedOperations records the time to get published operations for suffix.
-func (m *Metrics) GetPublishedOperations(value time.Duration) {
-	m.publishedGetOperationsTime.Observe(value.Seconds())
+func (pm *PromMetrics) GetPublishedOperations(value time.Duration) {
+	pm.publishedGetOperationsTime.Observe(value.Seconds())
 
 	logger.Debugf("published get operations for suffix time: %s", value)
 }
 
 // ProcessOperation records the overall time to process operation.
-func (m *Metrics) ProcessOperation(value time.Duration) {
-	m.coreProcessOperationTime.Observe(value.Seconds())
+func (pm *PromMetrics) ProcessOperation(value time.Duration) {
+	pm.coreProcessOperationTime.Observe(value.Seconds())
 
 	logger.Debugf("core process operation time: %s", value)
 }
 
 // GetProtocolVersionTime records the time to get protocol version.
-func (m *Metrics) GetProtocolVersionTime(value time.Duration) {
-	m.coreGetProtocolVersionTime.Observe(value.Seconds())
+func (pm *PromMetrics) GetProtocolVersionTime(value time.Duration) {
+	pm.coreGetProtocolVersionTime.Observe(value.Seconds())
 
 	logger.Debugf("core get protocol version(process operation): %s", value)
 }
 
 // ParseOperationTime records the time to parse operation.
-func (m *Metrics) ParseOperationTime(value time.Duration) {
-	m.coreParseOperationTime.Observe(value.Seconds())
+func (pm *PromMetrics) ParseOperationTime(value time.Duration) {
+	pm.coreParseOperationTime.Observe(value.Seconds())
 
 	logger.Debugf("core parse operation(process operation): %s", value)
 }
 
 // ValidateOperationTime records the time to validate operation.
-func (m *Metrics) ValidateOperationTime(value time.Duration) {
-	m.coreValidateOperationTime.Observe(value.Seconds())
+func (pm *PromMetrics) ValidateOperationTime(value time.Duration) {
+	pm.coreValidateOperationTime.Observe(value.Seconds())
 
 	logger.Debugf("core validate operation(process operation): %s", value)
 }
 
 // DecorateOperationTime records the time to decorate operation.
-func (m *Metrics) DecorateOperationTime(value time.Duration) {
-	m.coreDecorateOperationTime.Observe(value.Seconds())
+func (pm *PromMetrics) DecorateOperationTime(value time.Duration) {
+	pm.coreDecorateOperationTime.Observe(value.Seconds())
 
 	logger.Debugf("core decorate operation(process operation): %s", value)
 }
 
 // AddUnpublishedOperationTime records the time to add unpublished operation.
-func (m *Metrics) AddUnpublishedOperationTime(value time.Duration) {
-	m.coreAddUnpublishedOperationTime.Observe(value.Seconds())
+func (pm *PromMetrics) AddUnpublishedOperationTime(value time.Duration) {
+	pm.coreAddUnpublishedOperationTime.Observe(value.Seconds())
 
 	logger.Debugf("core add unpublished operation(process operation): %s", value)
 }
 
 // AddOperationToBatchTime records the time to add operation to batch.
-func (m *Metrics) AddOperationToBatchTime(value time.Duration) {
-	m.coreAddOperationToBatchTime.Observe(value.Seconds())
+func (pm *PromMetrics) AddOperationToBatchTime(value time.Duration) {
+	pm.coreAddOperationToBatchTime.Observe(value.Seconds())
 
 	logger.Debugf("core add operation to batch(process operation): %s", value)
 }
 
 // GetCreateOperationResultTime records the time to create operation result response.
-func (m *Metrics) GetCreateOperationResultTime(value time.Duration) {
-	m.coreGetCreateOperationResultTime.Observe(value.Seconds())
+func (pm *PromMetrics) GetCreateOperationResultTime(value time.Duration) {
+	pm.coreGetCreateOperationResultTime.Observe(value.Seconds())
 
 	logger.Debugf("core get create operation result(process operation): %s", value)
 }
 
 // HTTPCreateUpdateTime records the time rest call for create or update.
-func (m *Metrics) HTTPCreateUpdateTime(value time.Duration) {
-	m.coreHTTPCreateUpdateTime.Observe(value.Seconds())
+func (pm *PromMetrics) HTTPCreateUpdateTime(value time.Duration) {
+	pm.coreHTTPCreateUpdateTime.Observe(value.Seconds())
 
 	logger.Debugf("core http create update: %s", value)
 }
 
 // HTTPResolveTime records the time rest call for resolve.
-func (m *Metrics) HTTPResolveTime(value time.Duration) {
-	m.coreHTTPResolveTime.Observe(value.Seconds())
+func (pm *PromMetrics) HTTPResolveTime(value time.Duration) {
+	pm.coreHTTPResolveTime.Observe(value.Seconds())
 
 	logger.Debugf("core http resolve: %s", value)
 }
 
 // CASWriteSize the size (in bytes) of the data written to CAS for the given model type.
-func (m *Metrics) CASWriteSize(modelType string, size int) {
-	if c, ok := m.coreCASWriteSize[modelType]; ok {
+func (pm *PromMetrics) CASWriteSize(modelType string, size int) {
+	if c, ok := pm.coreCASWriteSize[modelType]; ok {
 		c.Set(float64(size))
 	} else {
 		logger.Warnf("Metric for CAS model type [%s] not registered. Reason: Unsupported model type.", modelType)
@@ -962,52 +864,52 @@ func (m *Metrics) CASWriteSize(modelType string, size int) {
 	logger.Debugf("CAS write size for model [%s]: %s bytes", modelType, size)
 }
 
+// SignerSign records sign.
+func (pm *PromMetrics) SignerSign(value time.Duration) {
+	pm.signerSignTimes.Observe(value.Seconds())
+
+	logger.Debugf("signer sign time: %s", value)
+}
+
 // SignCount increments the number of sign hits.
-func (m *Metrics) SignCount() {
-	m.awsSignCount.Inc()
+func (pm *PromMetrics) SignCount() {
+	pm.awsSignCount.Inc()
 }
 
 // SignTime records the time for sign.
-func (m *Metrics) SignTime(value time.Duration) {
-	m.awsSignTime.Observe(value.Seconds())
+func (pm *PromMetrics) SignTime(value time.Duration) {
+	pm.awsSignTime.Observe(value.Seconds())
 
 	logger.Debugf("aws sign time: %s", value)
 }
 
 // ExportPublicKeyCount increments the number of export public key hits.
-func (m *Metrics) ExportPublicKeyCount() {
-	m.awsExportPublicKeyCount.Inc()
+func (pm *PromMetrics) ExportPublicKeyCount() {
+	pm.awsExportPublicKeyCount.Inc()
 }
 
 // ExportPublicKeyTime records the time for export public key.
-func (m *Metrics) ExportPublicKeyTime(value time.Duration) {
-	m.awsExportPublicKeyTime.Observe(value.Seconds())
+func (pm *PromMetrics) ExportPublicKeyTime(value time.Duration) {
+	pm.awsExportPublicKeyTime.Observe(value.Seconds())
 
 	logger.Debugf("aws export public key time: %s", value)
 }
 
 // VerifyCount increments the number of verify hits.
-func (m *Metrics) VerifyCount() {
-	m.awsVerifyCount.Inc()
+func (pm *PromMetrics) VerifyCount() {
+	pm.awsVerifyCount.Inc()
 }
 
 // VerifyTime records the time for verify.
-func (m *Metrics) VerifyTime(value time.Duration) {
-	m.awsVerifyTime.Observe(value.Seconds())
+func (pm *PromMetrics) VerifyTime(value time.Duration) {
+	pm.awsVerifyTime.Observe(value.Seconds())
 
 	logger.Debugf("aws verify time: %s", value)
 }
 
-// SignerSign records sign.
-func (m *Metrics) SignerSign(value time.Duration) {
-	m.signerSignTimes.Observe(value.Seconds())
-
-	logger.Debugf("signer sign time: %s", value)
-}
-
 func newCounter(subsystem, name, help string, labels prometheus.Labels) prometheus.Counter {
 	return prometheus.NewCounter(prometheus.CounterOpts{
-		Namespace:   namespace,
+		Namespace:   metrics.Namespace,
 		Subsystem:   subsystem,
 		Name:        name,
 		Help:        help,
@@ -1017,7 +919,7 @@ func newCounter(subsystem, name, help string, labels prometheus.Labels) promethe
 
 func newGauge(subsystem, name, help string, labels prometheus.Labels) prometheus.Gauge {
 	return prometheus.NewGauge(prometheus.GaugeOpts{
-		Namespace:   namespace,
+		Namespace:   metrics.Namespace,
 		Subsystem:   subsystem,
 		Name:        name,
 		Help:        help,
@@ -1027,7 +929,7 @@ func newGauge(subsystem, name, help string, labels prometheus.Labels) prometheus
 
 func newHistogram(subsystem, name, help string, labels prometheus.Labels) prometheus.Histogram {
 	return prometheus.NewHistogram(prometheus.HistogramOpts{
-		Namespace:   namespace,
+		Namespace:   metrics.Namespace,
 		Subsystem:   subsystem,
 		Name:        name,
 		Help:        help,
@@ -1037,7 +939,7 @@ func newHistogram(subsystem, name, help string, labels prometheus.Labels) promet
 
 func newOutboxPostTime() prometheus.Histogram {
 	return newHistogram(
-		activityPub, apPostTimeMetric,
+		metrics.ActivityPub, metrics.ApPostTimeMetric,
 		"The time (in seconds) that it takes to post a message to the outbox.",
 		nil,
 	)
@@ -1045,7 +947,7 @@ func newOutboxPostTime() prometheus.Histogram {
 
 func newOutboxResolveInboxesTime() prometheus.Histogram {
 	return newHistogram(
-		activityPub, apResolveInboxesTimeMetric,
+		metrics.ActivityPub, metrics.ApResolveInboxesTimeMetric,
 		"The time (in seconds) that it takes to resolve the inboxes of the destinations when posting to the outbox.",
 		nil,
 	)
@@ -1056,7 +958,7 @@ func newInboxHandlerTimes(activityTypes []string) map[string]prometheus.Histogra
 
 	for _, activityType := range activityTypes {
 		counters[activityType] = newHistogram(
-			activityPub, apInboxHandlerTimeMetric,
+			metrics.ActivityPub, metrics.ApInboxHandlerTimeMetric,
 			"The time (in seconds) that it takes to handle an activity posted to the inbox.",
 			prometheus.Labels{"type": activityType},
 		)
@@ -1070,7 +972,7 @@ func newOutboxActivityCounts(activityTypes []string) map[string]prometheus.Count
 
 	for _, activityType := range activityTypes {
 		counters[activityType] = newCounter(
-			activityPub, apOutboxActivityCounterMetric,
+			metrics.ActivityPub, metrics.ApOutboxActivityCounterMetric,
 			"The number of activities posted to the outbox.",
 			prometheus.Labels{"type": activityType},
 		)
@@ -1081,7 +983,7 @@ func newOutboxActivityCounts(activityTypes []string) map[string]prometheus.Count
 
 func newAnchorWriteTime() prometheus.Histogram {
 	return newHistogram(
-		anchor, anchorWriteTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteTimeMetric,
 		"The time (in seconds) that it takes to write an anchor credential and post an 'Offer' activity.",
 		nil,
 	)
@@ -1089,7 +991,7 @@ func newAnchorWriteTime() prometheus.Histogram {
 
 func newAnchorWitnessTime() prometheus.Histogram {
 	return newHistogram(
-		anchor, anchorWitnessMetric,
+		metrics.Anchor, metrics.AnchorWitnessMetric,
 		"The time (in seconds) that it takes for a verifiable credential to gather proofs from all required "+
 			"witnesses (according to witness policy). The start time is when the verifiable credential is issued "+
 			"and the end time is the time that the witness policy is satisfied.",
@@ -1099,7 +1001,7 @@ func newAnchorWitnessTime() prometheus.Histogram {
 
 func newAnchorProcessWitnessedTime() prometheus.Histogram {
 	return newHistogram(
-		anchor, anchorProcessWitnessedMetric,
+		metrics.Anchor, metrics.AnchorProcessWitnessedMetric,
 		"The time (in seconds) that it takes to process a witnessed anchor credential by publishing it to "+
 			"the Observer and posting a 'Create' activity.",
 		nil,
@@ -1108,7 +1010,7 @@ func newAnchorProcessWitnessedTime() prometheus.Histogram {
 
 func newAnchorWriteBuildCredTime() prometheus.Histogram {
 	return newHistogram(
-		anchor, anchorWriteBuildCredTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteBuildCredTimeMetric,
 		"The time (in seconds) that it takes to build credential inside write anchor.",
 		nil,
 	)
@@ -1116,7 +1018,7 @@ func newAnchorWriteBuildCredTime() prometheus.Histogram {
 
 func newAnchorWriteGetWitnessesTime() prometheus.Histogram {
 	return newHistogram(
-		anchor, anchorWriteGetWitnessesTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteGetWitnessesTimeMetric,
 		"The time (in seconds) that it takes to get witnesses inside write anchor.",
 		nil,
 	)
@@ -1124,7 +1026,7 @@ func newAnchorWriteGetWitnessesTime() prometheus.Histogram {
 
 func newAnchorWriteSignCredTime() prometheus.Histogram {
 	return newHistogram(
-		anchor, anchorWriteSignCredTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteSignCredTimeMetric,
 		"The time (in seconds) that it takes to sign credential inside write anchor.",
 		nil,
 	)
@@ -1132,7 +1034,7 @@ func newAnchorWriteSignCredTime() prometheus.Histogram {
 
 func newAnchorWritePostOfferActivityTime() prometheus.Histogram {
 	return newHistogram(
-		anchor, anchorWritePostOfferActivityTimeMetric,
+		metrics.Anchor, metrics.AnchorWritePostOfferActivityTimeMetric,
 		"The time (in seconds) that it takes to post offer activity inside write anchor.",
 		nil,
 	)
@@ -1140,7 +1042,7 @@ func newAnchorWritePostOfferActivityTime() prometheus.Histogram {
 
 func newAnchorWriteGetPreviousAnchorsGetBulkTime() prometheus.Histogram {
 	return newHistogram(
-		anchor, anchorWriteGetPreviousAnchorsGetBulkTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteGetPreviousAnchorsGetBulkTimeMetric,
 		"The time (in seconds) that it takes to get bulk inside get previous anchor.",
 		nil,
 	)
@@ -1148,7 +1050,7 @@ func newAnchorWriteGetPreviousAnchorsGetBulkTime() prometheus.Histogram {
 
 func newAnchorWriteGetPreviousAnchorsTime() prometheus.Histogram {
 	return newHistogram(
-		anchor, anchorWriteGetPreviousAnchorsTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteGetPreviousAnchorsTimeMetric,
 		"The time (in seconds) that it takes to get previous anchor.",
 		nil,
 	)
@@ -1156,7 +1058,7 @@ func newAnchorWriteGetPreviousAnchorsTime() prometheus.Histogram {
 
 func newAnchorWriteSignWithLocalWitnessTime() prometheus.Histogram {
 	return newHistogram(
-		anchor, anchorWriteSignWithLocalWitnessTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteSignWithLocalWitnessTimeMetric,
 		"The time (in seconds) that it takes to sign with local witness.",
 		nil,
 	)
@@ -1164,7 +1066,7 @@ func newAnchorWriteSignWithLocalWitnessTime() prometheus.Histogram {
 
 func newAnchorWriteSignWithServerKeyTime() prometheus.Histogram {
 	return newHistogram(
-		anchor, anchorWriteSignWithServerKeyTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteSignWithServerKeyTimeMetric,
 		"The time (in seconds) that it takes to sign with server key.",
 		nil,
 	)
@@ -1172,7 +1074,7 @@ func newAnchorWriteSignWithServerKeyTime() prometheus.Histogram {
 
 func newAnchorWriteSignLocalWitnessLogTime() prometheus.Histogram {
 	return newHistogram(
-		anchor, anchorWriteSignLocalWitnessLogTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteSignLocalWitnessLogTimeMetric,
 		"The time (in seconds) that it takes to witness log inside sign local.",
 		nil,
 	)
@@ -1180,7 +1082,7 @@ func newAnchorWriteSignLocalWitnessLogTime() prometheus.Histogram {
 
 func newAnchorWriteStoreTime() prometheus.Histogram {
 	return newHistogram(
-		anchor, anchorWriteStoreTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteStoreTimeMetric,
 		"The time (in seconds) that it takes to store an anchor event.",
 		nil,
 	)
@@ -1188,7 +1090,7 @@ func newAnchorWriteStoreTime() prometheus.Histogram {
 
 func newAnchorWriteSignLocalWatchTime() prometheus.Histogram {
 	return newHistogram(
-		anchor, anchorWriteSignLocalWatchTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteSignLocalWatchTimeMetric,
 		"The time (in seconds) that it takes to watxch inside sign local.",
 		nil,
 	)
@@ -1196,7 +1098,7 @@ func newAnchorWriteSignLocalWatchTime() prometheus.Histogram {
 
 func newAnchorWriteResolveHostMetaLinkTime() prometheus.Histogram {
 	return newHistogram(
-		anchor, anchorWriteResolveHostMetaLinkTimeMetric,
+		metrics.Anchor, metrics.AnchorWriteResolveHostMetaLinkTimeMetric,
 		"The time (in seconds) that it takes to resolve host meta link.",
 		nil,
 	)
@@ -1204,7 +1106,7 @@ func newAnchorWriteResolveHostMetaLinkTime() prometheus.Histogram {
 
 func newOpQueueAddOperationTime() prometheus.Histogram {
 	return newHistogram(
-		operationQueue, opQueueAddOperationTimeMetric,
+		metrics.OperationQueue, metrics.OpQueueAddOperationTimeMetric,
 		"The time (in seconds) that it takes to add an operation to the queue.",
 		nil,
 	)
@@ -1212,7 +1114,7 @@ func newOpQueueAddOperationTime() prometheus.Histogram {
 
 func newOpQueueBatchCutTime() prometheus.Histogram {
 	return newHistogram(
-		operationQueue, opQueueBatchCutTimeMetric,
+		metrics.OperationQueue, metrics.OpQueueBatchCutTimeMetric,
 		"The time (in seconds) that it takes to cut an operation batch. The duration is from the time that the first "+
 			"operation was added to the time that the batch was cut.",
 		nil,
@@ -1221,7 +1123,7 @@ func newOpQueueBatchCutTime() prometheus.Histogram {
 
 func newOpQueueBatchRollbackTime() prometheus.Histogram {
 	return newHistogram(
-		operationQueue, opQueueBatchRollbackTimeMetric,
+		metrics.OperationQueue, metrics.OpQueueBatchRollbackTimeMetric,
 		"The time (in seconds) that it takes to roll back an operation batch (in case of a transient error). "+
 			"The duration is from the time that the first operation was added to the time that the batch was cut.",
 		nil,
@@ -1230,7 +1132,7 @@ func newOpQueueBatchRollbackTime() prometheus.Histogram {
 
 func newOpQueueBatchSize() prometheus.Gauge {
 	return newGauge(
-		operationQueue, opQueueBatchSizeMetric,
+		metrics.OperationQueue, metrics.OpQueueBatchSizeMetric,
 		"The size of a cut batch.",
 		nil,
 	)
@@ -1238,7 +1140,7 @@ func newOpQueueBatchSize() prometheus.Gauge {
 
 func newObserverProcessAnchorTime() prometheus.Histogram {
 	return newHistogram(
-		observer, observerProcessAnchorTimeMetric,
+		metrics.Observer, metrics.ObserverProcessAnchorTimeMetric,
 		"The time (in seconds) that it takes for the Observer to process an anchor credential.",
 		nil,
 	)
@@ -1246,7 +1148,7 @@ func newObserverProcessAnchorTime() prometheus.Histogram {
 
 func newObserverProcessDIDTime() prometheus.Histogram {
 	return newHistogram(
-		observer, observerProcessDIDTimeMetric,
+		metrics.Observer, metrics.ObserverProcessDIDTimeMetric,
 		"The time (in seconds) that it takes for the Observer to process a DID.",
 		nil,
 	)
@@ -1254,7 +1156,7 @@ func newObserverProcessDIDTime() prometheus.Histogram {
 
 func newCASWriteTime() prometheus.Histogram {
 	return newHistogram(
-		cas, casWriteTimeMetric,
+		metrics.Cas, metrics.CasWriteTimeMetric,
 		"The time (in seconds) that it takes to write a document to CAS.",
 		nil,
 	)
@@ -1262,7 +1164,7 @@ func newCASWriteTime() prometheus.Histogram {
 
 func newCASResolveTime() prometheus.Histogram {
 	return newHistogram(
-		cas, casResolveTimeMetric,
+		metrics.Cas, metrics.CasResolveTimeMetric,
 		"The time (in seconds) that it takes to resolve a document from CAS.",
 		nil,
 	)
@@ -1270,7 +1172,7 @@ func newCASResolveTime() prometheus.Histogram {
 
 func newCASCacheHitCount() prometheus.Counter {
 	return newCounter(
-		cas, casCacheHitCountMetric,
+		metrics.Cas, metrics.CasCacheHitCountMetric,
 		"The number of times a CAS document was retrieved from the cache.",
 		nil,
 	)
@@ -1281,7 +1183,7 @@ func newCASReadTimes() map[string]prometheus.Histogram {
 
 	for _, casType := range []string{"local", "ipfs"} {
 		times[casType] = newHistogram(
-			cas, casReadTimeMetric,
+			metrics.Cas, metrics.CasReadTimeMetric,
 			"The time (in seconds) that it takes to read a document from the CAS storage.",
 			prometheus.Labels{"type": casType},
 		)
@@ -1292,7 +1194,7 @@ func newCASReadTimes() map[string]prometheus.Histogram {
 
 func newDocCreateUpdateTime() prometheus.Histogram {
 	return newHistogram(
-		document, docCreateUpdateTimeMetric,
+		metrics.Document, metrics.DocCreateUpdateTimeMetric,
 		"The time (in seconds) it takes the REST handler to process a create/update operation.",
 		nil,
 	)
@@ -1300,7 +1202,7 @@ func newDocCreateUpdateTime() prometheus.Histogram {
 
 func newDocResolveTime() prometheus.Histogram {
 	return newHistogram(
-		document, docResolveTimeMetric,
+		metrics.Document, metrics.DocResolveTimeMetric,
 		"The time (in seconds) it takes the REST handler to resolve a document.",
 		nil,
 	)
@@ -1311,7 +1213,7 @@ func newDBPutTime(dbTypes []string) map[string]prometheus.Histogram {
 
 	for _, dbType := range dbTypes {
 		counters[dbType] = newHistogram(
-			db, dbPutTimeMetric,
+			metrics.DB, metrics.DBPutTimeMetric,
 			"The time (in seconds) it takes the DB to store data.",
 			prometheus.Labels{"type": dbType},
 		)
@@ -1325,7 +1227,7 @@ func newDBGetTime(dbTypes []string) map[string]prometheus.Histogram {
 
 	for _, dbType := range dbTypes {
 		counters[dbType] = newHistogram(
-			db, dbGetTimeMetric,
+			metrics.DB, metrics.DBGetTimeMetric,
 			"The time (in seconds) it takes the DB to get data.",
 			prometheus.Labels{"type": dbType},
 		)
@@ -1339,7 +1241,7 @@ func newDBGetTagsTime(dbTypes []string) map[string]prometheus.Histogram {
 
 	for _, dbType := range dbTypes {
 		counters[dbType] = newHistogram(
-			db, dbGetTagsTimeMetric,
+			metrics.DB, metrics.DBGetTagsTimeMetric,
 			"The time (in seconds) it takes the DB to get tags.",
 			prometheus.Labels{"type": dbType},
 		)
@@ -1353,7 +1255,7 @@ func newDBGetBulkTime(dbTypes []string) map[string]prometheus.Histogram {
 
 	for _, dbType := range dbTypes {
 		counters[dbType] = newHistogram(
-			db, dbGetBulkTimeMetric,
+			metrics.DB, metrics.DBGetBulkTimeMetric,
 			"The time (in seconds) it takes the DB to get bulk.",
 			prometheus.Labels{"type": dbType},
 		)
@@ -1367,7 +1269,7 @@ func newDBQueryTime(dbTypes []string) map[string]prometheus.Histogram {
 
 	for _, dbType := range dbTypes {
 		counters[dbType] = newHistogram(
-			db, dbQueryTimeMetric,
+			metrics.DB, metrics.DBQueryTimeMetric,
 			"The time (in seconds) it takes the DB to query.",
 			prometheus.Labels{"type": dbType},
 		)
@@ -1381,7 +1283,7 @@ func newDBDeleteTime(dbTypes []string) map[string]prometheus.Histogram {
 
 	for _, dbType := range dbTypes {
 		counters[dbType] = newHistogram(
-			db, dbDeleteTimeMetric,
+			metrics.DB, metrics.DBDeleteTimeMetric,
 			"The time (in seconds) it takes the DB to delete.",
 			prometheus.Labels{"type": dbType},
 		)
@@ -1395,7 +1297,7 @@ func newDBBatchTime(dbTypes []string) map[string]prometheus.Histogram {
 
 	for _, dbType := range dbTypes {
 		counters[dbType] = newHistogram(
-			db, dbBatchTimeMetric,
+			metrics.DB, metrics.DBBatchTimeMetric,
 			"The time (in seconds) it takes the DB to batch.",
 			prometheus.Labels{"type": dbType},
 		)
@@ -1406,7 +1308,7 @@ func newDBBatchTime(dbTypes []string) map[string]prometheus.Histogram {
 
 func newVCTWitnessAddProofVCTNilTime() prometheus.Histogram {
 	return newHistogram(
-		vct, vctWitnessAddProofVCTNilTimeMetric,
+		metrics.Vct, metrics.VctWitnessAddProofVCTNilTimeMetric,
 		"The time (in seconds) it takes the add proof when vct is nil in witness.",
 		nil,
 	)
@@ -1414,7 +1316,7 @@ func newVCTWitnessAddProofVCTNilTime() prometheus.Histogram {
 
 func newVCTWitnessAddVCTime() prometheus.Histogram {
 	return newHistogram(
-		vct, vctWitnessAddVCTimeMetric,
+		metrics.Vct, metrics.VctWitnessAddVCTimeMetric,
 		"The time (in seconds) it takes the add vc in witness.",
 		nil,
 	)
@@ -1422,7 +1324,7 @@ func newVCTWitnessAddVCTime() prometheus.Histogram {
 
 func newVCTWitnessAddProofTime() prometheus.Histogram {
 	return newHistogram(
-		vct, vctWitnessAddProofTimeMetric,
+		metrics.Vct, metrics.VctWitnessAddProofTimeMetric,
 		"The time (in seconds) it takes the add proof in witness.",
 		nil,
 	)
@@ -1430,7 +1332,7 @@ func newVCTWitnessAddProofTime() prometheus.Histogram {
 
 func newVCTWitnessWebFingerTime() prometheus.Histogram {
 	return newHistogram(
-		vct, vctWitnessWebFingerTimeMetric,
+		metrics.Vct, metrics.VctWitnessWebFingerTimeMetric,
 		"The time (in seconds) it takes web finger in witness.",
 		nil,
 	)
@@ -1438,7 +1340,7 @@ func newVCTWitnessWebFingerTime() prometheus.Histogram {
 
 func newVCTWitnessVerifyVCTTime() prometheus.Histogram {
 	return newHistogram(
-		vct, vctWitnessVerifyVCTTimeMetric,
+		metrics.Vct, metrics.VctWitnessVerifyVCTTimeMetric,
 		"The time (in seconds) it takes verify vct signature in witness.",
 		nil,
 	)
@@ -1446,7 +1348,7 @@ func newVCTWitnessVerifyVCTTime() prometheus.Histogram {
 
 func newVCTAddProofParseCredentialTime() prometheus.Histogram {
 	return newHistogram(
-		vct, vctAddProofParseCredentialTimeMetric,
+		metrics.Vct, metrics.VctAddProofParseCredentialTimeMetric,
 		"The time (in seconds) it takes the parse credential in add proof.",
 		nil,
 	)
@@ -1454,7 +1356,7 @@ func newVCTAddProofParseCredentialTime() prometheus.Histogram {
 
 func newVCTAddProofSignTime() prometheus.Histogram {
 	return newHistogram(
-		vct, vctAddProofSignTimeMetric,
+		metrics.Vct, metrics.VctAddProofSignTimeMetric,
 		"The time (in seconds) it takes the sign in add proof.",
 		nil,
 	)
@@ -1462,7 +1364,7 @@ func newVCTAddProofSignTime() prometheus.Histogram {
 
 func newSignerGetKeyTime() prometheus.Histogram {
 	return newHistogram(
-		signer, signerGetKeyTimeMetric,
+		metrics.Signer, metrics.SignerGetKeyTimeMetric,
 		"The time (in seconds) it takes the signer to get key.",
 		nil,
 	)
@@ -1470,7 +1372,7 @@ func newSignerGetKeyTime() prometheus.Histogram {
 
 func newSignerSignTime() prometheus.Histogram {
 	return newHistogram(
-		signer, signerSignMetric,
+		metrics.Signer, metrics.SignerSignMetric,
 		"The time (in seconds) it takes the signer to sign.",
 		nil,
 	)
@@ -1478,7 +1380,7 @@ func newSignerSignTime() prometheus.Histogram {
 
 func newSignerAddLinkedDataProofTime() prometheus.Histogram {
 	return newHistogram(
-		signer, signerAddLinkedDataProofMetric,
+		metrics.Signer, metrics.SignerAddLinkedDataProofMetric,
 		"The time (in seconds) it takes the signer to add data linked prrof.",
 		nil,
 	)
@@ -1486,7 +1388,7 @@ func newSignerAddLinkedDataProofTime() prometheus.Histogram {
 
 func newWebResolverResolveDocument() prometheus.Histogram {
 	return newHistogram(
-		webResolver, webResolverResolveDocument,
+		metrics.WebResolver, metrics.WebResolverResolveDocument,
 		"The time (in seconds) it takes the web resolver to resolve document.",
 		nil,
 	)
@@ -1494,7 +1396,7 @@ func newWebResolverResolveDocument() prometheus.Histogram {
 
 func newResolverResolveDocumentLocallyTime() prometheus.Histogram {
 	return newHistogram(
-		resolver, resolverResolveDocumentLocallyTimeMetric,
+		metrics.Resolver, metrics.ResolverResolveDocumentLocallyTimeMetric,
 		"The time (in seconds) it takes the resolver to resolve document locally.",
 		nil,
 	)
@@ -1502,7 +1404,7 @@ func newResolverResolveDocumentLocallyTime() prometheus.Histogram {
 
 func newResolverGetAnchorOriginEndpointTime() prometheus.Histogram {
 	return newHistogram(
-		resolver, resolverGetAnchorOriginEndpointTimeMetric,
+		metrics.Resolver, metrics.ResolverGetAnchorOriginEndpointTimeMetric,
 		"The time (in seconds) it takes the resolver to get endpoint information from anchor origin.",
 		nil,
 	)
@@ -1510,7 +1412,7 @@ func newResolverGetAnchorOriginEndpointTime() prometheus.Histogram {
 
 func newResolverResolveDocumentFromAnchorOriginTime() prometheus.Histogram {
 	return newHistogram(
-		resolver, resolverResolveDocumentFromAnchorOriginTimeMetric,
+		metrics.Resolver, metrics.ResolverResolveDocumentFromAnchorOriginTimeMetric,
 		"The time (in seconds) it takes the resolver to resolve document from anchor origin.",
 		nil,
 	)
@@ -1518,7 +1420,7 @@ func newResolverResolveDocumentFromAnchorOriginTime() prometheus.Histogram {
 
 func newResolverResolveDocumentFromCreateStoreTime() prometheus.Histogram {
 	return newHistogram(
-		resolver, resolverResolveDocumentFromCreateStoreTimeMetric,
+		metrics.Resolver, metrics.ResolverResolveDocumentFromCreateStoreTimeMetric,
 		"The time (in seconds) it takes the resolver to resolve document from create document store.",
 		nil,
 	)
@@ -1526,7 +1428,7 @@ func newResolverResolveDocumentFromCreateStoreTime() prometheus.Histogram {
 
 func newResolverDeleteDocumentFromCreateStoreTime() prometheus.Histogram {
 	return newHistogram(
-		resolver, resolverDeleteDocumentFromCreateStoreTimeMetric,
+		metrics.Resolver, metrics.ResolverDeleteDocumentFromCreateStoreTimeMetric,
 		"The time (in seconds) it takes the resolver to delete document from create document store.",
 		nil,
 	)
@@ -1534,7 +1436,7 @@ func newResolverDeleteDocumentFromCreateStoreTime() prometheus.Histogram {
 
 func newResolverVerifyCIDTime() prometheus.Histogram {
 	return newHistogram(
-		resolver, resolverVerifyCIDTimeMetric,
+		metrics.Resolver, metrics.ResolverVerifyCIDTimeMetric,
 		"The time (in seconds) it takes the resolver to verify CID in anchor graph.",
 		nil,
 	)
@@ -1542,7 +1444,7 @@ func newResolverVerifyCIDTime() prometheus.Histogram {
 
 func newResolverRequestDiscoveryTime() prometheus.Histogram {
 	return newHistogram(
-		resolver, resolverRequestDiscoveryTimeMetric,
+		metrics.Resolver, metrics.ResolverRequestDiscoveryTimeMetric,
 		"The time (in seconds) it takes the resolver to request DID discovery.",
 		nil,
 	)
@@ -1550,7 +1452,7 @@ func newResolverRequestDiscoveryTime() prometheus.Histogram {
 
 func newDecoratorDecorateTime() prometheus.Histogram {
 	return newHistogram(
-		decorator, decoratorDecorateTimeMetric,
+		metrics.Decorator, metrics.DecoratorDecorateTimeMetric,
 		"The time (in seconds) it takes the decorator to pre-process document operation.",
 		nil,
 	)
@@ -1558,7 +1460,7 @@ func newDecoratorDecorateTime() prometheus.Histogram {
 
 func newDecoratorProcessorResolveTime() prometheus.Histogram {
 	return newHistogram(
-		decorator, decoratorProcessorResolveTimeMetric,
+		metrics.Decorator, metrics.DecoratorProcessorResolveTimeMetric,
 		"The time (in seconds) it takes the processor to resolve document before accepting document operation.",
 		nil,
 	)
@@ -1566,7 +1468,7 @@ func newDecoratorProcessorResolveTime() prometheus.Histogram {
 
 func newDecoratorGetAOEndpointAndResolveFromAOTime() prometheus.Histogram {
 	return newHistogram(
-		decorator, decoratorGetAOEndpointAndResolveFromAOTimeMetric,
+		metrics.Decorator, metrics.DecoratorGetAOEndpointAndResolveFromAOTimeMetric,
 		"The time (in seconds) it takes to resolve document from anchor origin before accepting document operation.",
 		nil,
 	)
@@ -1574,7 +1476,7 @@ func newDecoratorGetAOEndpointAndResolveFromAOTime() prometheus.Histogram {
 
 func newUnpublishedPutOperationTime() prometheus.Histogram {
 	return newHistogram(
-		operations, unpublishedPutOperationTimeMetric,
+		metrics.Operations, metrics.UnpublishedPutOperationTimeMetric,
 		"The time (in seconds) it takes to store unpublished operation.",
 		nil,
 	)
@@ -1582,7 +1484,7 @@ func newUnpublishedPutOperationTime() prometheus.Histogram {
 
 func newUnpublishedGetOperationsTime() prometheus.Histogram {
 	return newHistogram(
-		operations, unpublishedGetOperationsTimeMetric,
+		metrics.Operations, metrics.UnpublishedGetOperationsTimeMetric,
 		"The time (in seconds) it takes to get unpublished operations for suffix.",
 		nil,
 	)
@@ -1590,7 +1492,7 @@ func newUnpublishedGetOperationsTime() prometheus.Histogram {
 
 func newUnpublishedCalculateKeyTime() prometheus.Histogram {
 	return newHistogram(
-		operations, unpublishedCalculateOperationKeyTimeMetric,
+		metrics.Operations, metrics.UnpublishedCalculateOperationKeyTimeMetric,
 		"The time (in seconds) it takes to calculate key for unpublished operation.",
 		nil,
 	)
@@ -1598,7 +1500,7 @@ func newUnpublishedCalculateKeyTime() prometheus.Histogram {
 
 func newPublishedPutOperationsTime() prometheus.Histogram {
 	return newHistogram(
-		operations, publishedPutOperationsTimeMetric,
+		metrics.Operations, metrics.PublishedPutOperationsTimeMetric,
 		"The time (in seconds) it takes to store published operations.",
 		nil,
 	)
@@ -1606,7 +1508,7 @@ func newPublishedPutOperationsTime() prometheus.Histogram {
 
 func newPublishedGetOperationsTime() prometheus.Histogram {
 	return newHistogram(
-		operations, publishedGetOperationsTimeMetric,
+		metrics.Operations, metrics.PublishedGetOperationsTimeMetric,
 		"The time (in seconds) it takes to get published operations for suffix.",
 		nil,
 	)
@@ -1614,7 +1516,7 @@ func newPublishedGetOperationsTime() prometheus.Histogram {
 
 func newCoreProcessOperationTime() prometheus.Histogram {
 	return newHistogram(
-		coreOperations, coreProcessOperationTimeMetrics,
+		metrics.CoreOperations, metrics.CoreProcessOperationTimeMetrics,
 		"The time (in seconds) it takes to process did operation(core).",
 		nil,
 	)
@@ -1622,7 +1524,7 @@ func newCoreProcessOperationTime() prometheus.Histogram {
 
 func newCoreGetProtocolVersionTime() prometheus.Histogram {
 	return newHistogram(
-		coreOperations, coreGetProtocolVersionTimeMetrics,
+		metrics.CoreOperations, metrics.CoreGetProtocolVersionTimeMetrics,
 		"The time (in seconds) it takes to get protocol version in process operation(core).",
 		nil,
 	)
@@ -1630,7 +1532,7 @@ func newCoreGetProtocolVersionTime() prometheus.Histogram {
 
 func newCoreParseOperationTime() prometheus.Histogram {
 	return newHistogram(
-		coreOperations, coreParseOperationTimeMetrics,
+		metrics.CoreOperations, metrics.CoreParseOperationTimeMetrics,
 		"The time (in seconds) it takes to parse operation in process operation(core).",
 		nil,
 	)
@@ -1638,7 +1540,7 @@ func newCoreParseOperationTime() prometheus.Histogram {
 
 func newCoreValidateOperationTime() prometheus.Histogram {
 	return newHistogram(
-		coreOperations, coreValidateOperationTimeMetrics,
+		metrics.CoreOperations, metrics.CoreValidateOperationTimeMetrics,
 		"The time (in seconds) it takes to validate operation in process operation(core).",
 		nil,
 	)
@@ -1646,7 +1548,7 @@ func newCoreValidateOperationTime() prometheus.Histogram {
 
 func newCoreDecorateOperationTime() prometheus.Histogram {
 	return newHistogram(
-		coreOperations, coreDecorateOperationTimeMetrics,
+		metrics.CoreOperations, metrics.CoreDecorateOperationTimeMetrics,
 		"The time (in seconds) it takes to decorate operation in process operation(core).",
 		nil,
 	)
@@ -1654,7 +1556,7 @@ func newCoreDecorateOperationTime() prometheus.Histogram {
 
 func newCoreAddUnpublishedOperationTime() prometheus.Histogram {
 	return newHistogram(
-		coreOperations, coreAddUnpublishedOperationTimeMatrix,
+		metrics.CoreOperations, metrics.CoreAddUnpublishedOperationTimeMatrix,
 		"The time (in seconds) it takes to add unpublished operation to store in process operation(core).",
 		nil,
 	)
@@ -1662,7 +1564,7 @@ func newCoreAddUnpublishedOperationTime() prometheus.Histogram {
 
 func newCoreAddOperationToBatchTime() prometheus.Histogram {
 	return newHistogram(
-		coreOperations, coreAddOperationToBatchTimeMatrix,
+		metrics.CoreOperations, metrics.CoreAddOperationToBatchTimeMatrix,
 		"The time (in seconds) it takes to add operation to batch in process operation(core).",
 		nil,
 	)
@@ -1670,7 +1572,7 @@ func newCoreAddOperationToBatchTime() prometheus.Histogram {
 
 func newCoreGetCreateOperationResultTime() prometheus.Histogram {
 	return newHistogram(
-		coreOperations, coreGetCreateOperationResult,
+		metrics.CoreOperations, metrics.CoreGetCreateOperationResult,
 		"The time (in seconds) it takes to get create operation result in process operation(core).",
 		nil,
 	)
@@ -1678,7 +1580,7 @@ func newCoreGetCreateOperationResultTime() prometheus.Histogram {
 
 func newCoreHTTPCreateUpdateTime() prometheus.Histogram {
 	return newHistogram(
-		coreOperations, coreHTTPCreateUpdateTimeMetrics,
+		metrics.CoreOperations, metrics.CoreHTTPCreateUpdateTimeMetrics,
 		"The time (in seconds) it takes for create update http call.",
 		nil,
 	)
@@ -1686,7 +1588,7 @@ func newCoreHTTPCreateUpdateTime() prometheus.Histogram {
 
 func newCoreHTTPResolveTime() prometheus.Histogram {
 	return newHistogram(
-		coreOperations, coreHTTPResolveTimeMetrics,
+		metrics.CoreOperations, metrics.CoreHTTPResolveTimeMetrics,
 		"The time (in seconds) it takes for resolve http call.",
 		nil,
 	)
@@ -1697,7 +1599,7 @@ func newCoreCASWriteSize(modelTypes []string) map[string]prometheus.Gauge {
 
 	for _, modelType := range modelTypes {
 		gauges[modelType] = newGauge(
-			coreOperations, coreCASWriteSizeMetrics,
+			metrics.CoreOperations, metrics.CoreCASWriteSizeMetrics,
 			"The size (in bytes) of written CAS data.",
 			prometheus.Labels{"type": modelType},
 		)
@@ -1708,7 +1610,7 @@ func newCoreCASWriteSize(modelTypes []string) map[string]prometheus.Gauge {
 
 func newAWSSignCount() prometheus.Counter {
 	return newCounter(
-		aws, awsSignCountMetric,
+		metrics.Aws, metrics.AwsSignCountMetric,
 		"The number of times sign called.",
 		nil,
 	)
@@ -1716,7 +1618,7 @@ func newAWSSignCount() prometheus.Counter {
 
 func newAWSSignTime() prometheus.Histogram {
 	return newHistogram(
-		aws, awsSignTimeMetric,
+		metrics.Aws, metrics.AwsSignTimeMetric,
 		"The time (in seconds) it takes for sign.",
 		nil,
 	)
@@ -1724,7 +1626,7 @@ func newAWSSignTime() prometheus.Histogram {
 
 func newAWSExportPublicKeyCount() prometheus.Counter {
 	return newCounter(
-		aws, awsExportPublicKeyCountMetric,
+		metrics.Aws, metrics.AwsExportPublicKeyCountMetric,
 		"The number of times export public key called.",
 		nil,
 	)
@@ -1732,7 +1634,7 @@ func newAWSExportPublicKeyCount() prometheus.Counter {
 
 func newAWSExportPublicKeyTime() prometheus.Histogram {
 	return newHistogram(
-		aws, awsExportPublicKeyTimeMetric,
+		metrics.Aws, metrics.AwsExportPublicKeyTimeMetric,
 		"The time (in seconds) it takes for export public key.",
 		nil,
 	)
@@ -1740,7 +1642,7 @@ func newAWSExportPublicKeyTime() prometheus.Histogram {
 
 func newAWSVerifyCount() prometheus.Counter {
 	return newCounter(
-		aws, awsVerifyCountMetric,
+		metrics.Aws, metrics.AwsVerifyCountMetric,
 		"The number of times verify called.",
 		nil,
 	)
@@ -1748,7 +1650,7 @@ func newAWSVerifyCount() prometheus.Counter {
 
 func newAWSVerifyTime() prometheus.Histogram {
 	return newHistogram(
-		aws, awsVerifyTimeMetric,
+		metrics.Aws, metrics.AwsVerifyTimeMetric,
 		"The time (in seconds) it takes for verify.",
 		nil,
 	)
