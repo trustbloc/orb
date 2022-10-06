@@ -308,7 +308,7 @@ type keyStoreCfg struct {
 }
 
 func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
-	store storage.Provider, cfg storage.Store, metricsProvider metricsProvider.Metrics) (keyManager, crypto, error) {
+	store storage.Provider, cfg storage.Store, metrics metricsProvider.Metrics) (keyManager, crypto, error) {
 	switch parameters.kmsParams.kmsType {
 	case kmsLocal:
 		return createLocalKMS(parameters.kmsParams.secretLockKeyPath, masterKeyURI, store)
@@ -344,7 +344,7 @@ func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 			return nil, nil, err
 		}
 
-		awsSvc := awssvc.New(awsSession, metricsProvider, parameters.kmsParams.vcSignActiveKeyID)
+		awsSvc := awssvc.New(awsSession, metrics, parameters.kmsParams.vcSignActiveKeyID)
 
 		return &awsKMSWrapper{service: awsSvc}, awsSvc, nil
 	}
@@ -468,7 +468,12 @@ func startOrbServices(parameters *orbParameters) error {
 		setLogLevels(logger, parameters.logLevel)
 	}
 
-	storeProviders, err := createStoreProviders(parameters)
+	metrics, err := NewMetrics(parameters)
+	if err != nil {
+		return err
+	}
+
+	storeProviders, err := createStoreProviders(parameters, metrics)
 	if err != nil {
 		return err
 	}
@@ -508,11 +513,6 @@ func startOrbServices(parameters *orbParameters) error {
 	httpClient := &http.Client{
 		Timeout:   parameters.httpTimeout,
 		Transport: httpTransport,
-	}
-
-	metrics, err := NewMetrics(parameters)
-	if err != nil {
-		return err
 	}
 
 	km, cr, err := createKMSAndCrypto(parameters, httpClient, storeProviders.kmsSecretsProvider, configStore, metrics)
@@ -1494,7 +1494,7 @@ type storageProviders struct {
 }
 
 // nolint: gocyclo
-func createStoreProviders(parameters *orbParameters) (*storageProviders, error) {
+func createStoreProviders(parameters *orbParameters, metrics metricsProvider.Metrics) (*storageProviders, error) {
 	var edgeServiceProvs storageProviders
 
 	switch { //nolint: dupl
@@ -1510,7 +1510,7 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 		}
 
 		edgeServiceProvs.provider = &storageProvider{
-			wrapper.NewProvider(couchDBProvider, "CouchDB"),
+			wrapper.NewProvider(couchDBProvider, "CouchDB", metrics),
 			databaseTypeCouchDBOption,
 		}
 	case strings.EqualFold(parameters.dbParameters.databaseType, databaseTypeMongoDBOption):
@@ -1523,7 +1523,7 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 		}
 
 		edgeServiceProvs.provider = &mongoDBStorageProvider{
-			wrapper.NewMongoDBProvider(mongoDBProvider),
+			wrapper.NewMongoDBProvider(mongoDBProvider, metrics),
 			databaseTypeMongoDBOption,
 		}
 
@@ -1547,7 +1547,7 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 			return &storageProviders{}, err
 		}
 
-		edgeServiceProvs.kmsSecretsProvider = wrapper.NewProvider(couchDBProvider, "CouchDB")
+		edgeServiceProvs.kmsSecretsProvider = wrapper.NewProvider(couchDBProvider, "CouchDB", metrics)
 	case strings.EqualFold(parameters.kmsParams.kmsSecretsDatabaseType, databaseTypeMongoDBOption):
 		mongoDBProvider, err := ariesmongodbstorage.NewProvider(parameters.kmsParams.kmsSecretsDatabaseURL,
 			ariesmongodbstorage.WithDBPrefix(parameters.kmsParams.kmsSecretsDatabasePrefix),
@@ -1557,7 +1557,7 @@ func createStoreProviders(parameters *orbParameters) (*storageProviders, error) 
 			return nil, fmt.Errorf("create MongoDB storage provider: %w", err)
 		}
 
-		edgeServiceProvs.kmsSecretsProvider = wrapper.NewProvider(mongoDBProvider, "MongoDB")
+		edgeServiceProvs.kmsSecretsProvider = wrapper.NewProvider(mongoDBProvider, "MongoDB", metrics)
 	default:
 		return &storageProviders{}, fmt.Errorf("key database type not set to a valid type." +
 			" run start --help to see the available options")

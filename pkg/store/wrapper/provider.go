@@ -31,8 +31,8 @@ type ProviderWrapper struct {
 }
 
 // NewProvider return new store provider wrapper.
-func NewProvider(p provider, dbType string) *ProviderWrapper {
-	return &ProviderWrapper{p: p, dbType: dbType}
+func NewProvider(p provider, dbType string, metrics metricsProvider) *ProviderWrapper {
+	return &ProviderWrapper{p: p, dbType: dbType, metrics: metrics}
 }
 
 // OpenStore open store.
@@ -78,9 +78,9 @@ type MongoDBProviderWrapper struct {
 }
 
 // NewMongoDBProvider return new store provider wrapper.
-func NewMongoDBProvider(p mongoDBProvider) *MongoDBProviderWrapper {
+func NewMongoDBProvider(p mongoDBProvider, metrics metricsProvider) *MongoDBProviderWrapper {
 	return &MongoDBProviderWrapper{
-		ProviderWrapper: NewProvider(p, "MongoDB"),
+		ProviderWrapper: NewProvider(p, "MongoDB", metrics),
 		mp:              p,
 	}
 }
