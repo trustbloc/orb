@@ -18,7 +18,6 @@ import (
 	storemocks "github.com/trustbloc/orb/pkg/store/mocks"
 )
 
-//nolint:lll
 //go:generate counterfeiter -o ./mocks/protocolfactory.gen.go --fake-name ProtocolFactory . factory
 //go:generate counterfeiter -o ./../mocks/casclient.gen.go --fake-name CasClient github.com/trustbloc/sidetree-core-go/pkg/api/cas.Client
 //go:generate counterfeiter -o ./../mocks/operationstore.gen.go --fake-name OperationStore github.com/trustbloc/orb/pkg/context/common.OperationStore

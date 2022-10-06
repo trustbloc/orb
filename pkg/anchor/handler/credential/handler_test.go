@@ -109,9 +109,9 @@ func TestAnchorCredentialHandler(t *testing.T) {
 
 func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 	const (
-		hl            = "hl:uEiAWJO75bnXrNTn3QWUj4ey1iTV_yYI4FuqxSlbCU0dAfQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVdKTzc1Ym5Yck5UbjNRV1VqNGV5MWlUVl95WUk0RnVxeFNsYkNVMGRBZlF4QmlwZnM6Ly9iYWZrcmVpYXdldHhwczN0djVtMnR0NTJibXVyNmQzZnZyZTJ4N3NtY2hhbG92bWtrazNiZmdyMmFwdQ" //nolint:lll
-		parentHL      = "hl:uEiACjive77hfbiFeV2Wz356NYiKM27S31FrDlSClbhABHw:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQUNqaXZlNzdoZmJpRmVWMld6MzU2TllpS00yN1MzMUZyRGxTQ2xiaEFCSHd4QmlwZnM6Ly9iYWZrcmVpYWNyeXY1NTM1eWw1eGNjeHN4bXd6NTdodW5taXJpenc1dXc3a2Z2cTR2ZWNzdzRlYWJkNA" //nolint:lll
-		grandparentHL = "hl:uEiBbrGQaKfwyeY294rBhw43j0JxUIZZR9VTsxH2iG9riqg:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQmJyR1FhS2Z3eWVZMjk0ckJodzQzajBKeFVJWlpSOVZUc3hIMmlHOXJpcWd4QmlwZnM6Ly9iYWZrcmVpYzN2cnNidWtwNGdqNHkzcHBjd2JxNGhkcGQyY29maWltd2toMnZqM2dlcHdyYnh3eGN2aQ" //nolint:lll
+		hl            = "hl:uEiAWJO75bnXrNTn3QWUj4ey1iTV_yYI4FuqxSlbCU0dAfQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVdKTzc1Ym5Yck5UbjNRV1VqNGV5MWlUVl95WUk0RnVxeFNsYkNVMGRBZlF4QmlwZnM6Ly9iYWZrcmVpYXdldHhwczN0djVtMnR0NTJibXVyNmQzZnZyZTJ4N3NtY2hhbG92bWtrazNiZmdyMmFwdQ"
+		parentHL      = "hl:uEiACjive77hfbiFeV2Wz356NYiKM27S31FrDlSClbhABHw:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQUNqaXZlNzdoZmJpRmVWMld6MzU2TllpS00yN1MzMUZyRGxTQ2xiaEFCSHd4QmlwZnM6Ly9iYWZrcmVpYWNyeXY1NTM1eWw1eGNjeHN4bXd6NTdodW5taXJpenc1dXc3a2Z2cTR2ZWNzdzRlYWJkNA"
+		grandparentHL = "hl:uEiBbrGQaKfwyeY294rBhw43j0JxUIZZR9VTsxH2iG9riqg:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQmJyR1FhS2Z3eWVZMjk0ckJodzQzajBKeFVJWlpSOVZUc3hIMmlHOXJpcWd4QmlwZnM6Ly9iYWZrcmVpYzN2cnNidWtwNGdqNHkzcHBjd2JxNGhkcGQyY29maWltd2toMnZqM2dlcHdyYnh3eGN2aQ"
 	)
 
 	registry := generator.NewRegistry()
@@ -396,7 +396,6 @@ func createInMemoryCAS(t *testing.T) extendedcasclient.Client {
 	return casClient
 }
 
-//nolint:lll
 const sampleAnchorEvent = `{
   "@context": "https://w3id.org/activityanchors/v1",
   "object": {
@@ -438,7 +437,6 @@ const sampleAnchorEvent = `{
   "url": "hl:uEiAWJO75bnXrNTn3QWUj4ey1iTV_yYI4FuqxSlbCU0dAfQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVdKTzc1Ym5Yck5UbjNRV1VqNGV5MWlUVl95WUk0RnVxeFNsYkNVMGRBZlF4QmlwZnM6Ly9iYWZrcmVpYXdldHhwczN0djVtMnR0NTJibXVyNmQzZnZyZTJ4N3NtY2hhbG92bWtrazNiZmdyMmFwdQ"
 }`
 
-//nolint:lll
 const sampleParentAnchorEvent = `{
   "@context": "https://w3id.org/activityanchors/v1",
   "object": {
@@ -480,7 +478,6 @@ const sampleParentAnchorEvent = `{
   "url": "hl:uEiACjive77hfbiFeV2Wz356NYiKM27S31FrDlSClbhABHw:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQUNqaXZlNzdoZmJpRmVWMld6MzU2TllpS00yN1MzMUZyRGxTQ2xiaEFCSHd4QmlwZnM6Ly9iYWZrcmVpYWNyeXY1NTM1eWw1eGNjeHN4bXd6NTdodW5taXJpenc1dXc3a2Z2cTR2ZWNzdzRlYWJkNA"
 }`
 
-//nolint:lll
 const sampleParentAnchorLinkset = `{
   "linkset": [
     {
@@ -517,7 +514,6 @@ const sampleParentAnchorLinkset = `{
   ]
 }`
 
-//nolint:lll
 const sampleGrandparentAnchorEvent = `{
   "@context": "https://w3id.org/activityanchors/v1",
   "object": {
@@ -559,7 +555,6 @@ const sampleGrandparentAnchorEvent = `{
   "url": "hl:uEiBbrGQaKfwyeY294rBhw43j0JxUIZZR9VTsxH2iG9riqg:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQmJyR1FhS2Z3eWVZMjk0ckJodzQzajBKeFVJWlpSOVZUc3hIMmlHOXJpcWd4QmlwZnM6Ly9iYWZrcmVpYzN2cnNidWtwNGdqNHkzcHBjd2JxNGhkcGQyY29maWltd2toMnZqM2dlcHdyYnh3eGN2aQ"
 }`
 
-//nolint:lll
 const sampleGrandparentAnchorLinkset = `{
   "linkset": [
     {
@@ -596,7 +591,6 @@ const sampleGrandparentAnchorLinkset = `{
   ]
 }`
 
-//nolint:lll
 const sampleAnchorLinksetDuplicateParents = `{
   "linkset": [
     {
@@ -633,7 +627,6 @@ const sampleAnchorLinksetDuplicateParents = `{
   ]
 }`
 
-//nolint:lll
 const sampleAnchorLinksetInvalidParent = `{
   "linkset": [
     {
@@ -670,7 +663,6 @@ const sampleAnchorLinksetInvalidParent = `{
   ]
 }`
 
-//nolint:lll
 const anchorLinksetNoReplies = `{
   "linkset": [
     {
@@ -701,7 +693,6 @@ const anchorLinksetNoReplies = `{
   ]
 }`
 
-//nolint:lll
 const anchorLinksetInvalidContent = `{
   "linkset": [
     {
@@ -738,7 +729,6 @@ const anchorLinksetInvalidContent = `{
   ]
 }`
 
-//nolint:lll
 const anchorLinksetUnsupportedProfile = `{
   "linkset": [
     {
@@ -775,7 +765,6 @@ const anchorLinksetUnsupportedProfile = `{
   ]
 }`
 
-//nolint:lll
 const anchorLinksetInvalidVC = `{
   "linkset": [
     {

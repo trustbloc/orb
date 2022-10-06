@@ -67,7 +67,7 @@ func BetweenStrings(value, first, second string) (string, error) {
 
 // GetOperationsAfterCanonicalReference retrieves operations after canonical references.
 // assumption: operations are sorted by transaction time
-func GetOperationsAfterCanonicalReference(ref string, anchorOps []*operation.AnchoredOperation) []*operation.AnchoredOperation { //nolint:lll
+func GetOperationsAfterCanonicalReference(ref string, anchorOps []*operation.AnchoredOperation) []*operation.AnchoredOperation {
 	found := false
 
 	var additionalAnchorOps []*operation.AnchoredOperation

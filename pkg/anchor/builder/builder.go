@@ -20,11 +20,11 @@ import (
 )
 
 const (
-	// this context is pre-loaded by aries framework.
+	// this context is preloaded by aries framework.
 	vcContextURIV1 = "https://www.w3.org/2018/credentials/v1"
 
-	typeVerifiableCredential = "VerifiableCredential"
-	typeAnchorCredential     = "AnchorCredential"
+	typeVerifiableCredential = "VerifiableCredential" //nolint:gosec
+	typeAnchorCredential     = "AnchorCredential"     //nolint:gosec
 	typeAnchorLink           = "AnchorLink"
 
 	relLinkset = "linkset"

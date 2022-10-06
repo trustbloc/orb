@@ -4,7 +4,7 @@
 
 module github.com/trustbloc/orb/test/bdd
 
-go 1.17
+go 1.19
 
 require (
 	github.com/cenkalti/backoff/v4 v4.1.3

@@ -61,6 +61,8 @@ const (
 	metadataRedeliveryCount      = "orb-redelivery-count"
 	metadataQueue                = "orb-queue"
 	metadataExpiration           = "expiration"
+
+	base10 = 10
 )
 
 // Config holds the configuration for the publisher/subscriber.
@@ -730,7 +732,7 @@ func getRedeliveryAttempts(msg *message.Message) int {
 
 	countValue, ok := msg.Metadata[metadataRedeliveryCount]
 	if ok {
-		c, err := strconv.ParseInt(countValue, 10, 0)
+		c, err := strconv.ParseInt(countValue, base10, 0)
 		if err != nil {
 			logger.Warn("Message metadata property is not a valid int. Redelivery count will be set to 0",
 				log.WithMessageID(msg.UUID), log.WithProperty(metadataRedeliveryCount))
@@ -806,7 +808,7 @@ func newMessage(msg *message.Message, opts ...messageOpt) *message.Message {
 	}
 
 	if options.redeliveryAttempts > 0 {
-		newMsg.Metadata.Set(metadataRedeliveryCount, strconv.FormatInt(int64(options.redeliveryAttempts), 10))
+		newMsg.Metadata.Set(metadataRedeliveryCount, strconv.FormatInt(int64(options.redeliveryAttempts), base10))
 	}
 
 	return newMsg

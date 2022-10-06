@@ -361,7 +361,7 @@ func (r *Reference) Content() ([]byte, error) {
 // is not a data URI or the type is not application/linkset+json then an error is returned.
 func (r *Reference) Linkset() (*Linkset, error) {
 	if r == nil {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	if r.Type() != TypeLinkset {

@@ -93,6 +93,7 @@ func TestNew(t *testing.T) {
 	createNewResolver(t, createInMemoryCAS(t), createInMemoryCAS(t))
 }
 
+//nolint:maintidx
 func TestResolver_Resolve(t *testing.T) {
 	log.SetLevel(logModule, log.DEBUG)
 

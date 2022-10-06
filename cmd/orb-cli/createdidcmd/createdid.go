@@ -190,7 +190,7 @@ func getSidetreeURL(cmd *cobra.Command) []vdrapi.DIDMethodOption {
 	return opts
 }
 
-func createDIDOption(cmd *cobra.Command, webKmsClient kms.KeyManager) (*did.Doc, []vdrapi.DIDMethodOption, error) { //nolint:funlen,lll
+func createDIDOption(cmd *cobra.Command, webKmsClient kms.KeyManager) (*did.Doc, []vdrapi.DIDMethodOption, error) {
 	opts := getSidetreeURL(cmd)
 
 	didDoc, err := getPublicKeys(cmd)

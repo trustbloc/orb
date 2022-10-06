@@ -83,7 +83,6 @@ func TestNil(t *testing.T) {
 	})
 }
 
-//nolint:lll
 func TestLinksetMarshalUnmarshal(t *testing.T) {
 	profile := testutil.MustParseURL("https://w3id.org/orb#v0")
 
@@ -352,7 +351,6 @@ func TestAnchorLink_Validate(t *testing.T) {
 	})
 }
 
-//nolint:lll
 func TestLink_Validate(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		l := NewLink(
@@ -556,7 +554,6 @@ const (
   ]
 }`
 
-	//nolint:lll
 	replyJSONData = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1"
@@ -586,7 +583,6 @@ const (
   "type": "VerifiableCredential"
 }`
 
-	//nolint:lll
 	linksetGZIPBase64JSON = `{
   "linkset": [
     {
@@ -623,7 +619,6 @@ const (
   ]
 }`
 
-	//nolint:lll
 	linksetURLEncodedJSON = `{
   "linkset": [
     {

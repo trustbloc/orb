@@ -425,7 +425,6 @@ func TestGetOperations(t *testing.T) {
 	})
 }
 
-//nolint:lll
 const unpublishedRR = `
 {
   "@context": "https://w3id.org/did-resolution/v1",
@@ -497,7 +496,6 @@ const unpublishedRR = `
   }
 }`
 
-//nolint:lll
 const publishedAndUnpublishedRR = `
 {
  "@context": "https://w3id.org/did-resolution/v1",
@@ -601,7 +599,6 @@ const publishedAndUnpublishedRR = `
 }
 `
 
-//nolint:lll
 const multiplePublishedAndUnpublishedRR = `
 {
  "@context": "https://w3id.org/did-resolution/v1",
@@ -753,7 +750,6 @@ const multiplePublishedAndUnpublishedRR = `
 }
 `
 
-//nolint:lll
 const publishedOperationsRR = `
 {
  "@context": "https://w3id.org/did-resolution/v1",

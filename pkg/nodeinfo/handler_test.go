@@ -8,7 +8,7 @@ package nodeinfo
 
 import (
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -108,7 +108,7 @@ func TestNewHandlerError(t *testing.T) {
 		result := rw.Result()
 		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 
 		t.Logf("%s", respBytes)
@@ -135,7 +135,7 @@ func testHandler(t *testing.T, version Version, nodeInfo *NodeInfo, expected str
 	result := rw.Result()
 	require.Equal(t, http.StatusOK, result.StatusCode)
 
-	respBytes, err := ioutil.ReadAll(result.Body)
+	respBytes, err := io.ReadAll(result.Body)
 	require.NoError(t, err)
 
 	t.Logf("%s", respBytes)

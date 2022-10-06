@@ -32,7 +32,7 @@ func (m *MockOpStoreProvider) ForNamespace(string) (observer.OperationStore, err
 
 // MockOperationStore is a mock operation store.
 type MockOperationStore struct {
-	sync.RWMutex
+	mutex      sync.RWMutex
 	operations map[string][]*operation.AnchoredOperation
 }
 
@@ -43,8 +43,8 @@ func NewMockOperationStore() *MockOperationStore {
 
 // Put stores the given operations.
 func (m *MockOperationStore) Put(ops []*operation.AnchoredOperation) error {
-	m.Lock()
-	defer m.Unlock()
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 
 	for _, op := range ops {
 		fmt.Printf("Putting operation type[%s], suffix[%s], txtime[%d], txnum[%d], pg[%d], buffer: %s\n", op.Type, op.UniqueSuffix, op.TransactionTime, op.TransactionNumber, op.ProtocolVersion, string(op.OperationRequest)) //nolint:lll
@@ -58,8 +58,8 @@ func (m *MockOperationStore) Put(ops []*operation.AnchoredOperation) error {
 
 // Get retrieves the operations for the given suffix.
 func (m *MockOperationStore) Get(suffix string) ([]*operation.AnchoredOperation, error) {
-	m.RLock()
-	defer m.RUnlock()
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 
 	ops := m.operations[suffix]
 	if len(ops) == 0 {

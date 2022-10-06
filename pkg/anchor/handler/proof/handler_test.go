@@ -57,6 +57,7 @@ func TestNew(t *testing.T) {
 	require.NotNil(t, c)
 }
 
+//nolint:maintidx
 func TestWitnessProofHandler(t *testing.T) {
 	ps := mempubsub.New(mempubsub.Config{})
 	defer ps.Stop()
@@ -913,7 +914,6 @@ func (wp *mockWitnessPolicy) Evaluate(_ []*proofapi.WitnessProof) (bool, error) 
 	return wp.eval, nil
 }
 
-//nolint:lll
 const anchorLinkset = `{
   "linkset": [
     {
@@ -950,7 +950,6 @@ const anchorLinkset = `{
   ]
 }`
 
-//nolint:lll
 const anchorLinksetTwoProofs = `{
   "linkset": [
     {
@@ -987,7 +986,6 @@ const anchorLinksetTwoProofs = `{
   ]
 }`
 
-//nolint:lll
 const anchorLinksetWithoutReplies = `{
   "linkset": [
     {
@@ -1020,7 +1018,6 @@ const anchorLinksetWithoutReplies = `{
   ]
 }`
 
-//nolint:lll
 const witnessProofJSONWebSignature = `{
   "@context": [
     "https://w3id.org/security/v1",
@@ -1066,7 +1063,6 @@ const witnessProofED25519Signature2020 = `{
   }
 }`
 
-//nolint:lll
 const witnessProofWithoutCreated = `{
   "@context": [
     "https://w3id.org/security/v1",

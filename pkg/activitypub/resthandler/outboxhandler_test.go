@@ -10,7 +10,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -41,6 +41,7 @@ func TestNewOutboxAdmin(t *testing.T) {
 	require.Equal(t, "/services/orb/outbox", h.Path())
 }
 
+//nolint:maintidx
 func TestOutbox_Handler(t *testing.T) {
 	const outboxURL = "https://example1.com/services/orb/outbox"
 
@@ -82,7 +83,7 @@ func TestOutbox_Handler(t *testing.T) {
 		result := rw.Result()
 		require.Equal(t, http.StatusOK, result.StatusCode)
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 
 		var id string

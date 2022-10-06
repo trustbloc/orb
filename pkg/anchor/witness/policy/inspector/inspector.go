@@ -123,7 +123,7 @@ func (c *Inspector) postOfferActivity(anchorLink *linkset.Link, witnessesIRI []*
 	return nil
 }
 
-func (c *Inspector) getAdditionalWitnesses(anchorID string) ([]*url.URL, error) { //nolint:funlen
+func (c *Inspector) getAdditionalWitnesses(anchorID string) ([]*url.URL, error) {
 	witnesses, err := c.WitnessStore.Get(anchorID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get witnesses for anchorID[%s]: %w", anchorID, err)

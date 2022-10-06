@@ -7,7 +7,7 @@ package signature
 
 import (
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -23,7 +23,6 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
-//nolint:lll
 //go:generate counterfeiter -o ./mocks/httphandler.gen.go --fake-name HTTPHandler github.com/trustbloc/sidetree-core-go/pkg/restapi/common.HTTPHandler
 
 func TestNewAuthHandler(t *testing.T) {
@@ -72,7 +71,7 @@ func TestAuthHandler(t *testing.T) {
 			require.NoError(t, response.Body.Close())
 		}()
 
-		responseBody, err := ioutil.ReadAll(response.Body)
+		responseBody, err := io.ReadAll(response.Body)
 		require.NoError(t, err)
 
 		require.Equal(t, http.StatusOK, response.StatusCode)

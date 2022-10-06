@@ -38,6 +38,7 @@ func TestNew(t *testing.T) {
 	})
 }
 
+//nolint:maintidx
 func TestOperationDecorator_Decorate(t *testing.T) {
 	const suffix = "suffix"
 

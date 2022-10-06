@@ -10,8 +10,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -34,7 +35,8 @@ func TestServer_Start(t *testing.T) {
 	s := New(url,
 		"",
 		"",
-		1*time.Second,
+		time.Second,
+		time.Second,
 		&mockService{},
 		&mockService{},
 		&mockService{},
@@ -72,7 +74,8 @@ func TestServer_Start(t *testing.T) {
 		s1 := New(url,
 			"",
 			"",
-			1*time.Second,
+			time.Second,
+			time.Second,
 			&mockService{isConnectedErr: fmt.Errorf("not connected")},
 			&mockService{healthCheckErr: fmt.Errorf("failed")},
 			&mockService{pingErr: fmt.Errorf("failed")},
@@ -102,7 +105,8 @@ func TestServer_Start(t *testing.T) {
 		s1 := New(url,
 			"",
 			"",
-			1*time.Second,
+			time.Second,
+			time.Second,
 			&mockService{},
 			&mockService{healthCheckErr: vct2.ErrDisabled},
 			&mockService{},
@@ -132,7 +136,8 @@ func TestServer_Start(t *testing.T) {
 		s1 := New(url,
 			"",
 			"",
-			1*time.Second,
+			time.Second,
+			time.Second,
 			&mockService{},
 			&mockService{healthCheckErr: vct2.ErrLogEndpointNotConfigured},
 			&mockService{},
@@ -162,7 +167,8 @@ func TestServer_Start(t *testing.T) {
 		s1 := New(url,
 			"",
 			"",
-			1*time.Second,
+			time.Second,
+			time.Second,
 			&mockService{isConnectedErr: fmt.Errorf("")},
 			&mockService{healthCheckErr: fmt.Errorf("")},
 			&mockService{pingErr: fmt.Errorf("")},
@@ -197,7 +203,8 @@ func TestServer_HealthCheckNoServices(t *testing.T) {
 	s := New(url,
 		"",
 		"",
-		1*time.Second,
+		time.Second,
+		time.Second,
 		nil,
 		nil,
 		nil,
@@ -229,7 +236,7 @@ func httpPut(t *testing.T, url string, req []byte) ([]byte, error) {
 
 	client := &http.Client{}
 
-	httpReq, err := http.NewRequest("POST", url, bytes.NewReader(req))
+	httpReq, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(req))
 	require.NoError(t, err)
 
 	httpReq.Header.Set("Content-Type", "application/json")
@@ -250,7 +257,7 @@ func httpGet(t *testing.T, url string) ([]byte, error) {
 
 	client := &http.Client{}
 
-	httpReq, err := http.NewRequest(http.MethodGet, url, nil)
+	httpReq, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 	require.NoError(t, err)
 
 	resp, err := invokeWithRetry(
@@ -264,13 +271,13 @@ func httpGet(t *testing.T, url string) ([]byte, error) {
 }
 
 func handleHTTPResp(resp *http.Response) ([]byte, error) {
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("reading response body failed: %w", err)
 	}
 
 	if status := resp.StatusCode; status != http.StatusOK {
-		return nil, fmt.Errorf(string(body))
+		return nil, errors.New(string(body))
 	}
 
 	return body, nil

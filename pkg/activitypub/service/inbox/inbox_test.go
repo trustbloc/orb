@@ -167,7 +167,7 @@ func TestInbox_Handle(t *testing.T) {
 	require.Equal(t, lifecycle.StateStopped, ib.State())
 }
 
-//nolint:gocyclo,cyclop
+//nolint:cyclop,maintidx
 func TestInbox_Error(t *testing.T) {
 	log.SetLevel("activitypub_service", log.DEBUG)
 
@@ -741,7 +741,7 @@ func newActivityID(serviceName string) *url.URL {
 func startHTTPServer(t *testing.T, listenAddress string, handlers ...common.HTTPHandler) func() {
 	t.Helper()
 
-	httpServer := httpserver.New(listenAddress, "", "", 1*time.Second,
+	httpServer := httpserver.New(listenAddress, "", "", 1*time.Second, time.Second,
 		&mockService{}, &mockService{}, &mockService{}, &mockService{}, handlers...)
 
 	require.NoError(t, httpServer.Start())

@@ -4,7 +4,7 @@
 
 module github.com/trustbloc/orb/cmd/orb-driver
 
-go 1.17
+go 1.19
 
 require (
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc3.0.20220826091015-af6620d1f121

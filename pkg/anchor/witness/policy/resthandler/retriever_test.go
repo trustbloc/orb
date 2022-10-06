@@ -8,7 +8,7 @@ package resthandler
 
 import (
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -46,7 +46,7 @@ func TestPolicyRetriever_Handler(t *testing.T) {
 
 		require.Equal(t, http.StatusOK, result.StatusCode)
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, result.Body.Close())
 		require.NoError(t, err)
 		require.Equal(t, testPolicy, string(respBytes))

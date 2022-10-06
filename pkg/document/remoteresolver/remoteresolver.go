@@ -10,7 +10,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -44,7 +44,7 @@ func New(httpClient httpClient) *Resolver {
 }
 
 // ResolveDocumentFromResolutionEndpoints resolved document from resolution endpoints.
-func (rr *Resolver) ResolveDocumentFromResolutionEndpoints(id string, endpoints []string) (*document.ResolutionResult, error) { //nolint:lll
+func (rr *Resolver) ResolveDocumentFromResolutionEndpoints(id string, endpoints []string) (*document.ResolutionResult, error) {
 	if len(endpoints) == 0 {
 		return nil, fmt.Errorf("must provide at least one remote resolver endpoint in order to retrieve data")
 	}
@@ -103,7 +103,7 @@ func (rr *Resolver) send(uri string) ([]byte, error) {
 		}
 	}()
 
-	responseBody, err := ioutil.ReadAll(resp.Body)
+	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body for request[%s]: %w", req.String(), err)
 	}
@@ -115,6 +115,6 @@ func (rr *Resolver) send(uri string) ([]byte, error) {
 			req.String(), resp.StatusCode, string(responseBody))
 	}
 
-	return nil, fmt.Errorf("failed to retrieve data for request[%s]. Response status code: %d. Content-type: %s. Response body: %s", //nolint:lll
+	return nil, fmt.Errorf("failed to retrieve data for request[%s]. Response status code: %d. Content-type: %s. Response body: %s",
 		req.String(), resp.StatusCode, resp.Header.Get("Content-type"), string(responseBody))
 }

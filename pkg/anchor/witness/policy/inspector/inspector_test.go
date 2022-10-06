@@ -344,7 +344,6 @@ func (wp *mockWitnessPolicy) Select(witnesses []*proof.Witness, _ ...*proof.Witn
 	return witnesses, nil
 }
 
-//nolint: lll
 const jsonAnchorLinkset = `{
   "linkset": [
     {

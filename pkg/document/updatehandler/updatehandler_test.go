@@ -6,7 +6,6 @@ SPDX-License-Identifier: Apache-2.0
 
 package updatehandler
 
-//nolint:lll
 //go:generate counterfeiter -o ./mocks/dochandler.gen.go --fake-name Processor github.com/trustbloc/sidetree-core-go/pkg/restapi/dochandler.Processor
 
 import (

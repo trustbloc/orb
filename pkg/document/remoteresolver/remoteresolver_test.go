@@ -27,7 +27,7 @@ func TestNew(t *testing.T) {
 
 		rw := httptest.NewRecorder()
 
-		_, err := rw.Write([]byte("{}"))
+		_, err := rw.WriteString("{}")
 		require.NoError(t, err)
 
 		result := rw.Result()
@@ -50,7 +50,7 @@ func TestNew(t *testing.T) {
 
 		rw := httptest.NewRecorder()
 
-		_, err := rw.Write([]byte("invalid-json"))
+		_, err := rw.WriteString("invalid-json")
 		require.NoError(t, err)
 
 		result := rw.Result()
@@ -98,7 +98,7 @@ func TestNew(t *testing.T) {
 
 		rw := httptest.NewRecorder()
 
-		_, err := rw.Write([]byte("Internal server error."))
+		_, err := rw.WriteString("Internal server error.")
 		require.NoError(t, err)
 
 		result := rw.Result()
@@ -122,7 +122,7 @@ func TestNew(t *testing.T) {
 
 		rw := httptest.NewRecorder()
 
-		_, err := rw.Write([]byte("Not found."))
+		_, err := rw.WriteString("Not found.")
 		require.NoError(t, err)
 
 		result := rw.Result()
@@ -146,7 +146,7 @@ func TestNew(t *testing.T) {
 
 		rw := httptest.NewRecorder()
 
-		_, err := rw.Write([]byte("{}"))
+		_, err := rw.WriteString("{}")
 		require.NoError(t, err)
 
 		result := rw.Result()

@@ -7,7 +7,6 @@ package deactivatedidcmd
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -63,7 +62,7 @@ func TestDeactivateDID(t *testing.T) {
 	}))
 	defer serv.Close()
 
-	privateKeyfile, err := ioutil.TempFile("", "*.json")
+	privateKeyfile, err := os.CreateTemp("", "*.json")
 	require.NoError(t, err)
 
 	_, err = privateKeyfile.WriteString(privateKeyPEM)

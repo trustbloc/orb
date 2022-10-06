@@ -48,7 +48,7 @@ func TestDefaultMarshaler(t *testing.T) {
 	msg := message.NewMessage(watermill.NewUUID(), []byte("payload"))
 	msg.Metadata.Set("foo", "bar")
 	msg.Metadata.Set("x-death",
-		`[{"count":1,"exchange":"some_exchange","queue":"some_queue","reason":"rejected","routing-keys":["some_queue"],"time":"2021-10-25T17:26:24Z"}]`) //nolint:lll
+		`[{"count":1,"exchange":"some_exchange","queue":"some_queue","reason":"rejected","routing-keys":["some_queue"],"time":"2021-10-25T17:26:24Z"}]`)
 
 	marshaled, err := marshaler.Marshal(msg)
 	require.NoError(t, err)
@@ -164,7 +164,7 @@ func TestDefaultMarshaler_metadata(t *testing.T) {
 	msg := message.NewMessage(watermill.NewUUID(), []byte("payload"))
 	msg.Metadata.Set("foo", "bar")
 	msg.Metadata.Set("x-death",
-		`[{"count":1,"exchange":"orb.exchange","queue":"outbox_activities","reason":"rejected","routing-keys":["outbox_activities"],"time":"2021-10-25T17:26:24Z"}]`) //nolint:lll
+		`[{"count":1,"exchange":"orb.exchange","queue":"outbox_activities","reason":"rejected","routing-keys":["outbox_activities"],"time":"2021-10-25T17:26:24Z"}]`)
 
 	marshaled, err := marshaler.Marshal(msg)
 	require.NoError(t, err)

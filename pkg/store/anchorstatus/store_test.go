@@ -302,7 +302,7 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 		s.CheckInProcessAnchors()
 	})
 
-	t.Run("success - completed(time past status check time, previously failed to delete in-process)", func(t *testing.T) { //nolint:lll
+	t.Run("success - completed(time past status check time, previously failed to delete in-process)", func(t *testing.T) {
 		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
 		defer stopMongo()
 

@@ -17,7 +17,6 @@ import (
 
 const payloadDir = "payload"
 
-// nolint: gochecknoglobals
 var (
 	//go:embed payload/*.json
 	fs embed.FS

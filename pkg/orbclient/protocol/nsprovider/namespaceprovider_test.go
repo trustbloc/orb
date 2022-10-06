@@ -18,7 +18,6 @@ import (
 
 const ns = "did:orb"
 
-//nolint:lll
 //go:generate counterfeiter -o ./../mocks/clientversionprovider.gen.go --fake-name ClientVersionProvider . ClientVersionProvider
 
 func TestNew(t *testing.T) {

@@ -11,8 +11,8 @@ import (
 	"crypto/rand"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -136,7 +136,7 @@ func (c *Composition) GenerateLogs() error {
 	if err != nil {
 		return err
 	}
-	err = ioutil.WriteFile("docker-compose.log", outputBytes, 0o775)
+	err = os.WriteFile("docker-compose.log", outputBytes, 0o775)
 	return err
 }
 

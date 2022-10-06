@@ -7,7 +7,6 @@ package recoverdidcmd
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -111,7 +110,7 @@ func TestRecoverDID(t *testing.T) {
 	}))
 	defer serv.Close()
 
-	file, err := ioutil.TempFile("", "*.json")
+	file, err := os.CreateTemp("", "*.json")
 	require.NoError(t, err)
 
 	_, err = file.WriteString(pkPEM)
@@ -119,7 +118,7 @@ func TestRecoverDID(t *testing.T) {
 
 	defer func() { require.NoError(t, os.Remove(file.Name())) }()
 
-	privateKeyfile, err := ioutil.TempFile("", "*.json")
+	privateKeyfile, err := os.CreateTemp("", "*.json")
 	require.NoError(t, err)
 
 	_, err = privateKeyfile.WriteString(privateKeyPEM)
@@ -127,7 +126,7 @@ func TestRecoverDID(t *testing.T) {
 
 	defer func() { require.NoError(t, os.Remove(privateKeyfile.Name())) }()
 
-	servicesFile, err := ioutil.TempFile("", "*.json")
+	servicesFile, err := os.CreateTemp("", "*.json")
 	require.NoError(t, err)
 
 	_, err = servicesFile.WriteString(servicesData)
@@ -135,7 +134,7 @@ func TestRecoverDID(t *testing.T) {
 
 	defer func() { require.NoError(t, os.Remove(servicesFile.Name())) }()
 
-	jwk1File, err := ioutil.TempFile("", "*.json")
+	jwk1File, err := os.CreateTemp("", "*.json")
 	require.NoError(t, err)
 
 	_, err = jwk1File.WriteString(jwk1Data)
@@ -143,7 +142,7 @@ func TestRecoverDID(t *testing.T) {
 
 	defer func() { require.NoError(t, os.Remove(jwk1File.Name())) }()
 
-	jwk2File, err := ioutil.TempFile("", "*.json")
+	jwk2File, err := os.CreateTemp("", "*.json")
 	require.NoError(t, err)
 
 	_, err = jwk2File.WriteString(jwk2Data)
@@ -151,7 +150,7 @@ func TestRecoverDID(t *testing.T) {
 
 	defer func() { require.NoError(t, os.Remove(jwk2File.Name())) }()
 
-	publicKeyFile, err := ioutil.TempFile("", "*.json")
+	publicKeyFile, err := os.CreateTemp("", "*.json")
 	require.NoError(t, err)
 
 	_, err = publicKeyFile.WriteString(fmt.Sprintf(publickeyData, jwk1File.Name(), jwk2File.Name()))
@@ -234,7 +233,7 @@ func TestKeys(t *testing.T) {
 		os.Clearenv()
 		cmd := GetRecoverDIDCmd()
 
-		privateKeyfile, err := ioutil.TempFile("", "*.json")
+		privateKeyfile, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = privateKeyfile.WriteString(privateKeyPEM)
@@ -261,7 +260,7 @@ func TestKeys(t *testing.T) {
 		os.Clearenv()
 		cmd := GetRecoverDIDCmd()
 
-		privateKeyfile, err := ioutil.TempFile("", "*.json")
+		privateKeyfile, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = privateKeyfile.WriteString(privateKeyPEM)
@@ -269,7 +268,7 @@ func TestKeys(t *testing.T) {
 
 		defer func() { require.NoError(t, os.Remove(privateKeyfile.Name())) }()
 
-		file, err := ioutil.TempFile("", "*.json")
+		file, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = file.WriteString(pkPEM)
@@ -299,7 +298,7 @@ func TestService(t *testing.T) {
 		os.Clearenv()
 		cmd := GetRecoverDIDCmd()
 
-		file, err := ioutil.TempFile("", "*.json")
+		file, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = file.WriteString(pkPEM)
@@ -307,7 +306,7 @@ func TestService(t *testing.T) {
 
 		defer func() { require.NoError(t, os.Remove(file.Name())) }()
 
-		privateKeyfile, err := ioutil.TempFile("", "*.json")
+		privateKeyfile, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = privateKeyfile.WriteString(privateKeyPEM)

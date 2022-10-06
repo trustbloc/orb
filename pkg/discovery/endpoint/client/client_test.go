@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -197,12 +197,12 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 			if strings.Contains(req.URL.Path, "ipns/wwrrww/.well-known/host-meta.json") {
 				b, errMarshal := json.Marshal(restapi.JRD{})
 				require.NoError(t, errMarshal)
-				r := ioutil.NopCloser(bytes.NewReader(b))
+				r := io.NopCloser(bytes.NewReader(b))
 
 				return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 			}
 
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		}}
 
 		cs.orbClient = &mockOrbClient{getAnchorOriginFunc: func(cid, suffix string) (interface{}, error) {
@@ -226,14 +226,14 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 					Type:     "application/jrd+json",
 				}}})
 				require.NoError(t, errMarshal)
-				r := ioutil.NopCloser(bytes.NewReader(b))
+				r := io.NopCloser(bytes.NewReader(b))
 
 				return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 			} else if strings.Contains(req.URL.Path, ".well-known/webfinger") {
 				return nil, fmt.Errorf("failed to get template webfinger")
 			}
 
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		}}
 
 		cs.orbClient = &mockOrbClient{getAnchorOriginFunc: func(cid, suffix string) (interface{}, error) {
@@ -257,7 +257,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 					Type:     "application/jrd+json",
 				}}})
 				require.NoError(t, errMarshal)
-				r := ioutil.NopCloser(bytes.NewReader(b))
+				r := io.NopCloser(bytes.NewReader(b))
 
 				return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 			}
@@ -276,12 +276,12 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 				})
 
 				require.NoError(t, errMarshal)
-				r := ioutil.NopCloser(bytes.NewReader(b))
+				r := io.NopCloser(bytes.NewReader(b))
 
 				return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 			}
 
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		}}
 
 		cs.orbClient = &mockOrbClient{getAnchorOriginFunc: func(cid, suffix string) (interface{}, error) {
@@ -296,7 +296,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 	})
 }
 
-func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cyclop
+func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cyclop,maintidx
 	t.Run("success", func(t *testing.T) {
 		const domain = "https://example.com"
 
@@ -320,7 +320,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 							ResolutionEndpoint: "https://localhost/resolve1",
 						})
 						require.NoError(t, err)
-						r := ioutil.NopCloser(bytes.NewReader(b))
+						r := io.NopCloser(bytes.NewReader(b))
 
 						return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 					}
@@ -331,7 +331,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 							Links: []restapi.Link{{Href: "https://localhost/op1"}, {Href: "https://localhost/op2"}},
 						})
 						require.NoError(t, err)
-						r := ioutil.NopCloser(bytes.NewReader(b))
+						r := io.NopCloser(bytes.NewReader(b))
 
 						return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 					}
@@ -346,7 +346,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 							},
 						})
 						require.NoError(t, err)
-						r := ioutil.NopCloser(bytes.NewReader(b))
+						r := io.NopCloser(bytes.NewReader(b))
 
 						return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 					}
@@ -361,12 +361,12 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 							},
 						})
 						require.NoError(t, err)
-						r := ioutil.NopCloser(bytes.NewReader(b))
+						r := io.NopCloser(bytes.NewReader(b))
 
 						return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 					}
 
-					return nil, nil
+					return nil, nil //nolint:nilnil
 				}}))
 		require.NoError(t, err)
 
@@ -394,7 +394,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 						ResolutionEndpoint: "https://localhost/resolve1",
 					})
 					require.NoError(t, err)
-					r := ioutil.NopCloser(bytes.NewReader(b))
+					r := io.NopCloser(bytes.NewReader(b))
 
 					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 				}
@@ -409,7 +409,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 						},
 					})
 					require.NoError(t, err)
-					r := ioutil.NopCloser(bytes.NewReader(b))
+					r := io.NopCloser(bytes.NewReader(b))
 
 					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 				}
@@ -418,11 +418,11 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 					strings.Contains(req.URL.RawQuery, "resolve2") {
 					return &http.Response{
 						StatusCode: http.StatusInternalServerError,
-						Body:       ioutil.NopCloser(bytes.NewReader([]byte{})),
+						Body:       io.NopCloser(bytes.NewReader([]byte{})),
 					}, nil
 				}
 
-				return nil, nil
+				return nil, nil //nolint:nilnil
 			}}))
 		require.NoError(t, err)
 
@@ -441,7 +441,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 						ResolutionEndpoint: "https://localhost/resolve1",
 					})
 					require.NoError(t, err)
-					r := ioutil.NopCloser(bytes.NewReader(b))
+					r := io.NopCloser(bytes.NewReader(b))
 
 					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 				}
@@ -452,7 +452,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 						Links: []restapi.Link{{Href: "https://localhost/op1"}, {Href: "https://localhost/op2"}},
 					})
 					require.NoError(t, err)
-					r := ioutil.NopCloser(bytes.NewReader(b))
+					r := io.NopCloser(bytes.NewReader(b))
 
 					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 				}
@@ -467,7 +467,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 						},
 					})
 					require.NoError(t, err)
-					r := ioutil.NopCloser(bytes.NewReader(b))
+					r := io.NopCloser(bytes.NewReader(b))
 
 					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 				}
@@ -482,12 +482,12 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 						},
 					})
 					require.NoError(t, err)
-					r := ioutil.NopCloser(bytes.NewReader(b))
+					r := io.NopCloser(bytes.NewReader(b))
 
 					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 				}
 
-				return nil, nil
+				return nil, nil //nolint:nilnil
 			}}))
 		require.NoError(t, err)
 
@@ -508,7 +508,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 						ResolutionEndpoint: "https://localhost/resolve1",
 					})
 					require.NoError(t, err)
-					r := ioutil.NopCloser(bytes.NewReader(b))
+					r := io.NopCloser(bytes.NewReader(b))
 
 					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 				}
@@ -519,7 +519,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 						Links: []restapi.Link{{Href: "https://localhost/op1"}, {Href: "https://localhost/op2"}},
 					})
 					require.NoError(t, err)
-					r := ioutil.NopCloser(bytes.NewReader(b))
+					r := io.NopCloser(bytes.NewReader(b))
 
 					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 				}
@@ -534,7 +534,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 						},
 					})
 					require.NoError(t, err)
-					r := ioutil.NopCloser(bytes.NewReader(b))
+					r := io.NopCloser(bytes.NewReader(b))
 
 					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 				}
@@ -548,12 +548,12 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 						},
 					})
 					require.NoError(t, err)
-					r := ioutil.NopCloser(bytes.NewReader(b))
+					r := io.NopCloser(bytes.NewReader(b))
 
 					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 				}
 
-				return nil, nil
+				return nil, nil //nolint:nilnil
 			}}))
 		require.NoError(t, err)
 
@@ -582,7 +582,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
 				return &http.Response{
 					StatusCode: http.StatusInternalServerError,
-					Body:       ioutil.NopCloser(bytes.NewReader([]byte{})),
+					Body:       io.NopCloser(bytes.NewReader([]byte{})),
 				}, nil
 			}}))
 		require.NoError(t, err)
@@ -601,14 +601,14 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 						ResolutionEndpoint: "https://localhost/resolve",
 					})
 					require.NoError(t, err)
-					r := ioutil.NopCloser(bytes.NewReader(b))
+					r := io.NopCloser(bytes.NewReader(b))
 
 					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 				}
 
 				return &http.Response{
 					StatusCode: http.StatusInternalServerError,
-					Body:       ioutil.NopCloser(bytes.NewReader([]byte{})),
+					Body:       io.NopCloser(bytes.NewReader([]byte{})),
 				}, nil
 			}}))
 		require.NoError(t, err)
@@ -629,7 +629,7 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 						ResolutionEndpoint: "https://localhost/resolve",
 					})
 					require.NoError(t, err)
-					r := ioutil.NopCloser(bytes.NewReader(b))
+					r := io.NopCloser(bytes.NewReader(b))
 
 					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 				}
@@ -644,14 +644,14 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 						},
 					})
 					require.NoError(t, err)
-					r := ioutil.NopCloser(bytes.NewReader(b))
+					r := io.NopCloser(bytes.NewReader(b))
 
 					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 				}
 
 				return &http.Response{
 					StatusCode: http.StatusInternalServerError,
-					Body:       ioutil.NopCloser(bytes.NewReader([]byte{})),
+					Body:       io.NopCloser(bytes.NewReader([]byte{})),
 				}, nil
 			}}))
 		require.NoError(t, err)
@@ -668,7 +668,7 @@ func TestDefaultCASReader(t *testing.T) {
 	t.Run("success - no hint", func(t *testing.T) {
 		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"), WithHTTPClient(
 			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
-				r := ioutil.NopCloser(bytes.NewReader([]byte("{}")))
+				r := io.NopCloser(bytes.NewReader([]byte("{}")))
 
 				return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 			}}))
@@ -684,7 +684,7 @@ func TestDefaultCASReader(t *testing.T) {
 	t.Run("success - ipfs hint", func(t *testing.T) {
 		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"), WithHTTPClient(
 			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
-				r := ioutil.NopCloser(bytes.NewReader([]byte("{}")))
+				r := io.NopCloser(bytes.NewReader([]byte("{}")))
 
 				return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 			}}))
@@ -701,7 +701,7 @@ func TestDefaultCASReader(t *testing.T) {
 		cs, err := New(nil, &referenceCASReaderImplementation{},
 			WithAuthToken("t1"), WithHTTPClient(
 				&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
-					r := ioutil.NopCloser(bytes.NewReader([]byte("{}")))
+					r := io.NopCloser(bytes.NewReader([]byte("{}")))
 
 					return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 				}}))
@@ -718,7 +718,7 @@ func TestDefaultCASReader(t *testing.T) {
 	t.Run("error - hint not supported", func(t *testing.T) {
 		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"), WithHTTPClient(
 			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
-				r := ioutil.NopCloser(bytes.NewReader([]byte("{}")))
+				r := io.NopCloser(bytes.NewReader([]byte("{}")))
 
 				return &http.Response{StatusCode: http.StatusOK, Body: r}, nil
 			}}))
@@ -735,7 +735,7 @@ func TestDefaultCASReader(t *testing.T) {
 	t.Run("error - ipfs resolver error", func(t *testing.T) {
 		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"), WithHTTPClient(
 			&mockHTTPClient{doFunc: func(req *http.Request) (*http.Response, error) {
-				r := ioutil.NopCloser(bytes.NewReader([]byte("error")))
+				r := io.NopCloser(bytes.NewReader([]byte("error")))
 
 				return &http.Response{StatusCode: http.StatusInternalServerError, Body: r}, nil
 			}}))
@@ -747,7 +747,7 @@ func TestDefaultCASReader(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, val)
 		require.Contains(t, err.Error(),
-			"failed to resolve cidWithHint[ipfs cid]: got unexpected response from https://ipfs.io/ipfs/cid status '500' body error") //nolint:lll
+			"failed to resolve cidWithHint[ipfs cid]: got unexpected response from https://ipfs.io/ipfs/cid status '500' body error")
 	})
 }
 
@@ -806,7 +806,7 @@ func (m *mockHTTPClient) Do(req *http.Request) (*http.Response, error) {
 		return m.doFunc(req)
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 type mockOrbClient struct {
@@ -818,5 +818,5 @@ func (m *mockOrbClient) GetAnchorOrigin(cid, suffix string) (interface{}, error)
 		return m.getAnchorOriginFunc(cid, suffix)
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }

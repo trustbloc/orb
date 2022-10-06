@@ -70,7 +70,7 @@ type metricsProvider interface {
 }
 
 // Decorate will validate local state against anchor origin for update/recover/deactivate.
-func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Operation, error) { //nolint:lll,funlen,gocyclo,cyclop
+func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Operation, error) { //nolint:cyclop
 	startTime := time.Now()
 
 	defer func() {
@@ -136,14 +136,14 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 	}
 
 	if localAnchorOrigin != latestAnchorOrigin {
-		return nil, fmt.Errorf("anchor origin has different anchor origin for this did - please re-submit your request at later time") //nolint:lll
+		return nil, fmt.Errorf("anchor origin has different anchor origin for this did - please re-submit your request at later time")
 	}
 
 	logger.Debug("Got resolution response from anchor origin", log.WithDID(canonicalID),
 		log.WithResolutionResult(anchorOriginResponse))
 
 	// parse anchor origin response to get unpublished and published operations
-	anchorOriginUnpublishedOps, anchorOriginPublishedOps := getOperations(canonicalID, anchorOriginResponse.DocumentMetadata) //nolint:lll
+	anchorOriginUnpublishedOps, anchorOriginPublishedOps := getOperations(canonicalID, anchorOriginResponse.DocumentMetadata)
 
 	if len(anchorOriginPublishedOps) == 0 {
 		// published ops not provided at anchor origin - nothing to do
@@ -160,17 +160,17 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 	localHead := internalResult.PublishedOperations[len(internalResult.PublishedOperations)-1].CanonicalReference
 
 	if len(anchorOriginUnpublishedOps) > 0 {
-		return nil, fmt.Errorf("anchor origin has unpublished operations - please re-submit your request at later time") //nolint:lll
+		return nil, fmt.Errorf("anchor origin has unpublished operations - please re-submit your request at later time")
 	}
 
 	if len(util.GetOperationsAfterCanonicalReference(localHead, anchorOriginPublishedOps)) > 0 {
-		return nil, fmt.Errorf("anchor origin has additional published operations - please re-submit your request at later time") //nolint:lll
+		return nil, fmt.Errorf("anchor origin has additional published operations - please re-submit your request at later time")
 	}
 
 	return op, nil
 }
 
-func (d *OperationDecorator) resolveDocumentFromAnchorOrigin(id, anchorOrigin string) (*document.ResolutionResult, error) { //nolint:lll
+func (d *OperationDecorator) resolveDocumentFromAnchorOrigin(id, anchorOrigin string) (*document.ResolutionResult, error) {
 	endpoint, err := d.endpointClient.GetEndpoint(anchorOrigin)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get endpoint from anchor origin domain[%s]: %w", id, err)
@@ -188,7 +188,7 @@ func (d *OperationDecorator) resolveDocumentFromAnchorOrigin(id, anchorOrigin st
 	return anchorOriginResponse, nil
 }
 
-func getOperations(id string, metadata document.Metadata) ([]*operation.AnchoredOperation, []*operation.AnchoredOperation) { //nolint:lll
+func getOperations(id string, metadata document.Metadata) ([]*operation.AnchoredOperation, []*operation.AnchoredOperation) {
 	unpublishedOps, err := util.GetUnpublishedOperationsFromMetadata(metadata)
 	if err != nil {
 		logger.Debug("Unable to get unpublished operations", log.WithDID(id), log.WithError(err))

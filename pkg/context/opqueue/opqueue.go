@@ -64,6 +64,7 @@ type queuedOperation struct {
 	timeAdded time.Time
 }
 
+//nolint:tagliatelle
 type persistedOperation struct {
 	*OperationMessage
 
@@ -82,6 +83,7 @@ type taskManager interface {
 	RegisterTask(taskID string, interval time.Duration, task func())
 }
 
+//nolint:tagliatelle
 type opQueueTask struct {
 	// TaskID contains the unique ID of the server instance.
 	TaskID string `json:"taskID"`
@@ -582,7 +584,7 @@ func (q *Queue) updateTaskTime(instanceID string) error {
 	return nil
 }
 
-func (q *Queue) repostOperations(serverID string) error { //nolint:gocyclo,cyclop,funlen
+func (q *Queue) repostOperations(serverID string) error { //nolint:cyclop
 	it, err := q.store.Query(fmt.Sprintf("%s:%s", tagServerID, serverID))
 	if err != nil {
 		return fmt.Errorf("query operations with tag [%s]: %w", serverID, err)

@@ -47,7 +47,7 @@ func (r *UpdateHandler) Namespace() string {
 }
 
 // ProcessOperation validates operation and adds it to the batch.
-func (r *UpdateHandler) ProcessOperation(operationBuffer []byte, protocolVersion uint64) (*document.ResolutionResult, error) { //nolint:lll
+func (r *UpdateHandler) ProcessOperation(operationBuffer []byte, protocolVersion uint64) (*document.ResolutionResult, error) {
 	startTime := time.Now()
 
 	defer func() {

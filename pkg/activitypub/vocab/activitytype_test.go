@@ -35,7 +35,7 @@ var (
 
 	public = testutil.MustParseURL("https://www.w3.org/ns/activitystreams#Public")
 
-	anchorEventURL1 = testutil.MustParseURL("hl:uEiAlxhqywv18DiM_VvQahlIYk-6Mlqin5o8qL6RA_z23HA:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQWx4aHF5d3YxOERpTV9WdlFhaGxJWWstNk1scWluNW84cUw2UkFfejIzSEF4QmlwZnM6Ly9iYWZrcmVpYmZ5eW5sZnF4NXBxaGNncDJ3NnFuaW11cXlzcHhpemZ2aXU3dGk2a3JwdXJhcDZwbnhkcQ") //nolint:lll
+	anchorEventURL1 = testutil.MustParseURL("hl:uEiAlxhqywv18DiM_VvQahlIYk-6Mlqin5o8qL6RA_z23HA:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQWx4aHF5d3YxOERpTV9WdlFhaGxJWWstNk1scWluNW84cUw2UkFfejIzSEF4QmlwZnM6Ly9iYWZrcmVpYmZ5eW5sZnF4NXBxaGNncDJ3NnFuaW11cXlzcHhpemZ2aXU3dGk2a3JwdXJhcDZwbnhkcQ")
 )
 
 func TestCreateTypeMarshal(t *testing.T) {
@@ -108,8 +108,8 @@ func TestCreateTypeMarshal(t *testing.T) {
 func TestAnnounceTypeMarshal(t *testing.T) {
 	followers := newMockID(service1, "/followers")
 
-	anchorRefURL1 := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1") //nolint:lll
-	anchorRefURL2 := testutil.MustParseURL("hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5")         //nolint:lll
+	anchorRefURL1 := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1")
+	anchorRefURL2 := testutil.MustParseURL("hl:uEiAsiwjaXOYDmOHxmvDl3Mx0TfJ0uCar5YXqumjFJUNIBg:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3hCaXBmczovL2JhZmtyZWlibXJtZW51eGhnYW9tb2Q0bTI2ZHM1enRkdWp4emhqb2JndnBzeWwydjJuZGNza3EyaWF5")
 
 	t.Run("With AnchorReferences", func(t *testing.T) {
 		published := getStaticTime()
@@ -447,7 +447,7 @@ func TestAcceptOfferMarshal(t *testing.T) {
 	startTime := getStaticTime()
 	endTime := startTime.Add(1 * time.Minute)
 
-	anchorEventHL := MustParseURL("hl:uEiCQuv6CDPwISpAlkTpRSYacZAQ2PREhpWS2uxGe0jIRZg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVxeGw3aWVkaDRiYmZqYWptcmhqaXV0YnU0bXFjZG1waXJlZ3N3am52M2NncG5lbXFybXk") //nolint:lll
+	anchorEventHL := MustParseURL("hl:uEiCQuv6CDPwISpAlkTpRSYacZAQ2PREhpWS2uxGe0jIRZg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVxeGw3aWVkaDRiYmZqYWptcmhqaXV0YnU0bXFjZG1waXJlZ3N3am52M2NncG5lbXFybXk")
 
 	offer := NewOfferActivity(
 		NewObjectProperty(WithIRI(anchorEventHL)),
@@ -811,7 +811,6 @@ func newMockID(serviceIRI fmt.Stringer, path string) *url.URL {
 	return testutil.MustParseURL(fmt.Sprintf("%s%s", serviceIRI, path))
 }
 
-//nolint:lll
 const (
 	jsonCreate = `{
   "@context": "https://www.w3.org/ns/activitystreams",
@@ -907,7 +906,6 @@ const (
   "type": "Announce"
 }`
 
-	//nolint:lll
 	jsonAnnounceWithRefs = `{
   "@context": "https://www.w3.org/ns/activitystreams",
   "actor": "https://sally.example.com/services/orb",
@@ -975,7 +973,6 @@ const (
 	}
 }`
 
-	//nolint:lll
 	anchorLinksetJSON = `{
   "linkset": [
     {
@@ -1004,7 +1001,6 @@ const (
   ]
 }`
 
-	//nolint:lll
 	jsonLike = `{
   "@context": "https://www.w3.org/ns/activitystreams",
   "actor": "https://witness1.example.com/services/orb",
@@ -1030,7 +1026,6 @@ const (
   "type": "Like"
 }`
 
-	//nolint:lll
 	jsonOffer = `{
   "@context": "https://www.w3.org/ns/activitystreams",
   "actor": "https://sally.example.com/services/orb",

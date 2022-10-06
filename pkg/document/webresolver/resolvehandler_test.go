@@ -33,6 +33,7 @@ const (
 	testUnpublishedDID = "did:web:orb.domain1.com:scid:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw"
 )
 
+//nolint:maintidx,forcetypeassert
 func TestResolveHandler_Resolve(t *testing.T) {
 	testDomainURL, err := url.Parse(testDomain)
 	require.NoError(t, err)
@@ -59,7 +60,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[2],
-			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw") //nolint:lll
+			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 
 		responseBytes, err := json.Marshal(response)
 		require.NoError(t, err)
@@ -91,7 +92,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[0],
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
-			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw") //nolint:lll
+			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 	})
 
 	t.Run("success - unpublished did (orb unpublished ID added to also known as)", func(t *testing.T) {
@@ -144,7 +145,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[0],
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
-			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw") //nolint:lll
+			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 	})
 
 	t.Run("success - equivalent ID does not exist in the document", func(t *testing.T) {
@@ -219,7 +220,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[1],
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 		require.Equal(t, response.Document[document.AlsoKnownAs].([]string)[2],
-			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw") //nolint:lll
+			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 	})
 
 	t.Run("error - invalid DID", func(t *testing.T) {
@@ -237,7 +238,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		require.Error(t, err)
 		require.Nil(t, response)
 		require.Contains(t, err.Error(),
-			"invalid did: xyz:web:orb.domain1.com:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw. Make sure it conforms to the DID syntax") //nolint:lll
+			"invalid did: xyz:web:orb.domain1.com:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw. Make sure it conforms to the DID syntax")
 	})
 
 	t.Run("error - invalid DID (missing method specific part)", func(t *testing.T) {
@@ -417,7 +418,6 @@ func getTestResolutionResult() (*document.ResolutionResult, error) {
 	return &docResolutionResult, nil
 }
 
-//nolint:lll
 var didResolutionResult = `
 {
  "@context": "https://w3id.org/did-resolution/v1",
@@ -515,7 +515,6 @@ var didResolutionResult = `
  }
 }`
 
-//nolint:lll
 var deactivatedDIDResolutionResult = `
 {
  "@context": "https://w3id.org/did-resolution/v1",

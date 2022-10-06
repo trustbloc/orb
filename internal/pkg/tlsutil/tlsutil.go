@@ -9,7 +9,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path"
 )
 
@@ -21,7 +21,7 @@ func GetCertPool(useSystemCertPool bool, tlsCACerts []string) (*x509.CertPool, e
 	}
 
 	for _, v := range tlsCACerts {
-		bytes, errRead := ioutil.ReadFile(path.Clean(v))
+		bytes, errRead := os.ReadFile(path.Clean(v))
 		if errRead != nil {
 			return nil, fmt.Errorf("failed to read cert: %w", errRead)
 		}

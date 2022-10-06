@@ -22,8 +22,8 @@ import (
 var logger = metrics.Logger
 
 var (
-	createOnce sync.Once       //nolint:gochecknoglobals
-	instance   metrics.Metrics //nolint:gochecknoglobals
+	createOnce sync.Once
+	instance   metrics.Metrics
 )
 
 type promProvider struct {
@@ -170,7 +170,7 @@ type PromMetrics struct {
 }
 
 // NewMetrics creates instance of prometheus metrics.
-func NewMetrics() metrics.Metrics { //nolint:funlen
+func NewMetrics() metrics.Metrics {
 	activityTypes := []string{"Create", "Announce", "Offer", "Like", "Follow", "InviteWitness", "Accept", "Reject"}
 	dbTypes := []string{"CouchDB", "MongoDB"}
 	modelTypes := []string{"core index", "core proof", "provisional proof", "chunk", "provisional index"}
@@ -264,7 +264,7 @@ func NewMetrics() metrics.Metrics { //nolint:funlen
 	return pm
 }
 
-func registerMetrics(pm *PromMetrics) { //nolint:funlen,gocyclo,cyclop
+func registerMetrics(pm *PromMetrics) { //nolint:cyclop
 	prometheus.MustRegister(
 		pm.apOutboxPostTime, pm.apOutboxResolveInboxesTime,
 		pm.anchorWriteTime, pm.anchorWitnessTime, pm.anchorProcessWitnessedTime, pm.anchorWriteBuildCredTime,

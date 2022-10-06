@@ -157,7 +157,7 @@ func GetRecoverDIDCmd() *cobra.Command {
 	return recoverDIDCmd
 }
 
-func recoverDIDCmd() *cobra.Command { //nolint: funlen,gocognit,gocyclo,cyclop
+func recoverDIDCmd() *cobra.Command { //nolint: funlen,gocognit,cyclop
 	return &cobra.Command{
 		Use:          "recover",
 		Short:        "Recover orb DID",

@@ -39,6 +39,8 @@ const (
 
 const loggerModule = "activitypub_store"
 
+const base10 = 10
+
 // Provider implements an ActivityPub store backed by an Aries storage provider.
 type Provider struct {
 	activityStore           ariesstorage.Store
@@ -120,6 +122,7 @@ func (s *Provider) QueryActivities(query *spi.Criteria, opts ...spi.QueryOpt) (s
 	return nil, errors.New("unsupported query criteria")
 }
 
+//nolint:tagliatelle
 type activityRef struct {
 	RefType      spi.ReferenceType  `json:"refType"`
 	ObjectIRI    string             `json:"objectIRI,omitempty"` // Base64-encoded IRI
@@ -152,7 +155,7 @@ func (s *Provider) AddReference(referenceType spi.ReferenceType, objectIRI *url.
 	tags := []ariesstorage.Tag{
 		{Name: refTypeTagName, Value: string(referenceType)},
 		{Name: objectIRITagName, Value: ref.ObjectIRI},
-		{Name: timeAddedTagName, Value: strconv.FormatInt(ref.TimeAdded, 10)},
+		{Name: timeAddedTagName, Value: strconv.FormatInt(ref.TimeAdded, base10)},
 	}
 
 	if refMetadata.ActivityType != "" {

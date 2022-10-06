@@ -19,7 +19,7 @@
 CONTAINER_IDS      = $(shell type docker >/dev/null 2>&1 && docker ps -a -q)
 DEV_IMAGES         = $(shell type docker >/dev/null 2>&1 && docker images dev-* -q)
 ARCH               = $(shell go env GOARCH)
-GO_VER             = 1.17
+GO_VER             = 1.19
 GOBIN_PATH         = $(abspath .)/build/bin
 SWAGGER_VERSION    ?= v0.27.0
 SWAGGER_DIR		   = "./test/bdd/fixtures/specs"

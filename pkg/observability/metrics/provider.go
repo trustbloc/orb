@@ -34,7 +34,7 @@ const (
 	AnchorProcessWitnessedMetric                   = "process_witnessed_seconds"
 	AnchorWriteBuildCredTimeMetric                 = "write_build_cred_seconds"
 	AnchorWriteGetWitnessesTimeMetric              = "write_get_witnesses_seconds"
-	AnchorWriteSignCredTimeMetric                  = "write_sign_cred_seconds"
+	AnchorWriteSignCredTimeMetric                  = "write_sign_cred_seconds" //nolint:gosec
 	AnchorWritePostOfferActivityTimeMetric         = "write_post_offer_activity_seconds"
 	AnchorWriteGetPreviousAnchorsGetBulkTimeMetric = "write_get_previous_anchor_get_bulk_seconds"
 	AnchorWriteGetPreviousAnchorsTimeMetric        = "write_get_previous_anchor_seconds"
@@ -86,7 +86,7 @@ const (
 	VctWitnessAddProofTimeMetric         = "witness_add_proof_seconds"
 	VctWitnessWebFingerTimeMetric        = "witness_webfinger_seconds"
 	VctWitnessVerifyVCTTimeMetric        = "witness_verify_vct_signature_seconds"
-	VctAddProofParseCredentialTimeMetric = "witness_add_proof_parse_credential_seconds"
+	VctAddProofParseCredentialTimeMetric = "witness_add_proof_parse_credential_seconds" //nolint:gosec
 	VctAddProofSignTimeMetric            = "witness_add_proof_sign_seconds"
 
 	// Signer Signer.
@@ -163,6 +163,8 @@ type Provider interface {
 }
 
 // Metrics is an interface for the metrics to be supported by the provider.
+//
+//nolint:interfacebloat
 type Metrics interface {
 	CASIncrementCacheHitCount()
 	CASWriteTime(value time.Duration)

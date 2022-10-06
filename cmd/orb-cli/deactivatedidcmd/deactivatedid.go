@@ -101,7 +101,7 @@ func GetDeactivateDIDCmd() *cobra.Command {
 	return deactivateDIDCmd
 }
 
-func deactivateDIDCmd() *cobra.Command { //nolint:funlen
+func deactivateDIDCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:          "deactivate",
 		Short:        "Deactivate orb DID",

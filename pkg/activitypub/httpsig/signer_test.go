@@ -23,7 +23,7 @@ func TestSigner(t *testing.T) {
 	t.Run("GET", func(t *testing.T) {
 		s := NewSigner(DefaultGetSignerConfig(), &mockcrypto.Crypto{}, &mockkms.KeyManager{}, keyID)
 
-		req, err := http.NewRequest(http.MethodGet, "https://domain1.com", nil)
+		req, err := http.NewRequest(http.MethodGet, "https://domain1.com", http.NoBody)
 		require.NoError(t, err)
 
 		require.NoError(t, s.SignRequest("pubKeyID", req))

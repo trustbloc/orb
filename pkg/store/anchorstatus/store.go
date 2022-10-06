@@ -180,7 +180,7 @@ func (s *Store) getAnchorStatusWithTags(anchorID string,
 	}, tags
 }
 
-func (s *Store) deleteInProcessStatus(anchorID string) error { //nolint:funlen,gocyclo,cyclop
+func (s *Store) deleteInProcessStatus(anchorID string) error { //nolint:cyclop
 	var err error
 
 	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
@@ -394,6 +394,7 @@ func (s *Store) processIndex(encodedAnchorID string) error {
 	return nil
 }
 
+//nolint:tagliatelle
 type anchorStatus struct {
 	AnchorID        string                  `json:"anchorID"`
 	Status          proof.AnchorIndexStatus `json:"status"`

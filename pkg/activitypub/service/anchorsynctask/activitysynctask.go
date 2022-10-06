@@ -160,7 +160,7 @@ func (m *task) run() {
 	}
 }
 
-//nolint:gocyclo,cyclop,funlen
+//nolint:cyclop
 func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vocab.ActivityType) bool) error {
 	it, lastSyncedPage, lastSyncedIndex, err := m.getNewActivities(serviceIRI, src)
 	if err != nil {

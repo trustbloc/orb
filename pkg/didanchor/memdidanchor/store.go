@@ -14,8 +14,8 @@ import (
 
 // DidAnchor is in-memory implementation of did/anchor references.
 type DidAnchor struct {
-	sync.RWMutex
-	m map[string]string
+	mutex sync.RWMutex
+	m     map[string]string
 }
 
 // New creates in-memory implementation for latest did anchor.
@@ -25,8 +25,8 @@ func New() *DidAnchor {
 
 // PutBulk saves anchor cid for specified suffixes. If suffix already exists, anchor value will be overwritten.
 func (ref *DidAnchor) PutBulk(suffixes []string, _ []bool, cid string) error {
-	ref.Lock()
-	defer ref.Unlock()
+	ref.mutex.Lock()
+	defer ref.mutex.Unlock()
 
 	for _, suffix := range suffixes {
 		ref.m[suffix] = cid
@@ -37,8 +37,8 @@ func (ref *DidAnchor) PutBulk(suffixes []string, _ []bool, cid string) error {
 
 // GetBulk retrieves anchors for specified suffixes.
 func (ref *DidAnchor) GetBulk(suffixes []string) ([]string, error) {
-	ref.RLock()
-	defer ref.RUnlock()
+	ref.mutex.RLock()
+	defer ref.mutex.RUnlock()
 
 	anchors := make([]string, len(suffixes))
 
@@ -56,8 +56,8 @@ func (ref *DidAnchor) GetBulk(suffixes []string) ([]string, error) {
 
 // Get retrieves anchor for specified suffix.
 func (ref *DidAnchor) Get(suffix string) (string, error) {
-	ref.RLock()
-	defer ref.RUnlock()
+	ref.mutex.RLock()
+	defer ref.mutex.RUnlock()
 
 	anchor, ok := ref.m[suffix]
 	if !ok {

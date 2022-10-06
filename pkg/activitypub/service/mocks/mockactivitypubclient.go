@@ -62,6 +62,7 @@ func (m *ActivityPubClient) WithError(err error) *ActivityPubClient {
 }
 
 // GetPublicKey returns the public key for the given IRI.
+//
 //nolint:interfacer
 func (m *ActivityPubClient) GetPublicKey(keyIRI *url.URL) (*vocab.PublicKeyType, error) {
 	if m.err != nil {
@@ -77,6 +78,7 @@ func (m *ActivityPubClient) GetPublicKey(keyIRI *url.URL) (*vocab.PublicKeyType,
 }
 
 // GetActor returns the actor for the given IRI.
+//
 //nolint:interfacer
 func (m *ActivityPubClient) GetActor(actorIRI *url.URL) (*vocab.ActorType, error) {
 	if m.err != nil {

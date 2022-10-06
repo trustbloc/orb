@@ -12,7 +12,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -149,6 +149,7 @@ func TestGetRESTHandlers(t *testing.T) {
 	})
 }
 
+//nolint:maintidx
 func TestWebFinger(t *testing.T) {
 	t.Run("test resource query string not exists", func(t *testing.T) {
 		c, err := restapi.New(&restapi.Config{
@@ -242,7 +243,7 @@ func TestWebFinger(t *testing.T) {
 
 		wfHTTPClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
+				Body:       io.NopCloser(bytes.NewBufferString(webfingerPayload)),
 				StatusCode: http.StatusOK,
 			}, nil
 		})
@@ -284,7 +285,7 @@ func TestWebFinger(t *testing.T) {
 
 		wfHTTPClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
+				Body:       io.NopCloser(bytes.NewBufferString(webfingerPayload)),
 				StatusCode: http.StatusOK,
 			}, nil
 		})
@@ -322,7 +323,7 @@ func TestWebFinger(t *testing.T) {
 	t.Run("error - vct internal server error", func(t *testing.T) {
 		wfHTTPClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(" internal server error")),
+				Body:       io.NopCloser(bytes.NewBufferString(" internal server error")),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		})
@@ -353,7 +354,7 @@ func TestWebFinger(t *testing.T) {
 		linkStore := &orbmocks.AnchorLinkStore{}
 		linkStore.GetLinksReturns([]*url.URL{
 			testutil.MustParseURL(
-				"hl:uEiALYp_C4wk2WegpfnCSoSTBdKZ1MVdDadn4rdmZl5GKzQ:uoQ-BeDVpcGZzOi8vUW1jcTZKV0RVa3l4ZWhxN1JWWmtQM052aUU0SHFSdW5SalgzOXZ1THZFSGFRTg"), //nolint:lll
+				"hl:uEiALYp_C4wk2WegpfnCSoSTBdKZ1MVdDadn4rdmZl5GKzQ:uoQ-BeDVpcGZzOi8vUW1jcTZKV0RVa3l4ZWhxN1JWWmtQM052aUU0SHFSdW5SalgzOXZ1THZFSGFRTg"),
 		}, nil)
 
 		c, err := restapi.New(&restapi.Config{
@@ -476,7 +477,7 @@ func TestWebFinger(t *testing.T) {
 	})
 
 	t.Run("test did:orb resource", func(t *testing.T) {
-		const anchorURI = "hl:uEiALYp_C4wk2WegpfnCSoSTBdKZ1MVdDadn4rdmZl5GKzQ:uoQ-BeDVpcGZzOi8vUW1jcTZKV0RVa3l4ZWhxN1JWWmtQM052aUU0SHFSdW5SalgzOXZ1THZFSGFRTg" //nolint:lll
+		const anchorURI = "hl:uEiALYp_C4wk2WegpfnCSoSTBdKZ1MVdDadn4rdmZl5GKzQ:uoQ-BeDVpcGZzOi8vUW1jcTZKV0RVa3l4ZWhxN1JWWmtQM052aUU0SHFSdW5SalgzOXZ1THZFSGFRTg"
 
 		linkStore := &orbmocks.AnchorLinkStore{}
 		resourceInfoProvider := newMockResourceInfoProvider().withAnchorURI(anchorURI)
@@ -506,7 +507,7 @@ func TestWebFinger(t *testing.T) {
 
 			linkStore.GetLinksReturns([]*url.URL{
 				testutil.MustParseURL(
-					"hl:uEiBUQDRI5ttIzXbe1LZKUaZWb6yFsnMnrgDksAtQ-wCaKw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQlVRRFJJNXR0SXpYYmUxTFpLVWFaV2I2eUZzbk1ucmdEa3NBdFEtd0NhS3c"), //nolint:lll
+					"hl:uEiBUQDRI5ttIzXbe1LZKUaZWb6yFsnMnrgDksAtQ-wCaKw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQlVRRFJJNXR0SXpYYmUxTFpLVWFaV2I2eUZzbk1ucmdEa3NBdFEtd0NhS3c"),
 			}, nil)
 
 			rr := serveHTTP(t, handler.Handler(), http.MethodGet, restapi.WebFingerEndpoint+
@@ -527,7 +528,7 @@ func TestWebFinger(t *testing.T) {
 
 			require.Equal(t, "self", w.Links[0].Rel)
 			require.Equal(t, "application/did+ld+json", w.Links[0].Type)
-			require.Equal(t, "http://base/sidetree/v1/identifiers/did:orb:uEiBUQDRI5ttIzXbe1LZKUaZWb6yFsnMnrgDksAtQ-wCaKw:suffix", //nolint:lll
+			require.Equal(t, "http://base/sidetree/v1/identifiers/did:orb:uEiBUQDRI5ttIzXbe1LZKUaZWb6yFsnMnrgDksAtQ-wCaKw:suffix",
 				w.Links[0].Href)
 
 			require.Equal(t, "via", w.Links[1].Rel)
@@ -540,12 +541,12 @@ func TestWebFinger(t *testing.T) {
 
 			require.Equal(t, "alternate", w.Links[3].Rel)
 			require.Equal(t, "application/did+ld+json", w.Links[3].Type)
-			require.Equal(t, "http://domain1/sidetree/v1/identifiers/did:orb:uEiBUQDRI5ttIzXbe1LZKUaZWb6yFsnMnrgDksAtQ-wCaKw:suffix", //nolint:lll
+			require.Equal(t, "http://domain1/sidetree/v1/identifiers/did:orb:uEiBUQDRI5ttIzXbe1LZKUaZWb6yFsnMnrgDksAtQ-wCaKw:suffix",
 				w.Links[3].Href)
 
 			require.Equal(t, "alternate", w.Links[4].Rel)
 			require.Equal(t, "application/did+ld+json", w.Links[4].Type)
-			require.Equal(t, "https://orb.domain2.com/sidetree/v1/identifiers/did:orb:uEiBUQDRI5ttIzXbe1LZKUaZWb6yFsnMnrgDksAtQ-wCaKw:suffix", //nolint:lll
+			require.Equal(t, "https://orb.domain2.com/sidetree/v1/identifiers/did:orb:uEiBUQDRI5ttIzXbe1LZKUaZWb6yFsnMnrgDksAtQ-wCaKw:suffix",
 				w.Links[4].Href)
 		})
 

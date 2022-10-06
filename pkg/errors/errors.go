@@ -12,9 +12,9 @@ import (
 )
 
 var (
-	transientType = &transient{} //nolint:gochecknoglobals
+	errTransientType = &transientError{}
 
-	invalidRequestType = &badRequest{} //nolint:gochecknoglobals
+	errInvalidRequestType = &badRequestError{}
 
 	// ErrContentNotFound is used to indicate that content at a given address could not be found.
 	ErrContentNotFound = errors.New("content not found")
@@ -26,56 +26,56 @@ var (
 // NewTransient returns a transient error that wraps the given error in order to indicate to the caller that a retry may
 // resolve the problem, whereas a non-transient (persistent) error will always fail with the same outcome if retried.
 func NewTransient(err error) error {
-	return &transient{err: err}
+	return &transientError{err: err}
 }
 
 // NewTransientf returns a transient error in order to indicate to the caller that a retry may resolve the problem,
 // whereas a non-transient (persistent) error will always fail with the same outcome if retried.
 func NewTransientf(format string, a ...interface{}) error {
-	return &transient{err: fmt.Errorf(format, a...)}
+	return &transientError{err: fmt.Errorf(format, a...)}
 }
 
 // IsTransient returns true if the given error is a 'transient' error.
 func IsTransient(err error) bool {
-	return errors.As(err, &transientType)
+	return errors.As(err, &errTransientType)
 }
 
 // NewBadRequest returns a 'bad request' error that wraps the given error in order to indicate to the caller that
 // the request was invalid.
 func NewBadRequest(err error) error {
-	return &badRequest{err: err}
+	return &badRequestError{err: err}
 }
 
 // NewBadRequestf returns a 'bad request' error in order to indicate to the caller that the request was invalid.
 func NewBadRequestf(format string, a ...interface{}) error {
-	return &badRequest{err: fmt.Errorf(format, a...)}
+	return &badRequestError{err: fmt.Errorf(format, a...)}
 }
 
 // IsBadRequest returns true if the given error is a 'bad request' error.
 func IsBadRequest(err error) bool {
-	return errors.As(err, &invalidRequestType)
+	return errors.As(err, &errInvalidRequestType)
 }
 
-type transient struct {
+type transientError struct {
 	err error
 }
 
-func (e *transient) Error() string {
+func (e *transientError) Error() string {
 	return e.err.Error()
 }
 
-func (e *transient) Unwrap() error {
+func (e *transientError) Unwrap() error {
 	return e.err
 }
 
-type badRequest struct {
+type badRequestError struct {
 	err error
 }
 
-func (e *badRequest) Error() string {
+func (e *badRequestError) Error() string {
 	return e.err.Error()
 }
 
-func (e *badRequest) Unwrap() error {
+func (e *badRequestError) Unwrap() error {
 	return e.err
 }

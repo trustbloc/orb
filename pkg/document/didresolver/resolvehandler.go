@@ -38,7 +38,7 @@ func NewResolveHandler(orbResolver orbResolver, webResolver webResolver) *Resolv
 }
 
 // ResolveDocument resolves a did document.
-func (r *ResolveHandler) ResolveDocument(id string, opts ...document.ResolutionOption) (*document.ResolutionResult, error) { //nolint:lll
+func (r *ResolveHandler) ResolveDocument(id string, opts ...document.ResolutionOption) (*document.ResolutionResult, error) {
 	switch {
 	case strings.HasPrefix(id, "did:orb"):
 		return r.orbResolver.ResolveDocument(id, opts...)

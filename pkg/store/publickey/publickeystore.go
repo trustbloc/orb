@@ -55,7 +55,7 @@ func New(p storage.Provider, fetchPublicKey verifiable.PublicKeyFetcher) (*Store
 	pkCache := gcache.New(maxCacheSize).ARC().
 		LoaderFunc(
 			func(k interface{}) (interface{}, error) {
-				ck := k.(cacheKey) //nolint:errcheck,forcetypeassert
+				ck := k.(cacheKey) //nolint:forcetypeassert
 
 				return pkStore.get(ck.issuerID, ck.keyID)
 			},
@@ -75,7 +75,7 @@ func (c *Store) GetPublicKey(issuerID, keyID string) (*verifier.PublicKey, error
 		return nil, err
 	}
 
-	return pk.(*verifier.PublicKey), nil
+	return pk.(*verifier.PublicKey), nil //nolint:forcetypeassert
 }
 
 func (c *Store) get(issuerID, keyID string) (*verifier.PublicKey, error) {

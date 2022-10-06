@@ -36,7 +36,7 @@ func newUpdateCmd() *cobra.Command {
 	return cmd
 }
 
-func executeUpdate(cmd *cobra.Command) error { //nolint: gocyclo,cyclop
+func executeUpdate(cmd *cobra.Command) error { //nolint: cyclop
 	u, err := cmdutil.GetUserSetVarFromString(cmd, urlFlagName, urlEnvKey, false)
 	if err != nil {
 		return err

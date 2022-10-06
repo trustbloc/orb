@@ -69,6 +69,7 @@ func (s *Store) GetPolicy() (string, error) {
 	return policyCfg.Policy, nil
 }
 
+//nolint:tagliatelle
 type policyCfg struct {
 	Policy string `json:"Policy"`
 }

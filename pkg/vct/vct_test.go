@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 	"testing"
@@ -28,7 +28,6 @@ import (
 
 //go:generate counterfeiter -o ../mocks/configretriever.gen.go --fake-name ConfigRetriever . configRetriever
 
-// nolint: lll
 const mockResponse = `{
   "svct_version": 0,
   "id": "c0JZOeGbBoFbJYTJpin68J2IhCHr1muAEi4QCY7cTko=",
@@ -78,16 +77,16 @@ func TestClient_Witness(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == webfingerURL {
 				pubKey := `{"properties":{"https://trustbloc.dev/ns/public-key":` +
-					`"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEfCc/5CT+K59Dv7+r+MiVX+ARfMeFK9CwdLlicTyjoNJdhFfP4/wnVfXg+vLjrqBYFsYzgokTSTZBSk72WF1RrQ=="}}` //nolint:lll
+					`"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEfCc/5CT+K59Dv7+r+MiVX+ARfMeFK9CwdLlicTyjoNJdhFfP4/wnVfXg+vLjrqBYFsYzgokTSTZBSk72WF1RrQ=="}}`
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(pubKey)),
+					Body:       io.NopCloser(bytes.NewBufferString(pubKey)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(mockResponse)),
+				Body:       io.NopCloser(bytes.NewBufferString(mockResponse)),
 				StatusCode: http.StatusOK,
 			}, nil
 		})
@@ -119,13 +118,13 @@ func TestClient_Witness(t *testing.T) {
 					`"BL0zrdTbR4mc1ZBuaXOh52IYeYKd9hlXrB3eZ+GR9WsHHGhrNaJJB9bpEXvM4zo2vnm34nQezBJ1/a/cQS/j+Q0="}}`
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(pubKey)),
+					Body:       io.NopCloser(bytes.NewBufferString(pubKey)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(mockResponse)),
+				Body:       io.NopCloser(bytes.NewBufferString(mockResponse)),
 				StatusCode: http.StatusOK,
 			}, nil
 		})
@@ -172,13 +171,13 @@ func TestClient_Witness(t *testing.T) {
 					`"BMihLNkyUqmi9VOj2TywSsLwuWRNSG3CQNj7elRSunRleSsYT1BQVkKN89hW5auNFZ9v0z0MbHdytWkHARBnz4o="}}`
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(pubKey)),
+					Body:       io.NopCloser(bytes.NewBufferString(pubKey)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body: ioutil.NopCloser(bytes.NewBufferString(
+				Body: io.NopCloser(bytes.NewBufferString(
 					strings.Replace(mockResponse, "1617977793917", "1617977793918", 1)),
 				),
 				StatusCode: http.StatusOK,
@@ -198,7 +197,7 @@ func TestClient_Witness(t *testing.T) {
 			pubKey := `{"properties":{"https://trustbloc.dev/ns/public-key":10}}`
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(pubKey)),
+				Body:       io.NopCloser(bytes.NewBufferString(pubKey)),
 				StatusCode: http.StatusOK,
 			}, nil
 		})
@@ -216,7 +215,7 @@ func TestClient_Witness(t *testing.T) {
 			pubKey := `{"properties":{"https://trustbloc.dev/ns/public-key":"9"}}`
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(pubKey)),
+				Body:       io.NopCloser(bytes.NewBufferString(pubKey)),
 				StatusCode: http.StatusOK,
 			}, nil
 		})
@@ -232,7 +231,7 @@ func TestClient_Witness(t *testing.T) {
 	t.Run("No public key (error)", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusOK,
 			}, nil
 		})
@@ -249,7 +248,7 @@ func TestClient_Witness(t *testing.T) {
 	t.Run("Parse credential (error)", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusOK,
 			}, nil
 		})
@@ -264,7 +263,7 @@ func TestClient_Witness(t *testing.T) {
 	t.Run("Add VC (error)", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"message":"error"}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{"message":"error"}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		})
@@ -279,7 +278,7 @@ func TestClient_Witness(t *testing.T) {
 	t.Run("Check Health (error)", func(t *testing.T) {
 		mockHTTP := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"message":"vct error"}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{"message":"vct error"}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		})

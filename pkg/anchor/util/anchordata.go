@@ -16,6 +16,8 @@ import (
 const (
 	delimiter    = "."
 	allowedParts = 2
+	base10       = 10
+	bitSize64    = 64
 )
 
 var integerRegex = regexp.MustCompile(`^[1-9]\d*$`)
@@ -40,7 +42,7 @@ func ParseAnchorString(anchor string) (*AnchorData, error) {
 		return nil, fmt.Errorf("parse anchor data[%s] failed: number of operations must be positive integer", anchor)
 	}
 
-	opsNum, err := strconv.ParseUint(parts[0], 10, 64)
+	opsNum, err := strconv.ParseUint(parts[0], base10, bitSize64)
 	if err != nil {
 		return nil, fmt.Errorf("parse anchor data[%s] failed: %w", anchor, err)
 	}

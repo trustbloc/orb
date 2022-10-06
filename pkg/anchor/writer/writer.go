@@ -46,6 +46,7 @@ import (
 
 var logger = log.New("anchor-writer")
 
+//nolint:interfacebloat
 type metricsProvider interface {
 	WriteAnchorTime(value time.Duration)
 	WriteAnchorBuildCredentialTime(value time.Duration)
@@ -324,7 +325,7 @@ func (c *Writer) getPreviousAnchors(refs []*operation.Reference) ([]*subject.Suf
 	for i, ref := range refs {
 		if anchors[i] == "" {
 			if ref.Type != operation.TypeCreate {
-				return nil, fmt.Errorf("previous did anchor reference not found for %s operation for did[%s]", ref.Type, ref.UniqueSuffix) //nolint:lll
+				return nil, fmt.Errorf("previous did anchor reference not found for %s operation for did[%s]", ref.Type, ref.UniqueSuffix)
 			}
 
 			// create doesn't have previous anchor references
@@ -596,7 +597,6 @@ func (c *Writer) postCreateActivity(anchorLinkset *linkset.Linkset, hl string) e
 }
 
 // postOfferActivity creates and posts offer activity (requests witnessing of anchor credential).
-//nolint:funlen
 func (c *Writer) postOfferActivity(anchorLink *linkset.Link, localProofBytes []byte, batchWitnesses []string) error {
 	postOfferActivityStartTime := time.Now()
 

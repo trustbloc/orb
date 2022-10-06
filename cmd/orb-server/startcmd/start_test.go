@@ -388,7 +388,7 @@ func TestMonitorActivities(t *testing.T) {
 	close(activityChan)
 
 	require.Contains(t, l.getWarns(),
-		"Received activity activityID=https://domain1.com/123 activityType=Reject actorID=https://domain2.com/456")
+		"Received activity activityId=https://domain1.com/123 activityType=Reject actorId=https://domain2.com/456")
 	require.Contains(t, l.getInfos(),
-		"Received activity activityID=https://domain2.com/456 activityType=Accept actorID=https://domain1.com/123")
+		"Received activity activityId=https://domain2.com/456 activityType=Accept actorId=https://domain1.com/123")
 }

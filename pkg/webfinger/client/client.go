@@ -7,10 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"time"
@@ -70,7 +71,7 @@ func New(opts ...Option) *Client {
 	client.resourceCache = gcache.New(client.cacheSize).
 		Expiration(client.cacheLifetime).
 		LoaderFunc(func(key interface{}) (interface{}, error) {
-			k := key.(cacheKey) //nolint:errcheck,forcetypeassert
+			k := key.(cacheKey) //nolint:forcetypeassert
 
 			r, err := client.resolveResource(k.domainWithScheme, k.resource)
 			if err != nil {
@@ -139,13 +140,13 @@ func (c *Client) ResolveWebFingerResource(domainWithScheme, resource string) (re
 			domainWithScheme, resource, err)
 	}
 
-	return *r.(*restapi.JRD), nil
+	return *r.(*restapi.JRD), nil //nolint:forcetypeassert
 }
 
 func (c *Client) resolveResource(domainWithScheme, resource string) (*restapi.JRD, error) {
 	webFingerURL := fmt.Sprintf("%s/.well-known/webfinger?resource=%s", domainWithScheme, resource)
 
-	req, err := http.NewRequest(http.MethodGet, webFingerURL, nil)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, webFingerURL, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new request for WebFinger URL [%s]: %w",
 			webFingerURL, err)
@@ -163,7 +164,7 @@ func (c *Client) resolveResource(domainWithScheme, resource string) (*restapi.JR
 		}
 	}()
 
-	respBytes, err := ioutil.ReadAll(resp.Body)
+	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, orberrors.NewTransientf("failed to read response body: %w", err)
 	}

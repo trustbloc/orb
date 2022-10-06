@@ -112,6 +112,7 @@ const (
 	defaultDatabaseTimeout                  = 10 * time.Second
 	defaultHTTPDialTimeout                  = 2 * time.Second
 	defaultServerIdleTimeout                = 20 * time.Second
+	defaultServerReadHeaderTimeout          = 20 * time.Second
 	defaultHTTPTimeout                      = 20 * time.Second
 	defaultUnpublishedOperationLifespan     = time.Minute * 5
 	defaultTaskMgrCheckInterval             = 10 * time.Second
@@ -631,6 +632,11 @@ const (
 	serverIdleTimeoutFlagUsage = "The timeout for server idle timeout. For example, '30s' for a 30 second timeout. " +
 		commonEnvVarUsageText + serverIdleTimeoutEnvKey
 
+	serverReadHeaderTimeoutFlagName  = "server-read-header-timeout"
+	serverReadHeaderTimeoutEnvKey    = "SERVER_READ_HEADER_TIMEOUT"
+	serverReadHeaderTimeoutFlagUsage = "The timeout for server read header timeout. For example, '30s' for a 30 second timeout. " +
+		commonEnvVarUsageText + serverReadHeaderTimeoutEnvKey
+
 	witnessPolicyCacheExpirationFlagName  = "witness-policy-cache-expiration"
 	witnessPolicyCacheExpirationEnvKey    = "WITNESS_POLICY_CACHE_EXPIRATION"
 	witnessPolicyCacheExpirationFlagUsage = "The expiration time of witness policy cache. " +
@@ -737,6 +743,7 @@ type orbParameters struct {
 	httpTimeout                             time.Duration
 	httpDialTimeout                         time.Duration
 	serverIdleTimeout                       time.Duration
+	serverReadHeaderTimeout                 time.Duration
 	contextProviderURLs                     []string
 	unpublishedOperationLifespan            time.Duration
 	dataExpiryCheckInterval                 time.Duration
@@ -884,7 +891,7 @@ func supportedKmsType(kmsType kmsMode) bool {
 	return true
 }
 
-// nolint: gocyclo,funlen
+//nolint: funlen
 func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	hostURL, err := cmdutil.GetUserSetVarFromString(cmd, hostURLFlagName, hostURLEnvKey, false)
 	if err != nil {
@@ -1320,6 +1327,11 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("%s: %w", serverIdleTimeoutFlagName, err)
 	}
 
+	serverReadHeaderTimeout, err := getDuration(cmd, serverReadHeaderTimeoutFlagName, serverReadHeaderTimeoutEnvKey, defaultServerReadHeaderTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", serverReadHeaderTimeoutFlagName, err)
+	}
+
 	httpTimeout, err := getDuration(cmd, httpTimeoutFlagName, httpTimeoutEnvKey, defaultHTTPTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", httpTimeoutFlagName, err)
@@ -1538,6 +1550,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		apIRICacheSize:                          apIRICacheSize,
 		apIRICacheExpiration:                    apIRICacheExpiration,
 		serverIdleTimeout:                       serverIdleTimeout,
+		serverReadHeaderTimeout:                 serverReadHeaderTimeout,
 		dataURIMediaType:                        dataURIMediaType,
 		sidetreeProtocolVersions:                sidetreeProtocolVersions,
 		currentSidetreeProtocolVersion:          currentSidetreeProtocolVersion,
@@ -2285,6 +2298,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(activityPubIRICacheExpirationFlagName, "", "", activityPubIRICacheExpirationFlagUsage)
 	startCmd.Flags().StringP(activityPubClientCacheExpirationFlagName, "", "", activityPubClientCacheExpirationFlagUsage)
 	startCmd.Flags().StringP(serverIdleTimeoutFlagName, "", "", serverIdleTimeoutFlagUsage)
+	startCmd.Flags().StringP(serverReadHeaderTimeoutFlagName, "", "", serverReadHeaderTimeoutFlagUsage)
 	startCmd.Flags().StringP(dataURIMediaTypeFlagName, "", "", dataURIMediaTypeFlagUsage)
 	startCmd.Flags().String(sidetreeProtocolVersionsFlagName, "", sidetreeProtocolVersionsUsage)
 	startCmd.Flags().String(currentSidetreeProtocolVersionFlagName, "", currentSidetreeProtocolVersionUsage)

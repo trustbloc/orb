@@ -64,7 +64,7 @@ func (s *pooledSubscriber) start() {
 				return
 			}
 
-			msg := value.Interface().(*message.Message) //nolint:errcheck,forcetypeassert
+			msg := value.Interface().(*message.Message) //nolint:forcetypeassert
 
 			logger.Debug("Pool subscriber got message", log.WithIndex(i), log.WithMessageID(msg.UUID))
 

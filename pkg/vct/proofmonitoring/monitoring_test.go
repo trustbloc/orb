@@ -10,7 +10,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"sync"
 	"testing"
@@ -62,10 +62,10 @@ func TestNext(t *testing.T) {
 	require.True(t, Next(&mockNext{}))
 }
 
-func TestClient_Watch(t *testing.T) { //nolint:gocyclo,cyclop
+func TestClient_Watch(t *testing.T) { //nolint:cyclop,maintidx
 	wfHTTPClient := httpMock(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
-			Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
+			Body:       io.NopCloser(bytes.NewBufferString(webfingerPayload)),
 			StatusCode: http.StatusOK,
 		}, nil
 	})
@@ -145,13 +145,13 @@ func TestClient_Watch(t *testing.T) { //nolint:gocyclo,cyclop
 		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == "/ct/v1/get-sth" {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+					Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), taskMgr, time.Second, map[string]string{})
@@ -193,14 +193,14 @@ func TestClient_Watch(t *testing.T) { //nolint:gocyclo,cyclop
 				callNum++
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(`{"tree_size":1}`)),
+					Body:       io.NopCloser(bytes.NewBufferString(`{"tree_size":1}`)),
 					StatusCode: http.StatusOK,
 				}, nil
 			case 1:
 				callNum++
 
 				return &http.Response{
-					Body: ioutil.NopCloser(bytes.NewBufferString(
+					Body: io.NopCloser(bytes.NewBufferString(
 						`{"leaf_index":1,"audit_path":["r7LiyrC61FBM2ylSs+V8o5r+9wppzAH0DYHbOqhYnl4="]}`)),
 					StatusCode: http.StatusOK,
 				}, nil
@@ -240,7 +240,7 @@ func TestClient_Watch(t *testing.T) { //nolint:gocyclo,cyclop
 
 		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"tree_size":0}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{"tree_size":0}`)),
 				StatusCode: http.StatusOK,
 			}, nil
 		}), taskMgr, time.Second, map[string]string{})
@@ -282,14 +282,14 @@ func TestClient_Watch(t *testing.T) { //nolint:gocyclo,cyclop
 				callNum++
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(`{"tree_size":1}`)),
+					Body:       io.NopCloser(bytes.NewBufferString(`{"tree_size":1}`)),
 					StatusCode: http.StatusOK,
 				}, nil
 			case 1:
 				callNum++
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(`Not found`)),
+					Body:       io.NopCloser(bytes.NewBufferString(`Not found`)),
 					StatusCode: http.StatusNotFound,
 				}, nil
 			default:
@@ -334,14 +334,14 @@ func TestClient_Watch(t *testing.T) { //nolint:gocyclo,cyclop
 				callNum++
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(`{"tree_size":1}`)),
+					Body:       io.NopCloser(bytes.NewBufferString(`{"tree_size":1}`)),
 					StatusCode: http.StatusOK,
 				}, nil
 			case 1:
 				callNum++
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(`{"leaf_index":1}`)),
+					Body:       io.NopCloser(bytes.NewBufferString(`{"leaf_index":1}`)),
 					StatusCode: http.StatusOK,
 				}, nil
 			default:
@@ -396,7 +396,7 @@ func TestClient_Watch(t *testing.T) { //nolint:gocyclo,cyclop
 
 		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(<-responses)),
+				Body:       io.NopCloser(bytes.NewBufferString(<-responses)),
 				StatusCode: http.StatusOK,
 			}, nil
 		}), taskMgr, time.Second, map[string]string{})
@@ -470,7 +470,7 @@ func TestClient_Watch(t *testing.T) { //nolint:gocyclo,cyclop
 
 		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(<-responses)),
+				Body:       io.NopCloser(bytes.NewBufferString(<-responses)),
 				StatusCode: http.StatusOK,
 			}, nil
 		}), taskMgr, time.Second, map[string]string{})
@@ -519,7 +519,7 @@ func TestClient_Watch(t *testing.T) { //nolint:gocyclo,cyclop
 
 		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"audit_path":[[]]}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{"audit_path":[[]]}`)),
 				StatusCode: http.StatusOK,
 			}, nil
 		}), taskMgr, time.Second, map[string]string{})
@@ -552,7 +552,7 @@ func TestClient_Watch(t *testing.T) { //nolint:gocyclo,cyclop
 
 		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{"audit_path":[[]]}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{"audit_path":[[]]}`)),
 				StatusCode: http.StatusOK,
 			}, nil
 		}), taskMgr, time.Second, map[string]string{})
@@ -586,7 +586,7 @@ func TestClient_Watch(t *testing.T) { //nolint:gocyclo,cyclop
 		notFoundWebfingerClient := wfclient.New(wfclient.WithHTTPClient(
 			httpMock(func(req *http.Request) (*http.Response, error) {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString("internal server error")),
+					Body:       io.NopCloser(bytes.NewBufferString("internal server error")),
 					StatusCode: http.StatusInternalServerError,
 				}, nil
 			})))
@@ -625,7 +625,7 @@ func TestClient_Watch(t *testing.T) { //nolint:gocyclo,cyclop
 		noLegerTypeWebfingerClient := wfclient.New(wfclient.WithHTTPClient(
 			httpMock(func(req *http.Request) (*http.Response, error) {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+					Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 					StatusCode: http.StatusOK,
 				}, nil
 			})))
@@ -661,7 +661,7 @@ func TestClient_Watch(t *testing.T) { //nolint:gocyclo,cyclop
 		wrongLegerTypeWebfingerClient := wfclient.New(wfclient.WithHTTPClient(
 			httpMock(func(req *http.Request) (*http.Response, error) {
 				return &http.Response{
-					Body: ioutil.NopCloser(
+					Body: io.NopCloser(
 						bytes.NewBufferString(`{"properties":{"https://trustbloc.dev/ns/ledger-type":"vct"}}`),
 					),
 					StatusCode: http.StatusOK,

@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"strings"
 	"time"
 
@@ -73,7 +72,7 @@ func newClient(ipfs ipfsClient, cacheSize int, metrics metricsProvider,
 	c := &Client{ipfs: ipfs, opts: opts, hl: hashlink.New(), metrics: metrics}
 
 	c.cache = gcache.New(cacheSize).LoaderFunc(func(k interface{}) (interface{}, error) {
-		key := k.(string) //nolint:forcetypeassert,errcheck
+		key := k.(string) //nolint:forcetypeassert
 
 		content, err := c.get(key)
 		if err != nil {
@@ -153,7 +152,7 @@ func (m *Client) Read(cidOrHash string) ([]byte, error) {
 
 	cid, err := m.getCID(cidOrHash)
 	if err != nil {
-		return nil, fmt.Errorf("value[%s] passed to ipfs reader is not CID and cannot be converted to CID: %w", cidOrHash, err) //nolint:lll
+		return nil, fmt.Errorf("value[%s] passed to ipfs reader is not CID and cannot be converted to CID: %w", cidOrHash, err)
 	}
 
 	if m.cache.Has(cid) {
@@ -165,7 +164,7 @@ func (m *Client) Read(cidOrHash string) ([]byte, error) {
 		return nil, err
 	}
 
-	return content.([]byte), nil
+	return content.([]byte), nil //nolint:forcetypeassert
 }
 
 func (m *Client) get(cid string) ([]byte, error) {
@@ -188,7 +187,7 @@ func (m *Client) get(cid string) ([]byte, error) {
 
 	defer closeAndLog(reader)
 
-	content, err := ioutil.ReadAll(reader)
+	content, err := io.ReadAll(reader)
 	if err != nil {
 		return nil, fmt.Errorf("read all from IPFS mockReader: %w", err)
 	}

@@ -19,7 +19,7 @@ import (
 func TestAnchorInfoRetriever_GetAnchorInfo(t *testing.T) {
 	const (
 		anchorOrigin = "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q"
-		anchorURI    = "hl:uEiALYp_C4wk2WegpfnCSoSTBdKZ1MVdDadn4rdmZl5GKzQ:uoQ-BeDVpcGZzOi8vUW1jcTZKV0RVa3l4ZWhxN1JWWmtQM052aUU0SHFSdW5SalgzOXZ1THZFSGFRTg" //nolint:lll
+		anchorURI    = "hl:uEiALYp_C4wk2WegpfnCSoSTBdKZ1MVdDadn4rdmZl5GKzQ:uoQ-BeDVpcGZzOi8vUW1jcTZKV0RVa3l4ZWhxN1JWWmtQM052aUU0SHFSdW5SalgzOXZ1THZFSGFRTg"
 		interimDID   = "interimDID:orb:uAAA:EiAWMpJJMauUlAr58MBpdWrfL9Y274xwElaCsfb0P5kmjQ"
 		canonicalRef = "uEiDaapVGRRwUa8-8e0wJQknOeFDiYjnhysjsoA6vL8U60g"
 	)

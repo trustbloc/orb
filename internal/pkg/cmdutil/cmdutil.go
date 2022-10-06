@@ -16,7 +16,6 @@ import (
 
 // GetUserSetOptionalVarFromString returns values either command line flag or environment variable.
 func GetUserSetOptionalVarFromString(cmd *cobra.Command, flagName, envKey string) string {
-	//nolint // the error will not happen for optional var
 	v, _ := GetUserSetVarFromString(cmd, flagName, envKey, true)
 
 	return v
@@ -53,7 +52,6 @@ func GetUserSetVarFromString(cmd *cobra.Command, flagName, envKey string, isOpti
 
 // GetUserSetOptionalVarFromArrayString returns values either command line flag or environment variable.
 func GetUserSetOptionalVarFromArrayString(cmd *cobra.Command, flagName, envKey string) []string {
-	//nolint // reason the error will not happen for optional var
 	v, _ := GetUserSetVarFromArrayString(cmd, flagName, envKey, true)
 
 	return v

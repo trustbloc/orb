@@ -119,6 +119,7 @@ func (d DefaultMarshaler) Marshal(msg *message.Message) (amqp.Publishing, error)
 }
 
 // Unmarshal unmarshals a message.
+//
 //nolint:gocritic
 func (d DefaultMarshaler) Unmarshal(amqpMsg amqp.Delivery) (*message.Message, error) {
 	msgUUIDStr, err := d.unmarshalMessageUUID(amqpMsg.Headers)
@@ -234,7 +235,7 @@ func getExpiration(metadata message.Metadata) string {
 
 	expirationDuration, err := time.ParseDuration(expirationValue)
 	if err == nil {
-		return strconv.FormatInt(expirationDuration.Milliseconds(), 10)
+		return strconv.FormatInt(expirationDuration.Milliseconds(), base10)
 	}
 
 	logger.Warn("Invalid value for metadata property. No expiration will be set.",

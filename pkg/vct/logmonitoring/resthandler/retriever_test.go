@@ -9,7 +9,7 @@ package resthandler
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -46,7 +46,7 @@ func TestLogRetriever(t *testing.T) {
 		require.Equal(t, http.StatusOK, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 		require.NotEmpty(t, respBytes)
 		require.NoError(t, result.Body.Close())
@@ -70,7 +70,7 @@ func TestLogRetriever(t *testing.T) {
 		require.Equal(t, http.StatusOK, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 		require.NoError(t, result.Body.Close())
 
@@ -93,7 +93,7 @@ func TestLogRetriever(t *testing.T) {
 		require.Equal(t, http.StatusOK, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 		require.NoError(t, result.Body.Close())
 
@@ -116,7 +116,7 @@ func TestLogRetriever(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 		require.Equal(t, []byte(internalServerErrorResponse), respBytes)
 		require.NoError(t, result.Body.Close())
@@ -134,7 +134,7 @@ func TestLogRetriever(t *testing.T) {
 		require.Equal(t, http.StatusNotFound, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 		require.Equal(t, []byte(notFoundResponse), respBytes)
 		require.NoError(t, result.Body.Close())
@@ -152,7 +152,7 @@ func TestLogRetriever(t *testing.T) {
 		require.Equal(t, http.StatusNotFound, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 		require.Equal(t, []byte(notFoundResponse), respBytes)
 		require.NoError(t, result.Body.Close())
@@ -176,7 +176,7 @@ func TestLogRetriever(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 		require.Equal(t, []byte(internalServerErrorResponse), respBytes)
 		require.NoError(t, result.Body.Close())

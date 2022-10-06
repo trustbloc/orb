@@ -21,7 +21,7 @@ import (
 // 1. Replace did:orb ID with did:web ID in Orb did document
 // 2. add up to two Orb equivalent IDs to also known as
 // (equivalentID with discovery domain for unpublished or canonical ID and HL ID for published).
-func WebDocumentFromOrbDocument(webDID string, orbResolutionResult *document.ResolutionResult) (document.Document, error) { // nolint:lll
+func WebDocumentFromOrbDocument(webDID string, orbResolutionResult *document.ResolutionResult) (document.Document, error) {
 	orbDID := getOrbDID(orbResolutionResult)
 
 	didWebDoc, err := transformToDIDWeb(webDID, orbResolutionResult.Document)
@@ -43,7 +43,7 @@ func WebDocumentFromOrbDocument(webDID string, orbResolutionResult *document.Res
 	return didWebDoc, nil
 }
 
-func updateAlsoKnownAs(didWebDoc document.Document, webDID, orbDID string, equivalentID []string) (document.Document, error) { //nolint:lll
+func updateAlsoKnownAs(didWebDoc document.Document, webDID, orbDID string, equivalentID []string) (document.Document, error) {
 	alsoKnownAs, err := getAlsoKnownAs(didWebDoc)
 	if err != nil {
 		return nil, err

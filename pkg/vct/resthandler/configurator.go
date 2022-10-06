@@ -8,7 +8,7 @@ package resthandler
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -70,7 +70,7 @@ func New(cfgStore storage.Store, lmStore logMonitorStore) *LogConfigurator {
 }
 
 func (c *LogConfigurator) handle(w http.ResponseWriter, req *http.Request) {
-	logURLBytes, err := ioutil.ReadAll(req.Body)
+	logURLBytes, err := io.ReadAll(req.Body)
 	if err != nil {
 		log.ReadRequestBodyError(c.logger, err)
 

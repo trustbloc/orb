@@ -75,7 +75,7 @@ func New(retriever policyRetriever, policyCacheExpiry time.Duration) (*WitnessPo
 	}
 
 	logger.Debug("Created new witness policy evaluator with cache",
-		log.WithWitnessPolicy(policy.(string)), log.WithCacheExpiration(policyCacheExpiry))
+		log.WithWitnessPolicy(policy.(string)), log.WithCacheExpiration(policyCacheExpiry)) //nolint:forcetypeassert
 
 	return wp, nil
 }
@@ -202,7 +202,7 @@ func (wp *WitnessPolicy) Select(witnesses []*proof.Witness, exclude ...*proof.Wi
 }
 
 // selects min number of batch and system witnesses that are required to fulfill witness policy.
-func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witness, // nolint:funlen,gocyclo,cyclop
+func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witness, //nolint: cyclop
 	cfg *config.WitnessPolicyConfig, exclude ...*proof.Witness) ([]*proof.Witness, []*proof.Witness, error) {
 	logger.Debug("Selecting minimum number of batch and system witnesses based on policy",
 		withPolicyConfigField(cfg), withWitnessesField(witnesses))
@@ -253,7 +253,7 @@ func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witnes
 		selectedBatchWitnesses, err = wp.selectMinWitnesses(eligibleBatchWitnesses, cfg.MinNumberBatch,
 			cfg.MinPercentBatch, totalBatchWitnesses, commonWitnesses...)
 		if err != nil {
-			return nil, nil, fmt.Errorf("select batch witnesses based on witnesses%s, eligible%s, exclude%s common%s, total[%d], policy[%s]: %w", //nolint:lll
+			return nil, nil, fmt.Errorf("select batch witnesses based on witnesses%s, eligible%s, exclude%s common%s, total[%d], policy[%s]: %w",
 				witnesses, eligibleBatchWitnesses, exclude, commonWitnesses, totalBatchWitnesses, cfg, err)
 		}
 	}
@@ -264,7 +264,7 @@ func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witnes
 	selectedSystemWitnesses, err := wp.selectMinWitnesses(eligibleSystemWitnesses, cfg.MinNumberSystem,
 		cfg.MinPercentSystem, totalSystemWitnesses, commonWitnesses...)
 	if err != nil {
-		return nil, nil, fmt.Errorf("select system witnesses based on witnesses%s, eligible%s, common%s, total[%d], policy[%s]: %w", //nolint:lll
+		return nil, nil, fmt.Errorf("select system witnesses based on witnesses%s, eligible%s, common%s, total[%d], policy[%s]: %w",
 			witnesses, eligibleSystemWitnesses, commonWitnesses, totalSystemWitnesses, cfg, err)
 	}
 

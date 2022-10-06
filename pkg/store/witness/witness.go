@@ -476,7 +476,9 @@ func getWitnessesMap(witnesses []*url.URL) map[string]bool {
 	return witnessesMap
 }
 
-// Entry contains common data for for witness-info and witness-proof.
+// Entry contains common data for witness-info and witness-proof.
+//
+//nolint:tagliatelle
 type Entry struct {
 	EntryType  string `json:"entryType"`
 	AnchorID   string `json:"anchorID"`

@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -43,7 +42,7 @@ func NewAcceptListWriter(cfg *Config, mgr acceptListMgr) *AcceptListWriter {
 		mgr:      mgr,
 		endpoint: endpoint,
 		marshal:  json.Marshal,
-		readAll:  ioutil.ReadAll,
+		readAll:  io.ReadAll,
 		logger:   log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
 	}
 }

@@ -208,8 +208,8 @@ func (o *Operation) GetRESTHandlers() []common.HTTPHandler {
 // wellKnownHandler.
 //
 // Responses:
-//    default: genericError
-//        200: wellKnownResp
+// default: genericError
+// 200: wellKnownResp
 func (o *Operation) wellKnownHandler(rw http.ResponseWriter, r *http.Request) {
 	writeResponse(rw, &WellKnownResponse{
 		ResolutionEndpoint: fmt.Sprintf("%s%s", o.baseURL, o.resolutionPath),
@@ -245,8 +245,8 @@ func (o *Operation) orbWebDIDFileHandler(rw http.ResponseWriter, r *http.Request
 // webDIDHandler.
 //
 // Responses:
-//    default: genericError
-//        200: wellKnownDIDResp
+// default: genericError
+// 200: wellKnownDIDResp
 func (o *Operation) webDIDHandler(rw http.ResponseWriter, r *http.Request) {
 	o.handleDIDWeb("did:web:"+o.serviceEndpointURL.Host, o.pubKeys, rw, true, false)
 }
@@ -254,8 +254,8 @@ func (o *Operation) webDIDHandler(rw http.ResponseWriter, r *http.Request) {
 // serviceWebDIDHandler swagger:route Get /services/orb/did.json discovery serviceDIDReq
 //
 // Responses:
-//    default: genericError
-//        200: wellKnownDIDResp
+// default: genericError
+// 200: wellKnownDIDResp
 func (o *Operation) serviceWebDIDHandler(rw http.ResponseWriter, r *http.Request) {
 	o.handleDIDWeb(o.serviceID.String(), o.httpSignPubKeys, rw, false, true)
 }
@@ -303,7 +303,7 @@ func (o *Operation) handleDIDWeb(did string, pubKeys []PublicKey, rw http.Respon
 	}
 }
 
-//nolint:gocyclo,cyclop
+//nolint:cyclop
 func populateVerificationMethod(rawDoc *ariesdid.Doc, did string, key PublicKey,
 	includeVerificationRelationships bool) error {
 	var vm *ariesdid.VerificationMethod
@@ -347,8 +347,8 @@ func populateVerificationMethod(rawDoc *ariesdid.Doc, did string, key PublicKey,
 // webFingerHandler.
 //
 // Responses:
-//    default: genericError
-//        200: webFingerResp
+// default: genericError
+// 200: webFingerResp
 func (o *Operation) webFingerHandler(rw http.ResponseWriter, r *http.Request) {
 	queryValue := r.URL.Query()["resource"]
 	if len(queryValue) == 0 {
@@ -365,8 +365,8 @@ func (o *Operation) webFingerHandler(rw http.ResponseWriter, r *http.Request) {
 // Returns the NodeInfo endpoints that may be queried to provide general information about an Orb server.
 //
 // Responses:
-//    default: genericError
-//        200: wellKnownNodeInfoResp
+// default: genericError
+// 200: wellKnownNodeInfoResp
 func (o *Operation) nodeInfoHandler(rw http.ResponseWriter, r *http.Request) {
 	writeResponse(rw, &JRD{
 		Links: []Link{

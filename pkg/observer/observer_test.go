@@ -51,7 +51,7 @@ import (
 //go:generate counterfeiter -o ../mocks/anchorlinkstore.gen.go --fake-name AnchorLinkStore . linkStore
 //go:generate counterfeiter -o ./mocks/monitoring.gen.go --fake-name MonitoringService . monitoringSvc
 
-type linkStore interface { //nolint:deadcode,unused
+type linkStore interface { //nolint:unused
 	PutLinks(links []*url.URL) error
 	GetLinks(anchorHash string) ([]*url.URL, error)
 	DeleteLinks(links []*url.URL) error
@@ -79,6 +79,7 @@ func TestNew(t *testing.T) {
 	require.Nil(t, o)
 }
 
+//nolint:maintidx
 func TestStartObserver(t *testing.T) {
 	const (
 		namespace1 = "did:orb"
@@ -877,7 +878,7 @@ func TestStartObserver(t *testing.T) {
 }
 
 func TestResolveActorFromHashlink(t *testing.T) {
-	const hl = "hl:uEiBdcSP14brpoA76draKLGbh4cfxhrRfTWq7Ay3A3RVJyw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQmRjU1AxNGJycG9BNzZkcmFLTEdiaDRjZnhoclJmVFdxN0F5M0EzUlZKeXc" //nolint:lll
+	const hl = "hl:uEiBdcSP14brpoA76draKLGbh4cfxhrRfTWq7Ay3A3RVJyw:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpQmRjU1AxNGJycG9BNzZkcmFLTEdiaDRjZnhoclJmVFdxN0F5M0EzUlZKeXc"
 
 	casResolver := &protomocks.CASResolver{}
 	wfResolver := &apmocks.WebFingerResolver{}
@@ -1032,7 +1033,7 @@ func newMockAnchorLinkset(t *testing.T, payload *subject.Payload) *linkset.Links
 }
 
 var pubKeyFetcherFnc = func(issuerID, keyID string) (*verifier.PublicKey, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 type mockDidAnchor struct {
@@ -1047,7 +1048,6 @@ func (m *mockDidAnchor) PutBulk(_ []string, _ []bool, _ string) error {
 	return nil
 }
 
-//nolint:lll
 const anchorEvent = `{
   "linkset": [
     {
@@ -1088,7 +1088,6 @@ const anchorEventInvalid = `{
   "@context": [
 `
 
-//nolint:lll
 const testVC = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",

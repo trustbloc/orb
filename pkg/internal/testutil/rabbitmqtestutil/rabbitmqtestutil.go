@@ -18,7 +18,7 @@ import (
 
 const startingPort = 5672
 
-var currentPort uint32 = startingPort //nolint:gochecknoglobals
+var currentPort uint32 = startingPort
 
 // StartRabbitMQ starts a RabbitMQ Docker container. The connection URI is returned,
 // as well as a function that should be invoked to stop the Docker container when it is
@@ -59,7 +59,7 @@ func startRabbitMQContainer() (*dctest.Pool, *dctest.Resource, string) {
 		})
 		if err != nil {
 			if strings.Contains(err.Error(), "port is already allocated") {
-				log.Println(fmt.Sprintf("Got error. Trying on another port: %s", err.Error()))
+				log.Printf("Got error. Trying on another port: %s", err.Error())
 
 				continue
 			}

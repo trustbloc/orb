@@ -54,6 +54,7 @@ func TestNew(t *testing.T) {
 	})
 }
 
+//nolint:maintidx
 func TestEvaluate(t *testing.T) {
 	witnessURL, err := url.Parse("https://domain.com/service")
 	require.NoError(t, err)
@@ -816,6 +817,7 @@ func TestGetWitnessPolicyConfig(t *testing.T) {
 	})
 }
 
+//nolint:maintidx
 func TestSelect(t *testing.T) {
 	batchWitnessURL, err := url.Parse("https://batch.com/service")
 	require.NoError(t, err)

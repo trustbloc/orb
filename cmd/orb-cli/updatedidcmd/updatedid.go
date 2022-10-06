@@ -134,7 +134,7 @@ func GetUpdateDIDCmd() *cobra.Command {
 	return updateDIDCmd
 }
 
-func updateDIDCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop
+func updateDIDCmd() *cobra.Command { //nolint: funlen,cyclop
 	return &cobra.Command{
 		Use:          "update",
 		Short:        "Update Orb DID",
