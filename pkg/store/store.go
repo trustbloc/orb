@@ -22,7 +22,7 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
-var logger = log.NewStructured("store")
+var logger = log.New("store")
 
 const idField = "_id"
 

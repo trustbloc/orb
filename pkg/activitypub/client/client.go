@@ -30,7 +30,7 @@ import (
 	cryptoutil "github.com/trustbloc/orb/pkg/util"
 )
 
-var logger = log.NewStructured("activitypub_client")
+var logger = log.New("activitypub_client")
 
 const (
 	defaultCacheSize       = 100

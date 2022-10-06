@@ -44,7 +44,7 @@ type Provider struct {
 	activityStore           ariesstorage.Store
 	referenceStore          ariesstorage.Store
 	multipleTagQueryCapable bool
-	logger                  *log.StructuredLog
+	logger                  *log.Log
 }
 
 // New returns a new ActivityPub storage provider.
@@ -61,7 +61,7 @@ func New(serviceName string, provider ariesstorage.Provider, multipleTagQueryCap
 		activityStore:           stores.activities,
 		referenceStore:          stores.reference,
 		multipleTagQueryCapable: multipleTagQueryCapable,
-		logger:                  log.NewStructured(loggerModule, log.WithFields(log.WithServiceName(serviceName))),
+		logger:                  log.New(loggerModule, log.WithFields(log.WithServiceName(serviceName))),
 	}, nil
 }
 

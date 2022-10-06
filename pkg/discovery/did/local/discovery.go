@@ -17,7 +17,7 @@ import (
 	"github.com/trustbloc/orb/pkg/document/util"
 )
 
-var logger = log.NewStructured("local-discovery")
+var logger = log.New("local-discovery")
 
 type didPublisher interface {
 	PublishDID(dids string) error

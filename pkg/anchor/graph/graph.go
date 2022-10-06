@@ -20,7 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/linkset"
 )
 
-var logger = log.NewStructured("anchor-graph")
+var logger = log.New("anchor-graph")
 
 // Graph manages anchor graph.
 type Graph struct {

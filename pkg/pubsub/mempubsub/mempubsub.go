@@ -18,7 +18,7 @@ import (
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
-var logger = log.NewStructured("pubsub")
+var logger = log.New("pubsub")
 
 const (
 	defaultTimeout     = 10 * time.Second

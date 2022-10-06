@@ -20,7 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/store"
 )
 
-var logger = log.NewStructured("public-key-store")
+var logger = log.New("public-key-store")
 
 const (
 	storeName    = "public-key"

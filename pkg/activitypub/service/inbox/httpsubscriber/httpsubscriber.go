@@ -55,7 +55,7 @@ type Subscriber struct {
 	unmarshalMessage wmhttp.UnmarshalMessageFunc
 	verifier         signatureVerifier
 	tokenVerifier    *auth.TokenVerifier
-	logger           *log.StructuredLog
+	logger           *log.Log
 }
 
 // New returns a new HTTP subscriber.
@@ -73,7 +73,7 @@ func New(cfg *Config, sigVerifier signatureVerifier, tm authTokenManager) *Subsc
 		stopped:          make(chan struct{}),
 		done:             make(chan struct{}),
 		tokenVerifier:    auth.NewTokenVerifier(tm, cfg.ServiceEndpoint, http.MethodPost),
-		logger:           log.NewStructured(loggerModule, log.WithFields(log.WithServiceName(cfg.ServiceEndpoint))),
+		logger:           log.New(loggerModule, log.WithFields(log.WithServiceName(cfg.ServiceEndpoint))),
 	}
 
 	s.Lifecycle = lifecycle.New("httpsubscriber-"+cfg.ServiceEndpoint,

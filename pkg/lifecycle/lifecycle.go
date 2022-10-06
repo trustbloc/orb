@@ -44,7 +44,7 @@ type Lifecycle struct {
 	*options
 	name   string
 	state  uint32
-	logger *log.StructuredLog
+	logger *log.Log
 }
 
 // Opt sets a Lifecycle option.
@@ -78,7 +78,7 @@ func New(name string, opts ...Opt) *Lifecycle {
 	return &Lifecycle{
 		options: options,
 		name:    name,
-		logger:  log.NewStructured(loggerModule, log.WithFields(log.WithServiceName(name))),
+		logger:  log.New(loggerModule, log.WithFields(log.WithServiceName(name))),
 	}
 }
 

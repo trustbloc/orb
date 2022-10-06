@@ -34,7 +34,7 @@ import (
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
-var logger = log.NewStructured("orb-observer")
+var logger = log.New("orb-observer")
 
 const (
 	defaultSubscriberPoolSize = 5

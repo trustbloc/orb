@@ -11,7 +11,7 @@ require (
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.5
 	github.com/trustbloc/orb v1.0.0-rc3
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20220923202310-696e9936c60c
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221005183541-1b59b4a9dd99
 )
 
 require (
@@ -34,7 +34,7 @@ require (
 	github.com/google/trillian v1.3.14-0.20210520152752-ceda464a95a3 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
-	github.com/hyperledger/aries-framework-go v0.1.9-0.20220819134023-730ac301c3c0 // indirect
+	github.com/hyperledger/aries-framework-go v0.1.9-0.20220822173318-77fbef728d02 // indirect
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220615170242-cda5092b4faf // indirect
 	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc2.0.20220729203359-da1de2fa21ce // indirect
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220610133818-119077b0ec85 // indirect
@@ -70,7 +70,7 @@ require (
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/square/go-jose/v3 v3.0.0-20200630053402-0a67ce9b0693 // indirect
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8 // indirect
-	github.com/trustbloc/vct v1.0.0-rc3.0.20220923211225-330d08937d67 // indirect
+	github.com/trustbloc/vct v1.0.0-rc3.0.20221005225741-acba00018d6b // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
 	github.com/xdg-go/scram v1.1.1 // indirect

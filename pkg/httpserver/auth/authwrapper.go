@@ -25,13 +25,13 @@ type HandlerWrapper struct {
 	handler       common.HTTPHandler
 	handleRequest common.HTTPRequestHandler
 	writeResponse func(w http.ResponseWriter, status int, body []byte)
-	logger        *log.StructuredLog
+	logger        *log.Log
 }
 
 // NewHandlerWrapper returns a handler that first performs bearer token authorization and, if authorized,
 // invokes the wrapped handler.
 func NewHandlerWrapper(handler common.HTTPHandler, tm tokenManager) *HandlerWrapper {
-	logger := log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(handler.Path())))
+	logger := log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(handler.Path())))
 
 	return &HandlerWrapper{
 		verifier:      NewTokenVerifier(tm, handler.Path(), handler.Method()),

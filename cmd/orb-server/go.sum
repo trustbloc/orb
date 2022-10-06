@@ -601,7 +601,6 @@ github.com/hyperledger/aries-framework-go v0.1.7-0.20210603210127-e57b8c94e3cf/g
 github.com/hyperledger/aries-framework-go v0.1.8-0.20220217153004-1622c70e5767/go.mod h1:rBMOJVwyHyYbOqbb3IB/ExBkHyvFLht/W81s24GmjcE=
 github.com/hyperledger/aries-framework-go v0.1.8-0.20220322085443-50e8f9bd208b/go.mod h1:bqeLa1s8fQ7YueGOOk0Q+r48FGF7sd8GEaS/CyEo/iY=
 github.com/hyperledger/aries-framework-go v0.1.8/go.mod h1:7ilurt17sjWruVIBxZSrwn8qUbROq8LXYYY+O7dNxIM=
-github.com/hyperledger/aries-framework-go v0.1.9-0.20220819134023-730ac301c3c0/go.mod h1:28aD9QTgVjeAl86vHNFwkOYwQwZiTrrODMpjE2PYz3M=
 github.com/hyperledger/aries-framework-go v0.1.9-0.20220822173318-77fbef728d02 h1:phipjA38PzjN7/h6t+8Vv8XPlW5t+327GD0p9v8wx4Y=
 github.com/hyperledger/aries-framework-go v0.1.9-0.20220822173318-77fbef728d02/go.mod h1:28aD9QTgVjeAl86vHNFwkOYwQwZiTrrODMpjE2PYz3M=
 github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20220428163625-96d8261511e1 h1:J17kEzMu0cA2xsgC0VcZiKu9ivV0/WMMmeCW7UrfQ1Y=
@@ -614,7 +613,6 @@ github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-202105200
 github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20210820175050-dcc7a225178d/go.mod h1:i40JkMHCh9cHHxSc1SYznO3xDH6ly5CE0B3vPYZVeWI=
 github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220308060532-714cd5c18552/go.mod h1:eIac5lubCy3tw6D0sTluM5U6Bw3inBwUfjX17o2U7PE=
 github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220322085443-50e8f9bd208b/go.mod h1:eIac5lubCy3tw6D0sTluM5U6Bw3inBwUfjX17o2U7PE=
-github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220330133350-1c2d9d65aea4/go.mod h1:Ix9UiSzG4IQDPJQ63B71CxigrcJ0Q0PKdCrl9VqrE6Y=
 github.com/hyperledger/aries-framework-go/component/storage/edv v0.0.0-20220606124520-53422361c38c/go.mod h1:JrwivOOQmuXbV1mFWgBGWnfCorOFdfGkpBsYK8dYrfM=
 github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210409151411-eeeb8508bd87/go.mod h1:kJT7bcaKsvk1lMp2jqS8srF+ZUie2H4MoPbL2V29dgA=
 github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20210421203733-b5dfd703a8fc/go.mod h1:uGc7F3tXQIY6xjs8VEI6/oxp4ZDXDfGjPMCTgax5Zhc=
@@ -625,7 +623,6 @@ github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-202202171
 github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220308060532-714cd5c18552/go.mod h1:yLgRpVlZ2heeeOpTgvEnG/yHL9q1keUu5ILQ6s2qpLU=
 github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220322085443-50e8f9bd208b/go.mod h1:yLgRpVlZ2heeeOpTgvEnG/yHL9q1keUu5ILQ6s2qpLU=
 github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220324201531-18c87667df19/go.mod h1:ryG46jQRvQUUH/0wjORghfJnxJVH1yIXIsAv1GXIWp8=
-github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220330133350-1c2d9d65aea4/go.mod h1:ryG46jQRvQUUH/0wjORghfJnxJVH1yIXIsAv1GXIWp8=
 github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220610133818-119077b0ec85 h1:P82lZe6zDjaP2j87nDYQBSBYrB6Nq6nc9MtyNMC3K4A=
 github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220610133818-119077b0ec85/go.mod h1:ryG46jQRvQUUH/0wjORghfJnxJVH1yIXIsAv1GXIWp8=
 github.com/hyperledger/aries-framework-go/spi v0.0.0-20210320144851-40976de98ccf/go.mod h1:fDr9wW00GJJl1lR1SFHmJW8utIocdvjO5RNhAYS05EY=
@@ -647,7 +644,6 @@ github.com/hyperledger/aries-framework-go/spi v0.0.0-20220217153004-1622c70e5767
 github.com/hyperledger/aries-framework-go/spi v0.0.0-20220308060532-714cd5c18552/go.mod h1:4bD5c5fj5K7rkQurVa/8I8+TfNcI4bxIBzaUNcxTOTg=
 github.com/hyperledger/aries-framework-go/spi v0.0.0-20220322085443-50e8f9bd208b/go.mod h1:4bD5c5fj5K7rkQurVa/8I8+TfNcI4bxIBzaUNcxTOTg=
 github.com/hyperledger/aries-framework-go/spi v0.0.0-20220324201531-18c87667df19/go.mod h1:4bD5c5fj5K7rkQurVa/8I8+TfNcI4bxIBzaUNcxTOTg=
-github.com/hyperledger/aries-framework-go/spi v0.0.0-20220330133350-1c2d9d65aea4/go.mod h1:4bD5c5fj5K7rkQurVa/8I8+TfNcI4bxIBzaUNcxTOTg=
 github.com/hyperledger/aries-framework-go/spi v0.0.0-20220330140627-07042d78580c/go.mod h1:4bD5c5fj5K7rkQurVa/8I8+TfNcI4bxIBzaUNcxTOTg=
 github.com/hyperledger/aries-framework-go/spi v0.0.0-20220606124520-53422361c38c/go.mod h1:4bD5c5fj5K7rkQurVa/8I8+TfNcI4bxIBzaUNcxTOTg=
 github.com/hyperledger/aries-framework-go/spi v0.0.0-20220610133818-119077b0ec85/go.mod h1:4bD5c5fj5K7rkQurVa/8I8+TfNcI4bxIBzaUNcxTOTg=
@@ -1169,13 +1165,12 @@ github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344 h1:KCEn2RI
 github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344/go.mod h1:B8FIw5LTq6DaULoHsVFRzYIUDkl8yuSwCdZnOZGKL/A=
 github.com/trustbloc/auth/spi/gnap v0.0.0-20220721161924-5a7b16c4282f/go.mod h1:ONvkj2rTwuhwQqtfJO7m4H9njyCr7LSJ8zHudZngoKs=
 github.com/trustbloc/edge-core v0.1.8/go.mod h1:gfoyG/xquRXyHkww0ldM2jwOTuKKZpHYn+87f+TBQ8M=
-github.com/trustbloc/kms v0.1.9-0.20220526151939-d46e46e8f7e1/go.mod h1:a6XvGLZgwVqBAt47550cQeRKm04X2Nn1M8DE0PVb0XA=
 github.com/trustbloc/kms v0.1.9-0.20220927102932-412f152996fa h1:NeRi6ksYAYTmKG1eVBEy/LMPehkFeYwYWwQEH2Oi6zI=
 github.com/trustbloc/kms v0.1.9-0.20220927102932-412f152996fa/go.mod h1:Vv+mv35QeUo5f+Llm/gsp6x4FgLkLH9dTp4dGK0+aQU=
-github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20220923202310-696e9936c60c h1:EIwF6z/xdpj+Y9s/CGRH7MBwv/eJpbqJbjMdiEteXr8=
-github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20220923202310-696e9936c60c/go.mod h1:vb3m2AnDSwkAYbH/i9Hj4eud5ie2d/UIuwVuniuE258=
-github.com/trustbloc/vct v1.0.0-rc3.0.20220923211225-330d08937d67 h1:aA59clUe5TMq3sxRVYeOmgoKfqiqOOYHRexzU7p0knI=
-github.com/trustbloc/vct v1.0.0-rc3.0.20220923211225-330d08937d67/go.mod h1:tkY5HJAsGCaKDRNOGSI8z2IIYsxM+0by2BaXKPxXPBE=
+github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221005183541-1b59b4a9dd99 h1:UBoQE2qEPmmEpOrLIvg6DQRDZeKrmSq6nrDuRFUwCUc=
+github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221005183541-1b59b4a9dd99/go.mod h1:vb3m2AnDSwkAYbH/i9Hj4eud5ie2d/UIuwVuniuE258=
+github.com/trustbloc/vct v1.0.0-rc3.0.20221005225741-acba00018d6b h1:qL5S9RmF5/vk4oFdJpwDBbhSxPmjaMkKz9LwX8CMtIs=
+github.com/trustbloc/vct v1.0.0-rc3.0.20221005225741-acba00018d6b/go.mod h1:2n0PXsq0SCJwyqdWPUviAgpSj7FQRm/rOxA1e0aOq4Q=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
 github.com/ugorji/go v1.1.4/go.mod h1:uQMGLiO92mf5W77hV/PUCpI3pbzQx3CRekS0kk+RGrc=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=
@@ -1308,7 +1303,6 @@ golang.org/x/crypto v0.0.0-20201216223049-8b5274cf687f/go.mod h1:jdWPYTVW3xRLrWP
 golang.org/x/crypto v0.0.0-20210322153248-0c34fe9e7dc2/go.mod h1:T9bdIzuCu7OtxOm1hfPfRQxPLYneinmdGuTeoZ9dtd4=
 golang.org/x/crypto v0.0.0-20210616213533-5ff15b29337e/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
 golang.org/x/crypto v0.0.0-20210817164053-32db794688a5/go.mod h1:GvvjBRRGRdwPK5ydBHafDWAxML/pGHZbMvKqRZ5+Abc=
-golang.org/x/crypto v0.0.0-20220112180741-5e0467b6c7ce/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
 golang.org/x/crypto v0.0.0-20220214200702-86341886e292/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
 golang.org/x/crypto v0.0.0-20220427172511-eb4f295cb31f/go.mod h1:IxCIyHEi3zRg3s0A5j5BB6A9Jmi73HwBIUl50j+osU4=
 golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e h1:T8NU3HyQ8ClP4SEE+KbFlg6n0NhuTsN4MyznaarGsZM=
@@ -1544,7 +1538,6 @@ golang.org/x/sys v0.0.0-20211124211545-fe61309f8881/go.mod h1:oPkhp1MJrh7nUepCBc
 golang.org/x/sys v0.0.0-20211205182925-97ca703d548d/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20211210111614-af8b64212486/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20211216021012-1d35b9e2eb4e/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
-golang.org/x/sys v0.0.0-20220111092808-5a964db01320/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220128215802-99c3d69c2c27/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220209214540-3681064d5158/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20220408201424-a24fb2fb8a0f/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=

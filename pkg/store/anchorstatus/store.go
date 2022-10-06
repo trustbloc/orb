@@ -37,7 +37,7 @@ const (
 	defaultCheckStatusAfterTimePeriod = 10 * time.Second
 )
 
-var logger = log.NewStructured("anchor-status")
+var logger = log.New("anchor-status")
 
 // Option is an option for registered store.
 type Option func(opts *Store)

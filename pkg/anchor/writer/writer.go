@@ -44,7 +44,7 @@ import (
 	"github.com/trustbloc/orb/pkg/vct"
 )
 
-var logger = log.NewStructured("anchor-writer")
+var logger = log.New("anchor-writer")
 
 type metricsProvider interface {
 	WriteAnchorTime(value time.Duration)

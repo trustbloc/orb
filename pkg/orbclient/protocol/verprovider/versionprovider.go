@@ -15,7 +15,7 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
-var logger = log.NewStructured("client-version-provider")
+var logger = log.New("client-version-provider")
 
 // ClientVersionProvider implements client versions.
 type ClientVersionProvider struct {

@@ -34,7 +34,7 @@ import (
 	"github.com/trustbloc/orb/pkg/versions/1_0/txnprocessor"
 )
 
-var logger = log.NewStructured("protocol-v_test")
+var logger = log.New("protocol-v_test")
 
 // Factory implements test version of the Sidetree protocol.
 type Factory struct{}

@@ -24,7 +24,7 @@ import (
 
 const logModule = "activity_sync"
 
-var logger = log.NewStructured(logModule)
+var logger = log.New(logModule)
 
 const (
 	defaultInterval       = time.Minute

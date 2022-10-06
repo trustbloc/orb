@@ -21,7 +21,7 @@ import (
 	versioncommon "github.com/trustbloc/orb/pkg/protocolversion/common"
 )
 
-var logger = log.NewStructured("factory-registry")
+var logger = log.New("factory-registry")
 
 type factory interface {
 	Create(version string, casClient cas.Client, casResolver ctxcommon.CASResolver, opStore ctxcommon.OperationStore,

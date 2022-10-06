@@ -20,7 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/lifecycle"
 )
 
-var logger = log.NewStructured("nodeinfo")
+var logger = log.New("nodeinfo")
 
 type stats struct {
 	Posts    uint64

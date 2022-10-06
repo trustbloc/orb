@@ -24,7 +24,7 @@ type Logger struct {
 
 // New returns a new Watermill logger adapter.
 func New() *Logger {
-	return newWMLogger(log.NewStructured(Module))
+	return newWMLogger(log.New(Module))
 }
 
 func newWMLogger(logger logger) *Logger {

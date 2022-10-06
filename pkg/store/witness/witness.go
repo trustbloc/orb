@@ -39,7 +39,7 @@ const (
 	iteratorErrMsgFormat = "iterator error for anchorID[%s] : %w"
 )
 
-var logger = log.NewStructured("witness-store")
+var logger = log.New("witness-store")
 
 // New creates new anchor witness store.
 func New(provider storage.Provider, expiryService *expiry.Service, expiryPeriod time.Duration) (*Store, error) {

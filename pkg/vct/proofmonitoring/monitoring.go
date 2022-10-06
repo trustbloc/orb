@@ -24,7 +24,7 @@ import (
 	"github.com/trustbloc/orb/pkg/webfinger/model"
 )
 
-var logger = log.NewStructured("vct_monitor")
+var logger = log.New("vct_monitor")
 
 const (
 	taskID            = "proof-monitor"

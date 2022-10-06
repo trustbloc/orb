@@ -18,7 +18,7 @@ import (
 	"github.com/trustbloc/orb/pkg/context/common"
 )
 
-var logger = log.NewStructured("orb-txn-processor")
+var logger = log.New("orb-txn-processor")
 
 // Providers contains the providers required by the TxnProcessor.
 type Providers struct {

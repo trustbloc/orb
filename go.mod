@@ -16,7 +16,7 @@ require (
 	github.com/google/trillian v1.3.14-0.20210520152752-ceda464a95a3
 	github.com/google/uuid v1.3.0
 	github.com/gorilla/mux v1.8.0
-	github.com/hyperledger/aries-framework-go v0.1.9-0.20220819134023-730ac301c3c0
+	github.com/hyperledger/aries-framework-go v0.1.9-0.20220822173318-77fbef728d02
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220615170242-cda5092b4faf
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220610133818-119077b0ec85
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20220614152730-3d817acfa48b
@@ -33,8 +33,8 @@ require (
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.7.5
 	github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20220923202310-696e9936c60c
-	github.com/trustbloc/vct v1.0.0-rc3.0.20220923211225-330d08937d67
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221005183541-1b59b4a9dd99
+	github.com/trustbloc/vct v1.0.0-rc3.0.20221005225741-acba00018d6b
 	go.mongodb.org/mongo-driver v1.9.1
 	go.uber.org/zap v1.17.0
 	golang.org/x/net v0.0.0-20220127200216-cd36cc0744dd

@@ -20,7 +20,7 @@ import (
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry"
 )
 
-var logger = log.NewStructured("did-anchor-info")
+var logger = log.New("did-anchor-info")
 
 const minDidParts = 4
 

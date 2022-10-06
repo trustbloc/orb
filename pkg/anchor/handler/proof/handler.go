@@ -30,7 +30,7 @@ import (
 	"github.com/trustbloc/orb/pkg/vct"
 )
 
-var logger = log.NewStructured("proof-handler")
+var logger = log.New("proof-handler")
 
 type pubSub interface {
 	Publish(topic string, messages ...*message.Message) error

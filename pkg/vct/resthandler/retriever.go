@@ -20,7 +20,7 @@ import (
 // LogRetriever retrieves the current log URL.
 type LogRetriever struct {
 	configStore storage.Store
-	logger      *log.StructuredLog
+	logger      *log.Log
 	unmarshal   func([]byte, interface{}) error
 }
 
@@ -43,7 +43,7 @@ func (lr *LogRetriever) Handler() common.HTTPRequestHandler {
 func NewRetriever(cfgStore storage.Store) *LogRetriever {
 	return &LogRetriever{
 		configStore: cfgStore,
-		logger:      log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
+		logger:      log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
 		unmarshal:   json.Unmarshal,
 	}
 }

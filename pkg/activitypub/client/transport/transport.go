@@ -18,7 +18,7 @@ import (
 	apclientmocks "github.com/trustbloc/orb/pkg/activitypub/client/mocks"
 )
 
-var logger = log.NewStructured("activitypub_client")
+var logger = log.New("activitypub_client")
 
 const (
 	// AcceptHeader specifies the content type that the client is expecting.

@@ -35,7 +35,7 @@ const (
 
 const logModule = "cas-resolver"
 
-var logger = log.NewStructured(logModule)
+var logger = log.New(logModule)
 
 type httpClient interface {
 	Get(ctx context.Context, req *transport.Request) (*http.Response, error)

@@ -37,7 +37,7 @@ type WebCAS struct {
 	*resthandler.AuthHandler
 
 	casClient casapi.Client
-	logger    *log.StructuredLog
+	logger    *log.Log
 }
 
 // Path returns the HTTP REST endpoint for the WebCAS service.
@@ -67,7 +67,7 @@ func New(authCfg *resthandler.Config, s spi.Store, verifier signatureVerifier,
 		casClient: casClient,
 	}
 
-	h.logger = log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(h.Path())))
+	h.logger = log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(h.Path())))
 
 	h.AuthHandler = resthandler.NewAuthHandler(authCfg, "/cas/{%s}", http.MethodGet, s, verifier, tm,
 		func(actorIRI *url.URL) (bool, error) {

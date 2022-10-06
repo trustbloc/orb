@@ -23,7 +23,7 @@ const (
 	internalServerErrorResponse = "Internal Server Error."
 )
 
-var logger = log.NewStructured("policy-rest-handler", log.WithFields(log.WithServiceEndpoint(endpoint)))
+var logger = log.New("policy-rest-handler", log.WithFields(log.WithServiceEndpoint(endpoint)))
 
 type policyStore interface {
 	PutPolicy(policyStr string) error

@@ -19,7 +19,7 @@ import (
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
-var logger = log.NewStructured("accept_list")
+var logger = log.New("accept_list")
 
 const acceptTypeTag = "acceptType"
 

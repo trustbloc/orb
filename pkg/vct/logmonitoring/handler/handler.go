@@ -15,7 +15,7 @@ import (
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
-var logger = log.NewStructured("log-monitor-handler")
+var logger = log.New("log-monitor-handler")
 
 // New creates new proof handler.
 func New(store logMonitorStore, logResolver logResolver) *Handler {

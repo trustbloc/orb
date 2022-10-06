@@ -22,7 +22,7 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
-var logger = log.NewStructured("orb-server")
+var logger = log.New("orb-server")
 
 func main() {
 	rootCmd := &cobra.Command{

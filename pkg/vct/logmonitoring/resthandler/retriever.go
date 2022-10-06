@@ -22,7 +22,7 @@ import (
 // RetrieveHandler retrieves the current log URL.
 type RetrieveHandler struct {
 	logMonitorStore logMonitorStore
-	logger          *log.StructuredLog
+	logger          *log.Log
 	marshal         func(interface{}) ([]byte, error)
 }
 
@@ -45,7 +45,7 @@ func (r *RetrieveHandler) Handler() common.HTTPRequestHandler {
 func NewRetriever(store logMonitorStore) *RetrieveHandler {
 	return &RetrieveHandler{
 		logMonitorStore: store,
-		logger:          log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
+		logger:          log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
 		marshal:         json.Marshal,
 	}
 }

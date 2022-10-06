@@ -25,7 +25,7 @@ const (
 	internalServerErrorResponse = "Internal Server Error."
 )
 
-var logger = log.NewStructured("vc-rest-handler")
+var logger = log.New("vc-rest-handler")
 
 // Handler retrieves vc from verifiable credential store.
 type Handler struct {

@@ -39,7 +39,7 @@ const (
 	defaultCacheSize = 10
 )
 
-var logger = log.NewStructured("witness-policy")
+var logger = log.New("witness-policy")
 
 type gCache interface {
 	Get(key interface{}) (interface{}, error)

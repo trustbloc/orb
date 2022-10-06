@@ -25,8 +25,7 @@ func newMockWriter() *mockWriter {
 	return &mockWriter{Buffer: bytes.NewBuffer(nil)}
 }
 
-// TestDefaultLogger tests default logging feature when no custom logging provider is supplied via 'Initialize()' call.
-func TestDefaultLogger(t *testing.T) {
+func TestLogger(t *testing.T) {
 	const module = "sample-module"
 
 	t.Run("Default level", func(t *testing.T) {
@@ -35,13 +34,13 @@ func TestDefaultLogger(t *testing.T) {
 
 		logger := New(module, WithStdOut(stdOut), WithStdErr(stdErr))
 
-		logger.Debugf("Sample debug log. Some number [%d]", 123)
-		logger.Infof("Sample info log. Some number [%d]", 123)
-		logger.Warnf("Sample warn log")
-		logger.Errorf("Sample error log")
+		logger.Debug("Sample debug log")
+		logger.Info("Sample info log")
+		logger.Warn("Sample warn log")
+		logger.Error("Sample error log")
 
 		require.Panics(t, func() {
-			logger.Panicf("Sample panic log")
+			logger.Panic("Sample panic log")
 		})
 
 		require.NotContains(t, stdOut.Buffer.String(), "DEBUG")
@@ -65,13 +64,13 @@ func TestDefaultLogger(t *testing.T) {
 
 		logger := New(module, WithStdOut(stdOut), WithStdErr(stdErr))
 
-		logger.Debugf("Sample debug log. Some number [%d]", 123)
-		logger.Infof("Sample info log. Some number [%d]", 123)
-		logger.Warnf("Sample warn log")
-		logger.Errorf("Sample error log")
+		logger.Debug("Sample debug log")
+		logger.Info("Sample info log")
+		logger.Warn("Sample warn log")
+		logger.Error("Sample error log")
 
 		require.Panics(t, func() {
-			logger.Panicf("Sample panic log")
+			logger.Panic("Sample panic log")
 		})
 
 		require.Contains(t, stdOut.Buffer.String(), "DEBUG")
@@ -95,13 +94,13 @@ func TestDefaultLogger(t *testing.T) {
 
 		logger := New(module, WithStdOut(stdOut), WithStdErr(stdErr))
 
-		logger.Debugf("Sample debug log. Some number [%d]", 123)
-		logger.Infof("Sample info log. Some number [%d]", 123)
-		logger.Warnf("Sample warn log")
-		logger.Errorf("Sample error log")
+		logger.Debug("Sample debug log")
+		logger.Info("Sample info log")
+		logger.Warn("Sample warn log")
+		logger.Error("Sample error log")
 
 		require.Panics(t, func() {
-			logger.Panicf("Sample panic log")
+			logger.Panic("Sample panic log")
 		})
 
 		require.Empty(t, stdOut.Buffer.String())

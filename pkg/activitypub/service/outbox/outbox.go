@@ -92,7 +92,7 @@ type Outbox struct {
 	metrics          metricsProvider
 	followersPath    string
 	witnessesPath    string
-	logger           *log.StructuredLog
+	logger           *log.Log
 }
 
 type httpTransport interface {
@@ -111,7 +111,7 @@ func New(cnfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHa
 	apClient activityPubClient, resourceResolver resourceResolver, metrics metricsProvider) (*Outbox, error) {
 	cfg := populateConfigDefaults(cnfg)
 
-	logger := log.NewStructured(loggerModule, log.WithFields(log.WithServiceName(cfg.ServiceName)))
+	logger := log.New(loggerModule, log.WithFields(log.WithServiceName(cfg.ServiceName)))
 
 	logger.Debug("Creating Outbox", log.WithConfig(cfg))
 

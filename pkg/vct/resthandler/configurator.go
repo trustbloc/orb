@@ -34,7 +34,7 @@ const (
 type LogConfigurator struct {
 	configStore     storage.Store
 	logMonitorStore logMonitorStore
-	logger          *log.StructuredLog
+	logger          *log.Log
 	marshal         func(interface{}) ([]byte, error)
 }
 
@@ -62,7 +62,7 @@ func New(cfgStore storage.Store, lmStore logMonitorStore) *LogConfigurator {
 	h := &LogConfigurator{
 		configStore:     cfgStore,
 		logMonitorStore: lmStore,
-		logger:          log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
+		logger:          log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
 		marshal:         json.Marshal,
 	}
 
@@ -131,7 +131,7 @@ func (c *LogConfigurator) handle(w http.ResponseWriter, req *http.Request) {
 	writeResponse(c.logger, w, http.StatusOK, nil)
 }
 
-func writeResponse(logger *log.StructuredLog, w http.ResponseWriter, status int, body []byte) {
+func writeResponse(logger *log.Log, w http.ResponseWriter, status int, body []byte) {
 	if len(body) > 0 {
 		w.Header().Set("Content-Type", "text/plain")
 	}

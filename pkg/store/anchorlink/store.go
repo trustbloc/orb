@@ -21,7 +21,7 @@ import (
 
 const nameSpace = "anchor-link"
 
-var logger = log.NewStructured("anchor-link-store")
+var logger = log.New("anchor-link-store")
 
 // New returns new instance of anchor event store.
 func New(p storage.Provider) (*Store, error) {

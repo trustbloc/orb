@@ -33,7 +33,7 @@ import (
 	"github.com/trustbloc/orb/pkg/webfinger/model"
 )
 
-var logger = log.NewStructured("discovery-rest")
+var logger = log.New("discovery-rest")
 
 const (
 	wellKnownEndpoint = "/.well-known/did-orb"

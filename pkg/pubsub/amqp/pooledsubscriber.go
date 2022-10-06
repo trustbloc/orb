@@ -22,12 +22,12 @@ type pooledSubscriber struct {
 	topic       string
 	msgChan     chan *message.Message
 	subscribers []reflect.SelectCase
-	logger      *log.StructuredLog
+	logger      *log.Log
 }
 
 func newPooledSubscriber(ctx context.Context, size int, subscriber subscriber,
 	topic string) (*pooledSubscriber, error) {
-	l := log.NewStructured(loggerModule, log.WithFields(log.WithTopic(topic)))
+	l := log.New(loggerModule, log.WithFields(log.WithTopic(topic)))
 
 	p := &pooledSubscriber{
 		topic:       topic,

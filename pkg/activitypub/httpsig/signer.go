@@ -16,7 +16,7 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
-var logger = log.NewStructured("activitypub_httpsig")
+var logger = log.New("activitypub_httpsig")
 
 const (
 	dateHeader = "Date"

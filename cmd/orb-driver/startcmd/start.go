@@ -73,7 +73,7 @@ const (
 	verifyTypeNone        = "none"
 )
 
-var logger = log.NewStructured("orb-driver")
+var logger = log.New("orb-driver")
 
 // HTTPServer represents an actual HTTP server implementation.
 type HTTPServer struct{}

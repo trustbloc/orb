@@ -19,7 +19,7 @@ import (
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
-var logger = log.NewStructured("config-client")
+var logger = log.New("config-client")
 
 const (
 	defaultCacheSize       = 100

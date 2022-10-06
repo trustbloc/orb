@@ -19,7 +19,7 @@ import (
 
 const nameSpace = "didanchor"
 
-var logger = log.NewStructured("didanchor-store")
+var logger = log.New("didanchor-store")
 
 // New creates db implementation of latest did/anchor reference.
 func New(provider storage.Provider) (*Store, error) {

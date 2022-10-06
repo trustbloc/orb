@@ -21,7 +21,7 @@ import (
 	diddoctransformer "github.com/trustbloc/orb/pkg/orbclient/doctransformer"
 )
 
-var logger = log.NewStructured("did-web-resolver")
+var logger = log.New("did-web-resolver")
 
 // ResolveHandler resolves generic documents.
 type ResolveHandler struct {

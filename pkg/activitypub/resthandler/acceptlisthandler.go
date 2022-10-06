@@ -32,7 +32,7 @@ type AcceptListWriter struct {
 	mgr      acceptListMgr
 	marshal  func(v interface{}) ([]byte, error)
 	readAll  func(r io.Reader) ([]byte, error)
-	logger   *log.StructuredLog
+	logger   *log.Log
 }
 
 // NewAcceptListWriter returns a new REST handler to update the "accept list".
@@ -44,7 +44,7 @@ func NewAcceptListWriter(cfg *Config, mgr acceptListMgr) *AcceptListWriter {
 		endpoint: endpoint,
 		marshal:  json.Marshal,
 		readAll:  ioutil.ReadAll,
-		logger:   log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
+		logger:   log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
 	}
 }
 
@@ -104,7 +104,7 @@ type AcceptListReader struct {
 	endpoint string
 	mgr      acceptListMgr
 	marshal  func(v interface{}) ([]byte, error)
-	logger   *log.StructuredLog
+	logger   *log.Log
 }
 
 // NewAcceptListReader returns a new REST handler to read a service's "accept list".
@@ -114,7 +114,7 @@ func NewAcceptListReader(cfg *Config, mgr acceptListMgr) *AcceptListReader {
 	return &AcceptListReader{
 		mgr:      mgr,
 		endpoint: endpoint,
-		logger:   log.NewStructured(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
+		logger:   log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
 		marshal:  json.Marshal,
 	}
 }
@@ -189,7 +189,7 @@ func (h *AcceptListReader) handleGetByType(acceptType string, w http.ResponseWri
 	writeResponse(h.logger, w, http.StatusOK, acceptListBytes)
 }
 
-func writeResponse(logger *log.StructuredLog, w http.ResponseWriter, status int, body []byte) {
+func writeResponse(logger *log.Log, w http.ResponseWriter, status int, body []byte) {
 	w.WriteHeader(status)
 
 	if len(body) > 0 {

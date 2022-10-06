@@ -13,7 +13,7 @@ import (
 	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
-var logger = log.NewStructured("tlsutil")
+var logger = log.New("tlsutil")
 
 // CertPool is a thread safe wrapper around the x509 standard library
 // cert pool implementation.

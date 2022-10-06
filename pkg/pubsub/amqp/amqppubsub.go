@@ -30,7 +30,7 @@ import (
 
 const loggerModule = "pubsub"
 
-var logger = log.NewStructured(loggerModule)
+var logger = log.New(loggerModule)
 
 const (
 	defaultMaxConnectRetries                 = 25

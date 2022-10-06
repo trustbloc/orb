@@ -18,7 +18,7 @@ import (
 	"github.com/trustbloc/orb/pkg/linkset"
 )
 
-var logger = log.NewStructured("policy-inspector")
+var logger = log.New("policy-inspector")
 
 // Inspector re-evaluates currently selected witnesses.
 type Inspector struct {

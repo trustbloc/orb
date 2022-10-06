@@ -67,7 +67,7 @@ type handler struct {
 	undoFollow        undoFunc
 	undoInviteWitness undoFunc
 	undoLike          undoFunc
-	logger            *log.StructuredLog
+	logger            *log.Log
 }
 
 func newHandler(cfg *Config, s store.Store, activityPubClient activityPubClient,
@@ -87,7 +87,7 @@ func newHandler(cfg *Config, s store.Store, activityPubClient activityPubClient,
 		undoFollow:        undoFollow,
 		undoInviteWitness: undoInviteWitness,
 		undoLike:          undoLike,
-		logger:            log.NewStructured(loggerModule, log.WithFields(log.WithServiceName(cfg.ServiceName))),
+		logger:            log.New(loggerModule, log.WithFields(log.WithServiceName(cfg.ServiceName))),
 	}
 
 	h.Lifecycle = lifecycle.New(cfg.ServiceName, lifecycle.WithStop(h.stop))

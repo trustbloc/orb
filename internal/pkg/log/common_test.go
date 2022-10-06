@@ -19,7 +19,7 @@ func TestCommonLogs(t *testing.T) {
 	t.Run("InvalidParameterValue", func(t *testing.T) {
 		stdErr := newMockWriter()
 
-		logger := NewStructured(module,
+		logger := New(module,
 			WithStdErr(stdErr),
 			WithFields(WithServiceName("myservice")),
 		)
@@ -38,7 +38,7 @@ func TestCommonLogs(t *testing.T) {
 	t.Run("CloseIteratorError", func(t *testing.T) {
 		stdOut := newMockWriter()
 
-		logger := NewStructured(module,
+		logger := New(module,
 			WithStdOut(stdOut),
 			WithFields(WithServiceName("myservice")),
 		)
@@ -54,7 +54,7 @@ func TestCommonLogs(t *testing.T) {
 	t.Run("CloseResponseBodyError", func(t *testing.T) {
 		stdOut := newMockWriter()
 
-		logger := NewStructured(module,
+		logger := New(module,
 			WithStdOut(stdOut),
 			WithFields(WithServiceName("myservice")),
 		)
@@ -70,7 +70,7 @@ func TestCommonLogs(t *testing.T) {
 	t.Run("WriteResponseBodyError", func(t *testing.T) {
 		stdErr := newMockWriter()
 
-		logger := NewStructured(module,
+		logger := New(module,
 			WithStdErr(stdErr),
 			WithFields(WithServiceName("myservice")),
 		)
@@ -86,7 +86,7 @@ func TestCommonLogs(t *testing.T) {
 	t.Run("ReadRequestBodyError", func(t *testing.T) {
 		stdErr := newMockWriter()
 
-		logger := NewStructured(module,
+		logger := New(module,
 			WithStdErr(stdErr),
 			WithFields(WithServiceName("myservice")),
 		)
@@ -104,7 +104,7 @@ func TestCommonLogs(t *testing.T) {
 
 		stdOut := newMockWriter()
 
-		logger := NewStructured(module,
+		logger := New(module,
 			WithStdOut(stdOut),
 			WithFields(WithServiceName("myservice")),
 		)
