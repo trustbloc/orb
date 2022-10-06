@@ -26,6 +26,7 @@ import (
 	"github.com/trustbloc/orb/pkg/config"
 	ctxcommon "github.com/trustbloc/orb/pkg/context/common"
 	"github.com/trustbloc/orb/pkg/hashlink"
+	metricsProvider "github.com/trustbloc/orb/pkg/observability/metrics"
 	vcommon "github.com/trustbloc/orb/pkg/protocolversion/versions/common"
 	protocolcfg "github.com/trustbloc/orb/pkg/protocolversion/versions/test/v_test/config"
 	orboperationparser "github.com/trustbloc/orb/pkg/versions/1_0/operationparser"
@@ -46,7 +47,8 @@ func New() *Factory {
 // Create creates a new protocol version.
 func (v *Factory) Create(version string, casClient cas.Client, casResolver ctxcommon.CASResolver,
 	opStore ctxcommon.OperationStore, provider storage.Provider,
-	sidetreeCfg *config.Sidetree) (protocol.Version, error) {
+	sidetreeCfg *config.Sidetree, metrics metricsProvider.Metrics,
+) (protocol.Version, error) {
 	p := protocolcfg.GetProtocolConfig()
 
 	opParser := operationparser.New(p,

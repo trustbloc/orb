@@ -4,7 +4,7 @@ Copyright SecureKey Technologies Inc. All Rights Reserved.
 SPDX-License-Identifier: Apache-2.0
 */
 
-package metrics
+package prometheus
 
 // swagger:parameters metricsGetReq
 type metricsGetReq struct { // nolint: unused,deadcode
@@ -20,6 +20,7 @@ type metricsGetResp struct { // nolint: unused,deadcode
 // Retrieves the current witness metrics.
 //
 // Responses:
-//        200: metricsGetResp
+//
+//	200: metricsGetResp
 func getMetrics() { // nolint: unused,deadcode
 }

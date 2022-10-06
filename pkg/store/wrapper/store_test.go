@@ -15,11 +15,12 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 
+	"github.com/trustbloc/orb/pkg/observability/metrics/noop"
 	"github.com/trustbloc/orb/pkg/store/mocks"
 )
 
 func TestStoreWrapper(t *testing.T) {
-	s := NewStore(&ariesmockstorage.Store{}, "CouchDB")
+	s := NewStore(&ariesmockstorage.Store{}, "CouchDB", noop.GetMetrics())
 	require.NotNil(t, s)
 
 	t.Run("put", func(t *testing.T) {
@@ -66,7 +67,7 @@ func TestStoreWrapper(t *testing.T) {
 func TestMongoDBStoreWrapper(t *testing.T) {
 	ms := &mocks.MongoDBStore{}
 
-	s := NewMongoDBStore(ms)
+	s := NewMongoDBStore(ms, noop.GetMetrics())
 	require.NotNil(t, s)
 
 	doc := map[string]interface{}{
