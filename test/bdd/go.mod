@@ -26,7 +26,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/tidwall/gjson v1.7.4
 	github.com/trustbloc/orb v1.0.0-rc2.0.20220826005428-b08eed04243a
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221005183541-1b59b4a9dd99
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221011173557-7c4f13946f96
 )
 
 require (
