@@ -462,7 +462,7 @@ func importPrivateKey(km keyManager, httpSignKeyType bool, parameters *orbParame
 	}, parameters.syncTimeout)
 }
 
-// nolint: gocyclo,funlen,gocognit
+//nolint: funlen,gocognit
 func startOrbServices(parameters *orbParameters) error {
 	if parameters.logLevel != "" {
 		setLogLevels(logger, parameters.logLevel)
@@ -1315,6 +1315,7 @@ func startOrbServices(parameters *orbParameters) error {
 		parameters.tlsParams.serveCertPath,
 		parameters.tlsParams.serveKeyPath,
 		parameters.serverIdleTimeout,
+		parameters.serverReadHeaderTimeout,
 		pubSub,
 		logEndpoint,
 		storeProviders.provider,
@@ -1493,7 +1494,6 @@ type storageProviders struct {
 	kmsSecretsProvider storage.Provider
 }
 
-// nolint: gocyclo
 func createStoreProviders(parameters *orbParameters, metrics metricsProvider.Metrics) (*storageProviders, error) {
 	var edgeServiceProvs storageProviders
 
@@ -1588,7 +1588,7 @@ func getOrInit(cfg storage.Store, keyID string, v interface{}, initFn func() (in
 		}
 
 		if reflect.DeepEqual(src, src2) {
-			return json.Unmarshal(src, v) // nolint: wrapcheck
+			return json.Unmarshal(src, v) //nolint: wrapcheck
 		}
 
 		return getOrInit(cfg, keyID, v, initFn, timeout)
@@ -1825,7 +1825,8 @@ func NewMetricsProvider(parameters *orbParameters, pubSub pubSub, witness *vct.C
 	case "prometheus":
 		metricsHttpServer := httpserver.New(
 			parameters.prometheusMetricsProviderParams.url, "", "", parameters.serverIdleTimeout,
-			pubSub, witness, storeProviders.provider, km, promMetricsProvider.NewHandler(),
+			parameters.serverReadHeaderTimeout, pubSub, witness, storeProviders.provider, km,
+			promMetricsProvider.NewHandler(),
 		)
 		return promMetricsProvider.NewPrometheusProvider(metricsHttpServer), nil
 	default:

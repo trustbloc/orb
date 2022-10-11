@@ -188,7 +188,7 @@ func createMultipartFormData(fieldName, fileName string) (*bytes.Buffer, *multip
 
 	var fw io.Writer
 
-	file, err := os.Open(fileName) // nolint: gosec
+	file, err := os.Open(fileName)
 	if err != nil {
 		return nil, nil, err
 	}

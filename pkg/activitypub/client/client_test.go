@@ -105,7 +105,7 @@ func TestClient_GetActor(t *testing.T) {
 	t.Run("Unmarshal client error", func(t *testing.T) {
 		rw := httptest.NewRecorder()
 
-		_, err := rw.Write([]byte("{"))
+		_, err := rw.WriteString("{")
 		require.NoError(t, err)
 
 		httpClient := &mocks.HTTPTransport{}
@@ -220,6 +220,7 @@ func TestClient_GetActor(t *testing.T) {
 	})
 }
 
+//nolint:maintidx
 func TestClient_GetReferences(t *testing.T) {
 	log.SetLevel("activitypub_client", log.DEBUG)
 
@@ -419,7 +420,7 @@ func TestClient_GetReferences(t *testing.T) {
 	t.Run("Unmarshal collection error", func(t *testing.T) {
 		rw := httptest.NewRecorder()
 
-		_, err = rw.Write([]byte("{"))
+		_, err = rw.WriteString("{")
 		require.NoError(t, err)
 
 		httpClient := &mocks.HTTPTransport{}
@@ -476,7 +477,7 @@ func TestClient_GetReferences(t *testing.T) {
 
 		rw2 := httptest.NewRecorder()
 
-		_, err = rw2.Write([]byte("{"))
+		_, err = rw2.WriteString("{")
 		require.NoError(t, err)
 
 		result1 := rw1.Result()
@@ -615,7 +616,7 @@ func TestClient_GetPublicKey(t *testing.T) {
 	t.Run("Unmarshal client error", func(t *testing.T) {
 		rw := httptest.NewRecorder()
 
-		_, err = rw.Write([]byte("{"))
+		_, err = rw.WriteString("{")
 		require.NoError(t, err)
 
 		httpClient := &mocks.HTTPTransport{}
@@ -738,6 +739,7 @@ func TestClient_GetDIDPublicKey(t *testing.T) {
 	})
 }
 
+//nolint:maintidx
 func TestClient_GetActivities(t *testing.T) {
 	log.SetLevel("activitypub_client", log.DEBUG)
 
@@ -1196,14 +1198,14 @@ func TestClient_GetActivities(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, nextPage)
 		require.Equal(t, page0.String(), nextPage.String())
-		require.Equal(t, 0, it.(*activityIterator).numProcessed)
+		require.Equal(t, 0, it.(*activityIterator).numProcessed) //nolint:forcetypeassert
 
 		// Move to the next page.
 		nextPage, err = it.NextPage()
 		require.NoError(t, err)
 		require.NotNil(t, nextPage)
 		require.Equal(t, page1.String(), nextPage.String())
-		require.Equal(t, 3, it.(*activityIterator).numProcessed)
+		require.Equal(t, 3, it.(*activityIterator).numProcessed) //nolint:forcetypeassert
 
 		it.SetNextIndex(1)
 
@@ -1240,7 +1242,7 @@ func TestClient_GetActivities(t *testing.T) {
 	t.Run("Unmarshal collection error", func(t *testing.T) {
 		rw := httptest.NewRecorder()
 
-		_, err := rw.Write([]byte("{"))
+		_, err := rw.WriteString("{")
 		require.NoError(t, err)
 
 		httpClient := &mocks.HTTPTransport{}

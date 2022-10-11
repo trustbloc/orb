@@ -17,7 +17,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	mrand "math/rand"
 	"net/http"
 	"net/url"
@@ -1906,7 +1905,7 @@ func (d *DIDOrbSteps) newReader(file string) (io.Reader, error) {
 		}
 	}()
 
-	contents, e := ioutil.ReadAll(f)
+	contents, e := io.ReadAll(f)
 	if e != nil {
 		return nil, fmt.Errorf("read file [%s]: %w", file, e)
 	}

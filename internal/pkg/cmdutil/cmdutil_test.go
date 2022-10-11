@@ -39,8 +39,7 @@ func TestGetUserSetVarFromStringNegative(t *testing.T) {
 	require.Contains(t, err.Error(), "TEST_HOST_URL (environment variable) have been set.")
 
 	// test env var is empty
-	err = os.Setenv(envKey, "")
-	require.NoError(t, err)
+	t.Setenv(envKey, "")
 
 	env, err = cmdutil.GetUserSetVarFromString(command, flagName, envKey, false)
 	require.Error(t, err)
@@ -79,8 +78,7 @@ func TestGetUserSetVarFromArrayStringNegative(t *testing.T) {
 	require.Contains(t, err.Error(), "TEST_HOST_URL (environment variable) have been set.")
 
 	// test env var is empty
-	err = os.Setenv(envKey, "")
-	require.NoError(t, err)
+	t.Setenv(envKey, "")
 
 	env, err = cmdutil.GetUserSetVarFromArrayString(command, flagName, envKey, false)
 	require.Error(t, err)
@@ -114,8 +112,7 @@ func TestGetUserSetVarFromString(t *testing.T) {
 
 	// test env var is set
 	hostURL := "localhost:8080"
-	err := os.Setenv(envKey, hostURL)
-	require.NoError(t, err)
+	t.Setenv(envKey, hostURL)
 
 	// test resolution via environment variable
 	env, err := cmdutil.GetUserSetVarFromString(command, flagName, envKey, false)
@@ -152,8 +149,7 @@ func TestGetUserSetVarFromArrayString(t *testing.T) {
 
 	// test env var is set
 	hostURL := "localhost:8080"
-	err := os.Setenv(envKey, hostURL)
-	require.NoError(t, err)
+	t.Setenv(envKey, hostURL)
 
 	// test resolution via environment variable
 	env, err := cmdutil.GetUserSetVarFromArrayString(command, flagName, envKey, false)

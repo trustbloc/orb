@@ -7,11 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package resthandler
 
 // swagger:parameters logGetReq
-type logGetReq struct { // nolint: unused,deadcode
+type logGetReq struct { //nolint: unused
 }
 
 // swagger:response logGetResp
-type logGetResp struct { // nolint: unused,deadcode
+type logGetResp struct { //nolint: unused
 	Body string
 }
 
@@ -20,18 +20,19 @@ type logGetResp struct { // nolint: unused,deadcode
 // Retrieves the current witness log.
 //
 // Responses:
-//        200: logGetResp
-func getLog() { // nolint: unused,deadcode
+//
+//	200: logGetResp
+func getLog() { //nolint: unused
 }
 
 // swagger:parameters logPostReq
-type logPostReq struct { // nolint: unused,deadcode
+type logPostReq struct { //nolint: unused
 	// in: body
 	Body string
 }
 
 // swagger:response logPostResp
-type logPostResp struct { // nolint: unused,deadcode
+type logPostResp struct { //nolint: unused
 	Body string
 }
 
@@ -40,6 +41,7 @@ type logPostResp struct { // nolint: unused,deadcode
 // Sets the current witness log.
 //
 // Responses:
-//        200: logPostResp
-func postLog() { // nolint: unused,deadcode
+//
+//	200: logPostResp
+func postLog() { //nolint: unused
 }

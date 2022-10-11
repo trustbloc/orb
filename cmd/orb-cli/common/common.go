@@ -18,8 +18,8 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -93,7 +93,7 @@ type PublicKey struct {
 
 // PublicKeyFromFile public key from file.
 func PublicKeyFromFile(file string) (crypto.PublicKey, error) {
-	keyBytes, err := ioutil.ReadFile(filepath.Clean(file))
+	keyBytes, err := os.ReadFile(filepath.Clean(file))
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func PublicKeyFromPEM(pubKeyPEM []byte) (crypto.PublicKey, error) {
 
 // PrivateKeyFromFile private key from file.
 func PrivateKeyFromFile(file string, password []byte) (crypto.PrivateKey, error) {
-	keyBytes, err := ioutil.ReadFile(filepath.Clean(file))
+	keyBytes, err := os.ReadFile(filepath.Clean(file))
 	if err != nil {
 		return nil, err
 	}
@@ -191,7 +191,7 @@ func GetPublicKeyFromKMS(cmd *cobra.Command, keyIDFlagName, keyIDEnvKey string,
 		return nil, err
 	}
 
-	switch kt { // nolint:exhaustive // default catch-all
+	switch kt { //nolint:exhaustive // default catch-all
 	case kms.ECDSAP256DER, kms.ECDSAP384DER, kms.ECDSAP521DER:
 		pubKey, err := x509.ParsePKIXPublicKey(keyBytes)
 		if err != nil {
@@ -253,8 +253,8 @@ func GetKey(cmd *cobra.Command, keyFlagName, keyEnvKey, keyFileFlagName, keyFile
 }
 
 // GetVDRPublicKeysFromFile get public keys from file.
-func GetVDRPublicKeysFromFile(publicKeyFilePath string) (*docdid.Doc, error) { //nolint:gocyclo,cyclop,funlen
-	pkData, err := ioutil.ReadFile(filepath.Clean(publicKeyFilePath))
+func GetVDRPublicKeysFromFile(publicKeyFilePath string) (*docdid.Doc, error) { //nolint:gocyclo,cyclop
+	pkData, err := os.ReadFile(filepath.Clean(publicKeyFilePath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to public key file '%s' : %w", publicKeyFilePath, err)
 	}
@@ -274,7 +274,7 @@ func GetVDRPublicKeysFromFile(publicKeyFilePath string) (*docdid.Doc, error) { /
 		var vm *docdid.VerificationMethod
 
 		if v.JWKPath != "" {
-			jwkData, err := ioutil.ReadFile(filepath.Clean(v.JWKPath))
+			jwkData, err := os.ReadFile(filepath.Clean(v.JWKPath))
 			if err != nil {
 				return nil, fmt.Errorf("failed to read jwk file '%s' : %w", v.JWKPath, err)
 			}
@@ -320,7 +320,7 @@ func GetVDRPublicKeysFromFile(publicKeyFilePath string) (*docdid.Doc, error) { /
 
 // GetServices get services.
 func GetServices(serviceFilePath string) ([]docdid.Service, error) {
-	svcData, err := ioutil.ReadFile(filepath.Clean(serviceFilePath))
+	svcData, err := os.ReadFile(filepath.Clean(serviceFilePath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to service file '%s' : %w", serviceFilePath, err)
 	}
@@ -342,7 +342,7 @@ func SendRequest(httpClient *http.Client, req []byte, headers map[string]string,
 
 	if len(req) == 0 {
 		httpReq, err = http.NewRequestWithContext(context.Background(),
-			method, endpointURL, nil)
+			method, endpointURL, http.NoBody)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create http request: %w", err)
 		}
@@ -365,7 +365,7 @@ func SendRequest(httpClient *http.Client, req []byte, headers map[string]string,
 
 	defer closeResponseBody(resp.Body)
 
-	responseBytes, err := ioutil.ReadAll(resp.Body)
+	responseBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response : %w", err)
 	}
@@ -480,7 +480,6 @@ type Signer struct {
 	webKmsCryptoClient webcrypto.Crypto
 }
 
-// nolint: gochecknoglobals
 var headerAlgorithm = map[string]string{
 	"Ed25519": "EdDSA",
 	"P-256":   "ES256",

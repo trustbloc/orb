@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -168,7 +167,7 @@ func TestAcceptListReader_Handler(t *testing.T) {
 		result := rw.Result()
 		require.Equal(t, http.StatusOK, result.StatusCode)
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 		require.NoError(t, result.Body.Close())
 
@@ -207,7 +206,7 @@ func TestAcceptListReader_Handler(t *testing.T) {
 		result := rw.Result()
 		require.Equal(t, http.StatusOK, result.StatusCode)
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 		require.NoError(t, result.Body.Close())
 

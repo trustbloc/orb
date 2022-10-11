@@ -195,7 +195,7 @@ func (c *Client) HealthCheck() error {
 }
 
 // Witness credentials.
-func (c *Client) Witness(anchorCred []byte) ([]byte, error) { // nolint: funlen,gocyclo,cyclop
+func (c *Client) Witness(anchorCred []byte) ([]byte, error) { //nolint: funlen,cyclop
 	endpoint, err := c.GetLogEndpoint()
 	if err != nil && !errors.Is(err, ErrDisabled) && !errors.Is(err, ErrLogEndpointNotConfigured) {
 		return nil, fmt.Errorf("failed to get log endpoint for witness: %w", err)

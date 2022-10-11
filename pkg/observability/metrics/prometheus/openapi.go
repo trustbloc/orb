@@ -7,11 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package prometheus
 
 // swagger:parameters metricsGetReq
-type metricsGetReq struct { // nolint: unused,deadcode
+type metricsGetReq struct { //nolint: unused
 }
 
 // swagger:response metricsGetResp
-type metricsGetResp struct { // nolint: unused,deadcode
+type metricsGetResp struct { //nolint: unused
 	Body string
 }
 
@@ -22,5 +22,5 @@ type metricsGetResp struct { // nolint: unused,deadcode
 // Responses:
 //
 //	200: metricsGetResp
-func getMetrics() { // nolint: unused,deadcode
+func getMetrics() { //nolint: unused
 }

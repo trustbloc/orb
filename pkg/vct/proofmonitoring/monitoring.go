@@ -163,7 +163,7 @@ func Next(records interface{ Next() (bool, error) }) bool {
 	return ok
 }
 
-func (c *Client) handleEntities() error { //nolint:funlen,gocyclo,cyclop
+func (c *Client) handleEntities() error { //nolint:cyclop
 	expr := fmt.Sprintf("%s:%s", tagStatus, statusUnconfirmed)
 
 	records, err := c.store.Query(expr)

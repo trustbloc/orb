@@ -20,8 +20,8 @@ import (
 )
 
 const (
-	coreIndexHL1 = "hl:uEiBaZqszLIDqXbfh3WSVIEye9_vYCOl4KKMQ5Q9JU3NaoQ:uoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQmFacXN6TElEcVhiZmgzV1NWSUV5ZTlfdllDT2w0S0tNUTVROUpVM05hb1E" //nolint:lll
-	coreIndexHL2 = "hl:uEiCdYGN8IGTeXgsNjzf8THO6SD9SAtc9ithYE59iqgfkWg:uoQ-BeEJpcGZzOi8vYmFma3JlaWU1bWJyeHlpZGUzenBhd2RtcGc3NmV5NDUyamE3dmVhd3hod2ZucXdhdHQ1cmt1YjdlbGk"             //nolint:lll
+	coreIndexHL1 = "hl:uEiBaZqszLIDqXbfh3WSVIEye9_vYCOl4KKMQ5Q9JU3NaoQ:uoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQmFacXN6TElEcVhiZmgzV1NWSUV5ZTlfdllDT2w0S0tNUTVROUpVM05hb1E"
+	coreIndexHL2 = "hl:uEiCdYGN8IGTeXgsNjzf8THO6SD9SAtc9ithYE59iqgfkWg:uoQ-BeEJpcGZzOi8vYmFma3JlaWU1bWJyeHlpZGUzenBhd2RtcGc3NmV5NDUyamE3dmVhd3hod2ZucXdhdHQ1cmt1YjdlbGk"
 	suffix1      = "EiDJpL-xeSE4kVgoGjaQm_OurMdR6jIeDRUxv7RhGNf5jw"
 	suffix2      = "EiAPcYpwgg88zOvQ4-sdwpj4UKqZeYS_Ej6kkZl_bZIJjw"
 	service1     = "https://orb.domain2.com/services/orb"
@@ -69,7 +69,7 @@ func TestGenerator_CreateContentObject(t *testing.T) {
 				},
 				{
 					Suffix: suffix2,
-					Anchor: "hl:uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA:uoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQXVCUUtQWVhsOTBpM2hvMGFKc0VHSnBYQ3J2WnZiUkJ0WEg2UlVGMHJaTEE", //nolint:lll
+					Anchor: "hl:uEiAuBQKPYXl90i3ho0aJsEGJpXCrvZvbRBtXH6RUF0rZLA:uoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQXVCUUtQWVhsOTBpM2hvMGFKc0VHSnBYQ3J2WnZiUkJ0WEg2UlVGMHJaTEE",
 				},
 			},
 		}
@@ -128,9 +128,9 @@ func TestGenerator_CreatePayload(t *testing.T) {
 	gen := New()
 	require.NotNil(t, gen)
 
-	coreIndexURI := testutil.MustParseURL("hl:uEiDIMOGQVfSVbMR4uVPJYtM_dXJ4bNghS2F-DWH01uQnnQ:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpRElNT0dRVmZTVmJNUjR1VlBKWXRNX2RYSjRiTmdoUzJGLURXSDAxdVFublE") //nolint:lll
+	coreIndexURI := testutil.MustParseURL("hl:uEiDIMOGQVfSVbMR4uVPJYtM_dXJ4bNghS2F-DWH01uQnnQ:uoQ-BeEtodHRwczovL29yYi5kb21haW4yLmNvbS9jYXMvdUVpRElNT0dRVmZTVmJNUjR1VlBKWXRNX2RYSjRiTmdoUzJGLURXSDAxdVFublE")
 
-	prevURI := testutil.MustParseURL("hl:uEiBy3ZwlpRi8OAthyinED8S189syAOUuoMFTZnmjMLJyVA:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQnkzWndscFJpOE9BdGh5aW5FRDhTMTg5c3lBT1V1b01GVFpubWpNTEp5VkF4QmlwZnM6Ly9iYWZrcmVpZHMzd29jbGppeXhxNGF3eW9rZmhjYTdyZnY2cG50ZWFoZmYycW1jdTNncGdydGJtdHNrcQ") //nolint:lll
+	prevURI := testutil.MustParseURL("hl:uEiBy3ZwlpRi8OAthyinED8S189syAOUuoMFTZnmjMLJyVA:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQnkzWndscFJpOE9BdGh5aW5FRDhTMTg5c3lBT1V1b01GVFpubWpNTEp5VkF4QmlwZnM6Ly9iYWZrcmVpZHMzd29jbGppeXhxNGF3eW9rZmhjYTdyZnY2cG50ZWFoZmYycW1jdTNncGdydGJtdHNrcQ")
 
 	t.Run("Success", func(t *testing.T) {
 		anchorLinksetDoc, err := vocab.UnmarshalToDoc([]byte(linksetJSON2))
@@ -288,7 +288,7 @@ func TestParseCredentialSubject(t *testing.T) {
 		_, err := parseCredentialSubject(&verifiable.Credential{Subject: []verifiable.Subject{{
 			CustomFields: map[string]interface{}{"anchor": 1},
 		}}})
-		require.EqualError(t, err, "unmarshal credential subject: json: cannot unmarshal number into Go struct field CredentialSubject.anchor of type string") //nolint:lll
+		require.EqualError(t, err, "unmarshal credential subject: json: cannot unmarshal number into Go struct field CredentialSubject.anchor of type string")
 	})
 
 	t.Run("missing anchor field error", func(t *testing.T) {
@@ -342,7 +342,6 @@ func TestParseCredentialSubject(t *testing.T) {
 }
 
 const (
-	//nolint:lll
 	linksetJSON1 = `{
   "linkset": [
     {
@@ -371,7 +370,6 @@ const (
     }
   ]
 }`
-	//nolint:lll
 	linksetJSON2 = `{
   "linkset": [
     {

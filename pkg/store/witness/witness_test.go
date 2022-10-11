@@ -487,7 +487,6 @@ func getTestWitness(witnessURI *url.URL) *proof.Witness {
 	}
 }
 
-//nolint:lll
 const proofJSON = `{
   "@context": [
     "https://w3id.org/security/v1",

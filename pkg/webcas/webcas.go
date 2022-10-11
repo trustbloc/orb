@@ -119,7 +119,7 @@ func (w *WebCAS) handler(rw http.ResponseWriter, req *http.Request) {
 		if errors.Is(err, orberrors.ErrContentNotFound) {
 			rw.WriteHeader(http.StatusNotFound)
 
-			_, errWrite := rw.Write([]byte(fmt.Sprintf("no content at %s was found: %s", cid, err.Error())))
+			_, errWrite := fmt.Fprintf(rw, "no content at %s was found: %s", cid, err.Error())
 			if errWrite != nil {
 				log.WriteResponseBodyError(w.logger, errWrite)
 			}
@@ -129,7 +129,7 @@ func (w *WebCAS) handler(rw http.ResponseWriter, req *http.Request) {
 
 		rw.WriteHeader(http.StatusInternalServerError)
 
-		_, errWrite := rw.Write([]byte(fmt.Sprintf("failure while finding content at %s: %s", cid, err.Error())))
+		_, errWrite := fmt.Fprintf(rw, "failure while finding content at %s: %s", cid, err.Error())
 		if errWrite != nil {
 			log.WriteResponseBodyError(w.logger, errWrite)
 		}

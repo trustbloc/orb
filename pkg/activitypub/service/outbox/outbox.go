@@ -147,7 +147,7 @@ func New(cnfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHa
 	h.iriCache = gcache.New(cfg.CacheSize).ARC().
 		Expiration(cfg.CacheExpiration).
 		LoaderFunc(func(i interface{}) (interface{}, error) {
-			return h.resolveActorIRI(i.(*url.URL))
+			return h.resolveActorIRI(i.(*url.URL)) //nolint:forcetypeassert
 		}).Build()
 
 	return h, nil
@@ -556,7 +556,7 @@ func (h *Outbox) doResolveActorIRI(iri *url.URL) ([]*url.URL, error) {
 		return nil, err
 	}
 
-	return result.([]*url.URL), nil
+	return result.([]*url.URL), nil //nolint:forcetypeassert
 }
 
 func (h *Outbox) resolveActorIRI(iri *url.URL) ([]*url.URL, error) {

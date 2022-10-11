@@ -131,7 +131,7 @@ func NewResolveHandler(namespace string, resolver coreResolver, discovery discov
 }
 
 // ResolveDocument resolves a document.
-func (r *ResolveHandler) ResolveDocument(id string, opts ...document.ResolutionOption) (*document.ResolutionResult, error) { //nolint:lll
+func (r *ResolveHandler) ResolveDocument(id string, opts ...document.ResolutionOption) (*document.ResolutionResult, error) {
 	startTime := time.Now()
 
 	defer func() {
@@ -150,7 +150,7 @@ func (r *ResolveHandler) ResolveDocument(id string, opts ...document.ResolutionO
 	return localResponse, nil
 }
 
-//nolint:funlen,gocyclo,cyclop
+//nolint:funlen,cyclop
 func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(
 	id string, localResponse *document.ResolutionResult,
 	opts ...document.ResolutionOption) *document.ResolutionResult {
@@ -231,7 +231,7 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(
 
 	additionalPublishedOps := getAdditionalPublishedOps(id, localPublishedOps, anchorOriginPublishedOps)
 
-	anchorOriginOps := append(anchorOriginUnpublishedOps, additionalPublishedOps...)
+	anchorOriginOps := append(anchorOriginUnpublishedOps, additionalPublishedOps...) //nolint: gocritic
 
 	if len(anchorOriginOps) == 0 {
 		logger.Debug("Resolving locally since anchor origin has no unpublished or additional published operations",
@@ -263,7 +263,7 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(
 	return localResponseWithAnchorOriginOps
 }
 
-func getOperations(id string, metadata document.Metadata) ([]*operation.AnchoredOperation, []*operation.AnchoredOperation) { //nolint:lll
+func getOperations(id string, metadata document.Metadata) ([]*operation.AnchoredOperation, []*operation.AnchoredOperation) {
 	unpublishedOps, err := util.GetUnpublishedOperationsFromMetadata(metadata)
 	if err != nil {
 		logger.Debug("Unable to get unpublished operations", log.WithDID(id), log.WithError(err))
@@ -384,7 +384,7 @@ func checkCommitment(anchorOrigin, local map[string]interface{}, commitmentType 
 	return nil
 }
 
-func (r *ResolveHandler) resolveDocumentFromAnchorOrigin(id, anchorOrigin string) (*document.ResolutionResult, error) { //nolint:lll
+func (r *ResolveHandler) resolveDocumentFromAnchorOrigin(id, anchorOrigin string) (*document.ResolutionResult, error) {
 	endpoint, err := r.getAnchorOriginEndpoint(anchorOrigin)
 	if err != nil {
 		return nil, err
@@ -423,7 +423,7 @@ func (r *ResolveHandler) getAnchorOriginEndpoint(anchorOrigin string) (*models.E
 	return endpoint, nil
 }
 
-func (r *ResolveHandler) resolveDocumentLocally(id string, opts ...document.ResolutionOption) (*document.ResolutionResult, error) { //nolint:lll
+func (r *ResolveHandler) resolveDocumentLocally(id string, opts ...document.ResolutionOption) (*document.ResolutionResult, error) {
 	resolveDocumentLocallyStartTime := time.Now()
 
 	defer func() {

@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+//nolint:maintidx
 func TestStandardFields(t *testing.T) {
 	const module = "test_module"
 
@@ -348,12 +349,12 @@ type logData struct {
 	Msg    string `json:"msg"`
 	Error  string `json:"error"`
 
-	MessageID              string              `json:"messageID"`
+	MessageID              string              `json:"messageId"`
 	Data                   string              `json:"data"`
-	ActorID                string              `json:"actorID"`
-	ActivityID             string              `json:"activityID"`
+	ActorID                string              `json:"actorId"`
+	ActivityID             string              `json:"activityId"`
 	ActivityType           string              `json:"activityType"`
-	ServiceIri             string              `json:"serviceIRI"`
+	ServiceIri             string              `json:"serviceIri"`
 	Service                string              `json:"service"`
 	ServiceEndpoint        string              `json:"serviceEndpoint"`
 	Size                   int                 `json:"size"`
@@ -366,19 +367,19 @@ type logData struct {
 	URI                    string              `json:"uri"`
 	URIs                   []string            `json:"uris"`
 	Sender                 string              `json:"sender"`
-	AnchorURI              string              `json:"anchorURI"`
-	AnchorEventURI         string              `json:"anchorEventURI"`
+	AnchorURI              string              `json:"anchorUri"`
+	AnchorEventURI         string              `json:"anchorEventUri"`
 	Config                 *mockObject         `json:"config"`
 	AcceptListType         string              `json:"acceptListType"`
 	Additions              []string            `json:"additions"`
 	Deletions              []string            `json:"deletions"`
-	RequestURL             string              `json:"requestURL"`
+	RequestURL             string              `json:"requestUrl"`
 	RequestHeaders         map[string][]string `json:"requestHeaders"`
 	RequestBody            string              `json:"requestBody"`
 	Response               string              `json:"response"`
-	ObjectIRI              string              `json:"objectIRI"`
+	ObjectIRI              string              `json:"objectIri"`
 	Reference              string              `json:"reference"`
-	KeyID                  string              `json:"keyID"`
+	KeyID                  string              `json:"keyId"`
 	KeyOwnerID             string              `json:"keyOwner"`
 	KeyType                string              `json:"keyType"`
 	Current                string              `json:"current"`
@@ -390,14 +391,14 @@ type logData struct {
 	AnchorHash             string              `json:"anchorHash"`
 	Suffix                 string              `json:"suffix"`
 	VerifiableCredential   string              `json:"vc"`
-	VerifiableCredentialID string              `json:"vcID"`
+	VerifiableCredentialID string              `json:"vcId"`
 	Hashlink               string              `json:"hashlink"`
 	Parent                 string              `json:"parent"`
 	Parents                []string            `json:"parents"`
 	Proof                  string              `json:"proof"`
 	CreatedTime            string              `json:"createdTime"`
-	WitnessURI             string              `json:"witnessURI"`
-	WitnessURIs            []string            `json:"WitnessURIs"`
+	WitnessURI             string              `json:"witnessUri"`
+	WitnessURIs            []string            `json:"WitnessURIs"` //nolint:tagliatelle
 	WitnessPolicy          string              `json:"witnessPolicy"`
 	AnchorOrigin           string              `json:"anchorOrigin"`
 	OperationType          string              `json:"operationType"`
@@ -406,22 +407,22 @@ type logData struct {
 	AnchorOriginEndpoint   *mockObject         `json:"anchorOriginEndpoint"`
 	Key                    string              `json:"key"`
 	CID                    string              `json:"cid"`
-	ResolvedCID            string              `json:"resolvedCID"`
-	AnchorCID              string              `json:"anchorCID"`
+	ResolvedCID            string              `json:"resolvedCid"`
+	AnchorCID              string              `json:"anchorCid"`
 	CIDVersion             int                 `json:"cidVersion"`
 	Multihash              string              `json:"multihash"`
 	CASData                string              `json:"casData"`
 	Domain                 string              `json:"domain"`
 	Link                   string              `json:"link"`
 	Links                  []string            `json:"links"`
-	TaskMgrInstanceID      string              `json:"taskMgrInstanceID"`
+	TaskMgrInstanceID      string              `json:"taskMgrInstanceId"`
 	Retries                int                 `json:"retries"`
 	MaxRetries             int                 `json:"maxRetries"`
 	SubscriberPoolSize     int                 `json:"subscriberPoolSize"`
 	TaskMonitorInterval    string              `json:"taskMonitorInterval"`
 	TaskExpiration         string              `json:"taskExpiration"`
 	DeliveryDelay          string              `json:"deliveryDelay"`
-	OperationID            string              `json:"operationID"`
+	OperationID            string              `json:"operationId"`
 	PermitHolder           string              `json:"permitHolder"`
 	TimeSinceLastUpdate    string              `json:"timeSinceLastUpdate"`
 	GenesisTime            int                 `json:"genesisTime"`
@@ -434,7 +435,7 @@ type logData struct {
 	ResolutionEndpoints    []string            `json:"resolutionEndpoints"`
 	Metadata               *mockObject         `json:"metadata"`
 	SidetreeProtocol       *mockObject         `json:"sidetreeProtocol"`
-	OriginActorID          string              `json:"originActorID"`
+	OriginActorID          string              `json:"originActorId"`
 	Targets                []string            `json:"targets"`
 	HTTPMethod             string              `json:"httpMethod"`
 	Suffixes               []string            `json:"suffixes"`
@@ -448,10 +449,10 @@ type logData struct {
 	MaxSize                int                 `json:"maxSize"`
 	Parameters             *mockObject         `json:"parameters"`
 	URL                    string              `json:"url"`
-	AnchorURIs             []string            `json:"anchorURIs"`
+	AnchorURIs             []string            `json:"anchorURIs"` //nolint:tagliatelle
 	Operation              *mockObject         `json:"operation"`
 	Value                  string              `json:"value"`
-	TaskID                 string              `json:"taskID"`
+	TaskID                 string              `json:"taskId"`
 	SidetreeTxn            *mockObject         `json:"sidetreeTxn"`
 	AnchorLink             string              `json:"anchorLink"`
 	DeliveryAttempts       int                 `json:"deliveryAttempts"`
@@ -459,7 +460,7 @@ type logData struct {
 	StoreName              string              `json:"storeName"`
 	Issuer                 string              `json:"issuer"`
 	Status                 string              `json:"status"`
-	LogURL                 string              `json:"logURL"`
+	LogURL                 string              `json:"logUrl"`
 	Namespace              string              `json:"namespace"`
 	CanonicalRef           string              `json:"canonicalRef"`
 	AnchorString           string              `json:"anchorString"`

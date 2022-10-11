@@ -348,12 +348,10 @@ func getIDFromParam(objectIRI *url.URL, path string) getIDFunc {
 	}
 }
 
-//nolint:gochecknoglobals
 var getIDParam = func(req *http.Request) string {
 	return getParam(req, idParam)
 }
 
-//nolint:gochecknoglobals
 var getTypeParam = func(req *http.Request) string {
 	return getParam(req, typeParam)
 }

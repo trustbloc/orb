@@ -10,7 +10,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strconv"
 	"testing"
@@ -66,7 +66,7 @@ func TestClient_MonitorLogs(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth0)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth0)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -87,13 +87,13 @@ func TestClient_MonitorLogs(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -108,7 +108,7 @@ func TestClient_MonitorLogs(t *testing.T) {
 
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -129,7 +129,7 @@ func TestClient_MonitorLogs(t *testing.T) {
 
 		client, err := New(logMonitorStore, httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -148,7 +148,7 @@ func TestClient_MonitorLogs(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth0)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth0)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -169,13 +169,13 @@ func TestClient_MonitorLogs(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -199,7 +199,7 @@ func TestClient_processLog(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth0)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth0)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -220,13 +220,13 @@ func TestClient_processLog(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -245,7 +245,7 @@ func TestClient_processLog(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth0)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth0)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -266,13 +266,13 @@ func TestClient_processLog(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -282,7 +282,7 @@ func TestClient_processLog(t *testing.T) {
 	})
 }
 
-// nolint:gocognit,gocyclo,cyclop
+//nolint:gocognit,gocyclo,cyclop,maintidx
 func TestClient_checkVCTConsistency(t *testing.T) {
 	t.Run("success - empty stored, new STH tree size is zero", func(t *testing.T) {
 		store, err := logmonitor.New(mem.NewProvider())
@@ -297,7 +297,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth0)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth0)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -318,13 +318,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -356,7 +356,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth0)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth0)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -377,13 +377,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, innerErr)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -415,7 +415,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth4)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -442,7 +442,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -463,13 +463,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, innerErr)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -501,7 +501,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth5)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth5)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -522,14 +522,14 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, innerErr)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			if req.URL.Path == sthConsistencyURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					Body:       io.NopCloser(bytes.NewBufferString("{}")),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -545,13 +545,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -612,7 +612,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth0)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth0)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -633,14 +633,14 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, innerErr)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			if req.URL.Path == sthConsistencyURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					Body:       io.NopCloser(bytes.NewBufferString("{}")),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -656,13 +656,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{}, WithLogEntriesStoreEnabled(true), WithLogEntriesStore(s))
@@ -708,7 +708,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth4)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -729,14 +729,14 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, innerErr)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			if req.URL.Path == sthConsistencyURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					Body:       io.NopCloser(bytes.NewBufferString("{}")),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -763,13 +763,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{}, WithLogEntriesStoreEnabled(true), WithLogEntriesStore(s))
@@ -815,7 +815,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth4)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -836,14 +836,14 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, innerErr)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			if req.URL.Path == sthConsistencyURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					Body:       io.NopCloser(bytes.NewBufferString("{}")),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -884,13 +884,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{},
@@ -939,7 +939,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth4)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -960,14 +960,14 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, innerErr)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			if req.URL.Path == sthConsistencyURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					Body:       io.NopCloser(bytes.NewBufferString("{}")),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -1008,13 +1008,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{},
@@ -1063,7 +1063,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth4)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -1084,14 +1084,14 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, innerErr)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			if req.URL.Path == sthConsistencyURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					Body:       io.NopCloser(bytes.NewBufferString("{}")),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -1132,13 +1132,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{},
@@ -1188,7 +1188,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth4)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -1209,14 +1209,14 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, innerErr)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			if req.URL.Path == sthConsistencyURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					Body:       io.NopCloser(bytes.NewBufferString("{}")),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -1243,13 +1243,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{}, WithLogEntriesStoreEnabled(true), WithLogEntriesStore(s))
@@ -1296,7 +1296,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth4)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -1317,27 +1317,27 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, innerErr)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			if req.URL.Path == sthConsistencyURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					Body:       io.NopCloser(bytes.NewBufferString("{}")),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			if req.URL.Path == getEntriesURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					Body:       io.NopCloser(bytes.NewBufferString("{}")),
 					StatusCode: http.StatusInternalServerError,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{}, WithLogEntriesStoreEnabled(true), WithLogEntriesStore(s))
@@ -1373,7 +1373,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth4)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -1394,14 +1394,14 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, innerErr)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			if req.URL.Path == sthConsistencyURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					Body:       io.NopCloser(bytes.NewBufferString("{}")),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -1419,13 +1419,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{},
@@ -1463,7 +1463,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth4)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -1484,14 +1484,14 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, innerErr)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			if req.URL.Path == sthConsistencyURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					Body:       io.NopCloser(bytes.NewBufferString("{}")),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -1509,13 +1509,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{},
@@ -1553,7 +1553,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth4)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -1574,14 +1574,14 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, innerErr)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			if req.URL.Path == sthConsistencyURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					Body:       io.NopCloser(bytes.NewBufferString("{}")),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -1608,13 +1608,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -1639,7 +1639,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth4)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -1660,7 +1660,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -1676,13 +1676,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -1722,7 +1722,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth5)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth5)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -1743,20 +1743,20 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, innerErr)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			if req.URL.Path == sthConsistencyURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					Body:       io.NopCloser(bytes.NewBufferString("{}")),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -1791,7 +1791,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -1824,14 +1824,14 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth5)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth5)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			if req.URL.Path == sthConsistencyURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					Body:       io.NopCloser(bytes.NewBufferString("{}")),
 					StatusCode: http.StatusInternalServerError,
 				}, nil
 			}
@@ -1852,13 +1852,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, innerErr)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -1891,14 +1891,14 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth5)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth5)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			if req.URL.Path == sthConsistencyURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString("{}")),
+					Body:       io.NopCloser(bytes.NewBufferString("{}")),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -1919,13 +1919,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, innerErr)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -1949,7 +1949,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth0)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth0)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -1970,13 +1970,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -2000,13 +2000,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth0)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth0)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -2030,7 +2030,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(logMonitorStore, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth0)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth0)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -2051,13 +2051,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -2082,7 +2082,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth4)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -2103,13 +2103,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -2134,7 +2134,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth4)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -2155,7 +2155,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -2171,13 +2171,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{},
@@ -2201,7 +2201,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth4)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -2222,7 +2222,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -2238,13 +2238,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -2269,7 +2269,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth4)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -2290,7 +2290,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -2306,13 +2306,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -2341,7 +2341,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 		client, err := New(store, httpMock(func(req *http.Request) (*http.Response, error) {
 			if req.URL.Path == sthURL {
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBufferString(sth4)),
+					Body:       io.NopCloser(bytes.NewBufferString(sth4)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -2362,7 +2362,7 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
@@ -2378,13 +2378,13 @@ func TestClient_checkVCTConsistency(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		}), map[string]string{})
@@ -2428,13 +2428,13 @@ func TestClient_getEntries(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		})))
@@ -2465,13 +2465,13 @@ func TestClient_getEntries(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		})))
@@ -2508,13 +2508,13 @@ func TestClient_getEntries(t *testing.T) {
 				require.NoError(t, e)
 
 				return &http.Response{
-					Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 					StatusCode: http.StatusOK,
 				}, nil
 			}
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		})))
@@ -2529,7 +2529,7 @@ func TestClient_getEntries(t *testing.T) {
 func TestClient_GetLogEntriesFrom(t *testing.T) {
 	t.Run("success ", func(t *testing.T) {
 		client, err := New(nil, httpMock(func(req *http.Request) (*http.Response, error) {
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		}), map[string]string{},
 			WithLogEntriesStoreEnabled(true),
 			WithLogEntriesStore(&mockLogEntryStore{GetIter: &mockLogEntryIterator{}}))
@@ -2542,7 +2542,7 @@ func TestClient_GetLogEntriesFrom(t *testing.T) {
 
 	t.Run("error - iterator total items ", func(t *testing.T) {
 		client, err := New(nil, httpMock(func(req *http.Request) (*http.Response, error) {
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		}), map[string]string{},
 			WithLogEntriesStoreEnabled(true),
 			WithLogEntriesStore(&mockLogEntryStore{GetIter: &mockLogEntryIterator{
@@ -2558,7 +2558,7 @@ func TestClient_GetLogEntriesFrom(t *testing.T) {
 
 	t.Run("error - iterator next ", func(t *testing.T) {
 		client, err := New(nil, httpMock(func(req *http.Request) (*http.Response, error) {
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		}), map[string]string{},
 			WithLogEntriesStoreEnabled(true),
 			WithLogEntriesStore(&mockLogEntryStore{
@@ -2577,7 +2577,7 @@ func TestClient_GetLogEntriesFrom(t *testing.T) {
 
 	t.Run("error - store error ", func(t *testing.T) {
 		client, err := New(nil, httpMock(func(req *http.Request) (*http.Response, error) {
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		}), map[string]string{},
 			WithLogEntriesStoreEnabled(true),
 			WithLogEntriesStore(&mockLogEntryStore{GetErr: fmt.Errorf("get entries error")}))
@@ -2608,7 +2608,7 @@ func TestClient_GetPublicKey(t *testing.T) {
 			require.NoError(t, err)
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+				Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 				StatusCode: http.StatusOK,
 			}, nil
 		})))
@@ -2635,7 +2635,7 @@ func TestClient_GetPublicKey(t *testing.T) {
 			require.NoError(t, err)
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+				Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 				StatusCode: http.StatusOK,
 			}, nil
 		})))
@@ -2663,7 +2663,7 @@ func TestClient_GetPublicKey(t *testing.T) {
 			require.NoError(t, err)
 
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBuffer(fakeResp)),
+				Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
 				StatusCode: http.StatusOK,
 			}, nil
 		})))
@@ -2677,7 +2677,7 @@ func TestClient_GetPublicKey(t *testing.T) {
 	t.Run("error - internal server error", func(t *testing.T) {
 		vctClient := vct.New(testLog, vct.WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
 		})))
@@ -2690,7 +2690,7 @@ func TestClient_GetPublicKey(t *testing.T) {
 	t.Run("error - no public key", func(t *testing.T) {
 		vctClient := vct.New(testLog, vct.WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBuffer([]byte("{}"))),
+				Body:       io.NopCloser(bytes.NewBuffer([]byte("{}"))),
 				StatusCode: http.StatusOK,
 			}, nil
 		})))
@@ -2715,7 +2715,7 @@ type mockLogVerifier struct {
 	RootHash []byte
 }
 
-func (v *mockLogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, root2 []byte, proof [][]byte) error { //nolint:lll
+func (v *mockLogVerifier) VerifyConsistencyProof(snapshot1, snapshot2 int64, root1, root2 []byte, proof [][]byte) error {
 	return v.VerifyConsistencyProofErr
 }
 
@@ -2771,7 +2771,7 @@ func (e *mockLogEntryIterator) Next() (*command.LeafEntry, error) {
 		return nil, e.NextErr
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (e *mockLogEntryIterator) Close() error {
@@ -2796,7 +2796,6 @@ var storedEntries = []command.LeafEntry{
 	},
 }
 
-//nolint:lll
 var sth0 = `{
   "tree_size": 0,
   "timestamp": 1662493474864,
@@ -2804,7 +2803,6 @@ var sth0 = `{
   "tree_head_signature": "eyJhbGdvcml0aG0iOnsic2lnbmF0dXJlIjoiRUNEU0EiLCJ0eXBlIjoiRUNEU0FQMjU2REVSIn0sInNpZ25hdHVyZSI6Ik1FUUNJRnVneG8wSVZuZjh2K2Y2MG0rUUpVV3dKRU9tZ0IzMmoyVm9SRWFHWmJCdEFpQXZmRFRUSERwVG04bXJxZHdFRGFBZmRvMUhPU3dDRUpvNVBNaG1pbEFHU1E9PSJ9"
 }`
 
-//nolint:lll
 var sth4 = `{
   "tree_size": 4,
   "timestamp": 1662493604367,
@@ -2812,7 +2810,6 @@ var sth4 = `{
   "tree_head_signature": "eyJhbGdvcml0aG0iOnsic2lnbmF0dXJlIjoiRUNEU0EiLCJ0eXBlIjoiRUNEU0FQMjU2REVSIn0sInNpZ25hdHVyZSI6Ik1FVUNJRmtrRkFTZUlWNWsxZzBrSzdONE80MEM5Ni9ITk9HTDV0Y0EvK0pRRVFMcEFpRUF3QWpsWFlmV3ZiZk90ajQxY1JoS29qeDkyZ29jMER5aXRleVVROVRIeEdzPSJ9"
 }`
 
-//nolint:lll
 var sth5 = `{
   "tree_size": 5,
   "timestamp": 1662493614262,
@@ -2821,6 +2818,6 @@ var sth5 = `{
 }`
 
 const (
-	PublicKey          = `MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2Di7Fea52hG12mc6VVhHIlbC/F2KMgh2fs6bweeHojWBCxzKoLya5ty4ZmjM5agWMyTBvfrJ4leWAlCoCV2yvA==` //nolint:lll
-	DifferentPublicKey = `MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEYH7+MO+X0YPnGkvK1Nmy/4/r9HpgPPku9gjw3k3zOl+PTbu7iEL2gsiH/KHaFbeMoMcj5Tv0OkA/EKfuzd0imQ==` //nolint:lll
+	PublicKey          = `MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE2Di7Fea52hG12mc6VVhHIlbC/F2KMgh2fs6bweeHojWBCxzKoLya5ty4ZmjM5agWMyTBvfrJ4leWAlCoCV2yvA==`
+	DifferentPublicKey = `MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEYH7+MO+X0YPnGkvK1Nmy/4/r9HpgPPku9gjw3k3zOl+PTbu7iEL2gsiH/KHaFbeMoMcj5Tv0OkA/EKfuzd0imQ==`
 )

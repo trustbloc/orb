@@ -29,7 +29,6 @@ var (
 	logger = log.New("httpserver")
 
 	// BuildVersion contains the version of the Orb build.
-	//nolint:gochecknoglobals
 	BuildVersion string
 )
 
@@ -69,8 +68,8 @@ type keyManager interface {
 }
 
 // New returns a new HTTP server.
-func New(url, certFile, keyFile string, serverIdleTimeout time.Duration, pubSub pubSub, vct vct, db db,
-	keyManager keyManager, handlers ...common.HTTPHandler) *Server {
+func New(url, certFile, keyFile string, serverIdleTimeout, serverReadHeaderTimeout time.Duration,
+	pubSub pubSub, vct vct, db db, keyManager keyManager, handlers ...common.HTTPHandler) *Server {
 	s := &Server{
 		certFile:   certFile,
 		keyFile:    keyFile,
@@ -110,9 +109,10 @@ func New(url, certFile, keyFile string, serverIdleTimeout time.Duration, pubSub 
 	}
 
 	httpServ := &http.Server{
-		Addr:        url,
-		Handler:     h2c.NewHandler(handler, http2Server),
-		IdleTimeout: serverIdleTimeout,
+		Addr:              url,
+		Handler:           h2c.NewHandler(handler, http2Server),
+		IdleTimeout:       serverIdleTimeout,
+		ReadHeaderTimeout: serverReadHeaderTimeout,
 	}
 
 	s.httpServer = httpServ

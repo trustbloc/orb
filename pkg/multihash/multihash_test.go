@@ -30,7 +30,7 @@ func TestIsValidCID(t *testing.T) {
 	})
 
 	t.Run("success - ipns", func(t *testing.T) {
-		valid := multihash.IsValidCID("/ipns/k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q/.well-known/host-meta.json") //nolint:lll
+		valid := multihash.IsValidCID("/ipns/k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q/.well-known/host-meta.json")
 		require.True(t, valid)
 	})
 }

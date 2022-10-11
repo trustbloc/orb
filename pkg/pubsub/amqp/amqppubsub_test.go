@@ -121,7 +121,7 @@ func TestAMQP(t *testing.T) {
 			for m := range msgChan {
 				go func(msg *message.Message) {
 					// Randomly fail 33% of the messages to test redelivery.
-					if rand.Int31n(10) < 3 { //nolint:gosec
+					if rand.Int31n(10) < 3 {
 						msg.Nack()
 
 						return
@@ -346,7 +346,7 @@ func (m *mockSubscriber) Subscribe(ctx context.Context, topic string) (<-chan *m
 		return nil, m.err
 	}
 
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }
 
 func (m *mockSubscriber) SubscribeInitialize(string) error {

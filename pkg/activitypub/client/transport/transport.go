@@ -149,7 +149,7 @@ func (t *Transport) Post(ctx context.Context, r *Request, payload []byte) (*http
 
 // Get sends an HTTP GET. The HTTP request is first signed and the signature is added to the request header.
 func (t *Transport) Get(ctx context.Context, r *Request) (*http.Response, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, r.URL.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, r.URL.String(), http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("get from %s: %w", r.URL, err)
 	}

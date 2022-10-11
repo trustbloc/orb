@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -42,7 +42,6 @@ import (
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 )
 
-//nolint:lll
 //go:generate counterfeiter -o ../mocks/referenceiterator.gen.go --fake-name ReferenceIterator ./../../client ReferenceIterator
 
 const pageSize = 2
@@ -138,7 +137,7 @@ func TestOutbox_Post(t *testing.T) {
 		mutex.Unlock()
 	}
 
-	httpServer := httpserver.New(":8003", "", "", 1*time.Second,
+	httpServer := httpserver.New(":8003", "", "", time.Second, time.Second,
 		&mockService{}, &mockService{}, &mockService{}, &mockService{},
 		newTestHandler("/services/service2", http.MethodGet, mockServiceRequestHandler(t, service2URL)),
 		newTestHandler("/services/service3", http.MethodGet, mockServiceRequestHandler(t, service3URL)),
@@ -433,6 +432,7 @@ func TestOutbox_Handle(t *testing.T) {
 	})
 }
 
+//nolint:maintidx
 func TestOutbox_HandleActivityMessage(t *testing.T) {
 	service1URL := testutil.MustParseURL("http://domain1.com/services/orb")
 	service2URL := testutil.MustParseURL("http://domain2.com/services/orb")
@@ -864,7 +864,7 @@ func mockInboxHandler(t *testing.T, handle func(activity *vocab.ActivityType)) c
 	t.Helper()
 
 	return func(w http.ResponseWriter, req *http.Request) {
-		bytes, err := ioutil.ReadAll(req.Body)
+		bytes, err := io.ReadAll(req.Body)
 		require.NoError(t, err)
 
 		fmt.Printf("Got HTTP message: %s\n", bytes)

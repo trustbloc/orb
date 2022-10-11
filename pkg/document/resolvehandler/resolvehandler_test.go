@@ -35,8 +35,8 @@ const (
 	testDID               = "did:orb:cid:suffix"
 	testDIDWithCIDAndHint = "did:orb:webcas:domain.com:cid:suffix"
 
-	testDIDWithHL    = "did:orb:hl:uEiAK4KusHyrEyiNE2fdYuOJQG8t55w6XqFdloCdKW-0jnA:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQUs0S3VzSHlyRXlpTkUyZmRZdU9KUUc4dDU1dzZYcUZkbG9DZEtXLTBqbkF4QmlwZnM6Ly9iYWZrcmVpYWs0Y3YyeWh6a3l0ZmNncmd6NjVtbHJ5c3FkcGZ4dHp5b3M2dWZvem5hZTVmZngzamR0cQ:EiAE6sz3Y4_87zWXG_lLV-IahvMqfBRhbi482JClS6xpuw" //nolint:lll
-	testDIDCanonical = "did:orb:hl:uEiAK4KusHyrEyiNE2fdYuOJQG8t55w6XqFdloCdKW-0jnA:EiAE6sz3Y4_87zWXG_lLV-IahvMqfBRhbi482JClS6xpuw"                                                                                                                                                                                                         //nolint:lll
+	testDIDWithHL    = "did:orb:hl:uEiAK4KusHyrEyiNE2fdYuOJQG8t55w6XqFdloCdKW-0jnA:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQUs0S3VzSHlyRXlpTkUyZmRZdU9KUUc4dDU1dzZYcUZkbG9DZEtXLTBqbkF4QmlwZnM6Ly9iYWZrcmVpYWs0Y3YyeWh6a3l0ZmNncmd6NjVtbHJ5c3FkcGZ4dHp5b3M2dWZvem5hZTVmZngzamR0cQ:EiAE6sz3Y4_87zWXG_lLV-IahvMqfBRhbi482JClS6xpuw"
+	testDIDCanonical = "did:orb:hl:uEiAK4KusHyrEyiNE2fdYuOJQG8t55w6XqFdloCdKW-0jnA:EiAE6sz3Y4_87zWXG_lLV-IahvMqfBRhbi482JClS6xpuw"
 
 	testInterimDID = "did:orb:uAAA:suffix"
 
@@ -52,6 +52,7 @@ const (
 	updateCommitment   = "update-commitment"
 )
 
+//nolint:maintidx
 func TestResolveHandler_Resolve(t *testing.T) {
 	anchorGraph := &orbmocks.AnchorGraph{}
 	anchorGraph.GetDidAnchorsReturns([]graph.Anchor{{Info: &linkset.Link{}}}, nil)
@@ -446,7 +447,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		require.Equal(t, localResolutionResult.Document, response.Document)
 	})
 
-	t.Run("success - unpublished operations not provided from anchor origin (return local)", func(t *testing.T) { //nolint:lll
+	t.Run("success - unpublished operations not provided from anchor origin (return local)", func(t *testing.T) {
 		doc := make(document.Document)
 		doc["id"] = localID
 
@@ -494,7 +495,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		require.Equal(t, localResolutionResult.Document, response.Document)
 	})
 
-	t.Run("success - unpublished operations provided from anchor origin(documents don't match)", func(t *testing.T) { //nolint:lll
+	t.Run("success - unpublished operations provided from anchor origin(documents don't match)", func(t *testing.T) {
 		doc := make(document.Document)
 		doc["id"] = localID
 
@@ -545,7 +546,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		require.Equal(t, localResolutionResult.Document, response.Document)
 	})
 
-	t.Run("success - unpublished operations provided from anchor origin(local resolve fails)", func(t *testing.T) { //nolint:lll
+	t.Run("success - unpublished operations provided from anchor origin(local resolve fails)", func(t *testing.T) {
 		doc := make(document.Document)
 		doc["id"] = localID
 
@@ -597,7 +598,7 @@ func TestResolveHandler_Resolve(t *testing.T) {
 		require.Equal(t, localResolutionResult.Document, response.Document)
 	})
 
-	t.Run("success - remote resolution enabled(anchor origin and domain are the same, return local result)", func(t *testing.T) { //nolint:lll
+	t.Run("success - remote resolution enabled(anchor origin and domain are the same, return local result)", func(t *testing.T) {
 		doc := make(document.Document)
 		doc["id"] = localID
 

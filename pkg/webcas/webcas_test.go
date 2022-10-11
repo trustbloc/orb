@@ -8,7 +8,7 @@ package webcas_test
 
 import (
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -112,7 +112,7 @@ func TestHandler(t *testing.T) {
 			require.NoError(t, response.Body.Close())
 		}()
 
-		responseBody, err := ioutil.ReadAll(response.Body)
+		responseBody, err := io.ReadAll(response.Body)
 		require.NoError(t, err)
 
 		require.Equal(t, http.StatusOK, response.StatusCode)
@@ -140,7 +140,7 @@ func TestHandler(t *testing.T) {
 			require.NoError(t, response.Body.Close())
 		}()
 
-		responseBody, err := ioutil.ReadAll(response.Body)
+		responseBody, err := io.ReadAll(response.Body)
 		require.NoError(t, err)
 
 		require.Equal(t, http.StatusNotFound, response.StatusCode)

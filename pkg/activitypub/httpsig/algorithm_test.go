@@ -172,7 +172,7 @@ func TestKeyResolver_Resolve(t *testing.T) {
 		resolver := NewKeyResolver(pubKeyRetriever)
 		require.NotNil(t, resolver)
 
-		pk, err := resolver.Resolve(fmt.Sprintf("%s", []byte{0}))
+		pk, err := resolver.Resolve(fmt.Sprintf("%s", []byte{0})) //nolint:gosimple
 		require.Error(t, err)
 		require.Nil(t, pk)
 	})

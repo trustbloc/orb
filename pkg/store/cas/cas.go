@@ -48,8 +48,8 @@ type CAS struct {
 // ipfsClient is optional, but if provided (not nil), then writes will go to IPFS in addition to the passed in provider.
 // Reads are always done on only the passed in provider.
 // If no CID version is specified, then v1 will be used by default.
-func New(provider ariesstorage.Provider, casLink string, ipfsClient *ipfs.Client,
-	metrics metricsProvider, cacheSize int, opts ...extendedcasclient.CIDFormatOption) (*CAS, error) {
+func New(provider ariesstorage.Provider, casLink string, ipfsClient *ipfs.Client, metrics metricsProvider,
+	cacheSize int, opts ...extendedcasclient.CIDFormatOption) (*CAS, error) {
 	cas, err := provider.OpenStore("cas")
 	if err != nil {
 		return nil, fmt.Errorf("failed to open store in underlying storage provider: %w", err)
@@ -75,7 +75,7 @@ func New(provider ariesstorage.Provider, casLink string, ipfsClient *ipfs.Client
 				return nil, err
 			}
 
-			logger.Debug("Content was cached", log.WithKey(key.(string)))
+			logger.Debug("Content was cached", log.WithKey(key.(string))) //nolint:forcetypeassert
 
 			return cid, nil
 		},
@@ -160,7 +160,7 @@ func (p *CAS) Read(address string) ([]byte, error) {
 		return nil, err
 	}
 
-	return content.([]byte), nil
+	return content.([]byte), nil //nolint:forcetypeassert
 }
 
 func (p *CAS) get(address string) ([]byte, error) {

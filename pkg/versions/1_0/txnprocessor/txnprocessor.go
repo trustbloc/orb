@@ -105,9 +105,7 @@ func contains(arr []string, v string) bool {
 	return false
 }
 
-//nolint:funlen
-func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperation,
-	sidetreeTxn *txn.SidetreeTxn) (int, error) {
+func (p *TxnProcessor) processTxnOperations(txnOps []*operation.AnchoredOperation, sidetreeTxn *txn.SidetreeTxn) (int, error) {
 	logger.Debug("Processing transaction operations", log.WithTotal(len(txnOps)))
 
 	batchSuffixes := make(map[string]bool)

@@ -56,7 +56,7 @@ func (v *Validator) Validate(obj interface{}) error {
 
 	switch t := obj.(type) {
 	case string:
-		val, _ = obj.(string) // nolint: errcheck
+		val = obj.(string)
 	default:
 		return fmt.Errorf("anchor origin type not supported %T", t)
 	}

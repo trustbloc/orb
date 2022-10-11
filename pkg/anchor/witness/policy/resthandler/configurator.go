@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package resthandler
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
@@ -60,7 +60,7 @@ func New(store policyStore) *PolicyConfigurator {
 }
 
 func (pc *PolicyConfigurator) handle(w http.ResponseWriter, req *http.Request) {
-	policyBytes, err := ioutil.ReadAll(req.Body)
+	policyBytes, err := io.ReadAll(req.Body)
 	if err != nil {
 		logger.Error("Error reading request body", log.WithError(err))
 

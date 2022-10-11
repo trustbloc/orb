@@ -376,6 +376,7 @@ func TestStore_GetLogEntriesFrom(t *testing.T) {
 	})
 }
 
+//nolint:maintidx
 func TestStore_FailLogEntriesFrom(t *testing.T) {
 	t.Run("success - one entry", func(t *testing.T) {
 		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)

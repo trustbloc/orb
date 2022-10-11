@@ -242,7 +242,6 @@ func (g *Generator) CreatePayload(doc vocab.Document, coreIndexURI *url.URL,
 // - The content must be a valid anchor linkset.
 // - If profile is provided then it must be set to https://w3id.org/orb#v0.
 // - If anchor is provided then it is set to the same value as 'anchor' in the anchor linkset.
-//nolint:gocyclo,cyclop
 func (g *Generator) ValidateAnchorCredential(vc *verifiable.Credential, contentBytes []byte) error {
 	anchorLinkset := &linkset.Linkset{}
 

@@ -308,7 +308,7 @@ func TestQueue_Error(t *testing.T) {
 
 		errExpected := errors.New("injected put error")
 
-		s.(*storage.MockStore).ErrPut = errExpected
+		s.(*storage.MockStore).ErrPut = errExpected //nolint:forcetypeassert
 
 		q, err := New(Config{}, ps, p,
 			taskMgr, &mocks.MetricsProvider{})
@@ -330,7 +330,7 @@ func TestQueue_Error(t *testing.T) {
 
 		errExpected := errors.New("injected query error")
 
-		s.(*storage.MockStore).ErrQuery = errExpected
+		s.(*storage.MockStore).ErrQuery = errExpected //nolint:forcetypeassert
 
 		q, err := New(Config{}, ps, p,
 			mgr, &mocks.MetricsProvider{})
@@ -356,7 +356,7 @@ func TestQueue_Error(t *testing.T) {
 
 		errExpected := errors.New("injected iterator next error")
 
-		s.(*storage.MockStore).ErrNext = errExpected
+		s.(*storage.MockStore).ErrNext = errExpected //nolint:forcetypeassert
 
 		q, err := New(Config{}, ps, p,
 			mgr, &mocks.MetricsProvider{})

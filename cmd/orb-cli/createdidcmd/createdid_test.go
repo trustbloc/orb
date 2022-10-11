@@ -8,7 +8,6 @@ package createdidcmd
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -100,16 +99,16 @@ func TestService(t *testing.T) {
 		os.Clearenv()
 		cmd := GetCreateDIDCmd()
 
-		file, err := ioutil.TempFile("", "*.json")
+		file, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
-		recoveryKeyFile, err := ioutil.TempFile("", "*.json")
+		recoveryKeyFile, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = recoveryKeyFile.WriteString(recoveryKeyPEM)
 		require.NoError(t, err)
 
-		updateKeyFile, err := ioutil.TempFile("", "*.json")
+		updateKeyFile, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = updateKeyFile.WriteString(updateKeyPEM)
@@ -151,13 +150,13 @@ func TestCreateDID(t *testing.T) {
 		require.NoError(t, err)
 	}))
 
-	recoveryKeyFile, err := ioutil.TempFile("", "*.json")
+	recoveryKeyFile, err := os.CreateTemp("", "*.json")
 	require.NoError(t, err)
 
 	_, err = recoveryKeyFile.WriteString(recoveryKeyPEM)
 	require.NoError(t, err)
 
-	updateKeyFile, err := ioutil.TempFile("", "*.json")
+	updateKeyFile, err := os.CreateTemp("", "*.json")
 	require.NoError(t, err)
 
 	_, err = updateKeyFile.WriteString(updateKeyPEM)
@@ -168,7 +167,7 @@ func TestCreateDID(t *testing.T) {
 		require.NoError(t, os.Remove(updateKeyFile.Name()))
 	}()
 
-	servicesFile, err := ioutil.TempFile("", "*.json")
+	servicesFile, err := os.CreateTemp("", "*.json")
 	require.NoError(t, err)
 
 	_, err = servicesFile.WriteString(servicesData)
@@ -176,7 +175,7 @@ func TestCreateDID(t *testing.T) {
 
 	defer func() { require.NoError(t, os.Remove(servicesFile.Name())) }()
 
-	jwk1File, err := ioutil.TempFile("", "*.json")
+	jwk1File, err := os.CreateTemp("", "*.json")
 	require.NoError(t, err)
 
 	_, err = jwk1File.WriteString(jwk1Data)
@@ -184,7 +183,7 @@ func TestCreateDID(t *testing.T) {
 
 	defer func() { require.NoError(t, os.Remove(jwk1File.Name())) }()
 
-	jwk2File, err := ioutil.TempFile("", "*.json")
+	jwk2File, err := os.CreateTemp("", "*.json")
 	require.NoError(t, err)
 
 	_, err = jwk2File.WriteString(jwk2Data)
@@ -192,7 +191,7 @@ func TestCreateDID(t *testing.T) {
 
 	defer func() { require.NoError(t, os.Remove(jwk2File.Name())) }()
 
-	publicKeyFile, err := ioutil.TempFile("", "*.json")
+	publicKeyFile, err := os.CreateTemp("", "*.json")
 	require.NoError(t, err)
 
 	_, err = publicKeyFile.WriteString(fmt.Sprintf(publickeyData, jwk1File.Name(), jwk2File.Name()))

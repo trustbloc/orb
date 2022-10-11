@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -67,7 +66,7 @@ func TestVerifyCmd(t *testing.T) {
 
 	t.Run("verify -> success", func(t *testing.T) {
 		serv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			_, err := fmt.Fprint(w, anchorLinkset)
+			_, err := w.Write([]byte(anchorLinkset))
 			require.NoError(t, err)
 		}))
 
@@ -90,7 +89,7 @@ func TestExecuteVerify(t *testing.T) {
 	const anchorHash = "uEiDuIicNljP8PoHJk6_aA7w1d4U3FAvDMfF7Dsh7fkw3Wg"
 
 	serv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, err := fmt.Fprint(w, anchorLinkset)
+		_, err := w.Write([]byte(anchorLinkset))
 		require.NoError(t, err)
 	}))
 
@@ -235,7 +234,6 @@ func (m *mockVCTClientProvider) GetVCTClient(domain string, opts ...vct.ClientOp
 	return m.client
 }
 
-//nolint:lll
 const anchorLinkset = `{
   "linkset": [
     {

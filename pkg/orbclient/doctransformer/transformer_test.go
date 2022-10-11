@@ -24,6 +24,7 @@ const (
 	testUnpublishedSuffix = "EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw"
 )
 
+//nolint:forcetypeassert
 func TestWebDocumentFromOrbDocument(t *testing.T) {
 	t.Run("success - published did with also known as", func(t *testing.T) {
 		rr, err := getTestResolutionResult()
@@ -38,7 +39,7 @@ func TestWebDocumentFromOrbDocument(t *testing.T) {
 		require.Equal(t, response[document.AlsoKnownAs].([]string)[1],
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 		require.Equal(t, response[document.AlsoKnownAs].([]string)[2],
-			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw") //nolint:lll
+			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 
 		responseBytes, err := json.Marshal(response)
 		require.NoError(t, err)
@@ -69,7 +70,7 @@ func TestWebDocumentFromOrbDocument(t *testing.T) {
 		fmt.Println(string(responseBytes))
 	})
 
-	t.Run("success - published did but domain not in alsoKnownAs (orb canonical ID added to also known as)", func(t *testing.T) { //nolint:lll
+	t.Run("success - published did but domain not in alsoKnownAs (orb canonical ID added to also known as)", func(t *testing.T) {
 		rr, err := getTestResolutionResult()
 		require.NoError(t, err)
 
@@ -105,7 +106,7 @@ func TestWebDocumentFromOrbDocument(t *testing.T) {
 		require.Equal(t, response[document.AlsoKnownAs].([]string)[0],
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 		require.Equal(t, response[document.AlsoKnownAs].([]string)[1],
-			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw") //nolint:lll
+			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 	})
 
 	t.Run("success - equivalent ID does not exist in the document", func(t *testing.T) {
@@ -140,7 +141,7 @@ func TestWebDocumentFromOrbDocument(t *testing.T) {
 		require.Equal(t, response[document.AlsoKnownAs].([]string)[1],
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 		require.Equal(t, response[document.AlsoKnownAs].([]string)[2],
-			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw") //nolint:lll
+			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 	})
 
 	t.Run("success - equivalent ID is string array", func(t *testing.T) {
@@ -177,7 +178,7 @@ func TestWebDocumentFromOrbDocument(t *testing.T) {
 		require.Equal(t, response[document.AlsoKnownAs].([]string)[1],
 			"did:orb:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 		require.Equal(t, response[document.AlsoKnownAs].([]string)[2],
-			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw") //nolint:lll
+			"did:orb:hl:uEiAZPHwtTJ7-rG0nBeD6nqyL3Xsg1IA2BX1n9iGlv5yBJQ:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQVpQSHd0VEo3LXJHMG5CZUQ2bnF5TDNYc2cxSUEyQlgxbjlpR2x2NXlCSlF4QmlwZnM6Ly9iYWZrcmVpYXpocjZjMnRlNjcyd2cyanlmNGQ1ajVsZWwzdjVzYnZlYWd5Y3gyejd3ZWdzMzdoZWJldQ:EiBmPHOGe4f8L4_ZVgBg5V343_nDSSX3l6X-9VKRhE57Tw")
 	})
 
 	t.Run("error - also known as is an unexpected interface", func(t *testing.T) {
@@ -315,7 +316,6 @@ func getDocument(str string) (document.Document, error) {
 	return doc, nil
 }
 
-//nolint:lll
 var didResolutionResult = `
 {
  "@context": "https://w3id.org/did-resolution/v1",
@@ -476,7 +476,6 @@ var unpublishedDIDResolutionResult = `
  }
 }`
 
-// nolint:lll
 var webResponse = `
 {
   "@context": "https://w3id.org/did-resolution/v1",
@@ -531,7 +530,6 @@ var webResponse = `
   }
 }`
 
-// nolint:lll
 var orbResponse = `
 {
   "@context": "https://w3id.org/did-resolution/v1",

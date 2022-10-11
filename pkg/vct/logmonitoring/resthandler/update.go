@@ -9,7 +9,7 @@ package resthandler
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -73,7 +73,7 @@ func NewUpdateHandler(store logMonitorStore) *UpdateHandler {
 }
 
 func (a *UpdateHandler) handle(w http.ResponseWriter, req *http.Request) {
-	reqBytes, err := ioutil.ReadAll(req.Body)
+	reqBytes, err := io.ReadAll(req.Body)
 	if err != nil {
 		a.logger.Error("Error reading request body", log.WithError(err))
 

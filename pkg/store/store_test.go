@@ -17,14 +17,12 @@ import (
 	"github.com/trustbloc/orb/pkg/store/mocks"
 )
 
-//nolint:lll
 //go:generate counterfeiter -o ./mocks/mongodbprovider.gen.go --fake-name MongoDBProvider . mongoDBTestProvider
 //go:generate counterfeiter -o ./mocks/mongodbstore.gen.go --fake-name MongoDBStore . mongoDBTestStore
 //go:generate counterfeiter -o ./mocks/mongodbiterator.gen.go --fake-name MongoDBIterator github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb.Iterator
 
 // mongoDBTestProvider is used to generate the mock MongoDBProvider.
-//nolint:deadcode,unused
-type mongoDBTestProvider interface {
+type mongoDBTestProvider interface { //nolint:unused
 	storage.Provider
 	mongoDBProvider
 
@@ -32,7 +30,8 @@ type mongoDBTestProvider interface {
 }
 
 // mongoDBTestStore is used to generate the mock MongoDBStore.
-//nolint:deadcode,unused
+//
+//nolint:unused
 type mongoDBTestStore interface {
 	storage.Store
 	mongoDBStore
@@ -212,11 +211,11 @@ func TestMongoDBGet(t *testing.T) {
 	t.Run("marshal error", func(t *testing.T) {
 		errExpected := errors.New("injected marshal error")
 
-		s.(*mongoDBWrapper).marshal = func(v interface{}) ([]byte, error) {
+		s.(*mongoDBWrapper).marshal = func(v interface{}) ([]byte, error) { //nolint:forcetypeassert
 			return nil, errExpected
 		}
 		defer func() {
-			s.(*mongoDBWrapper).marshal = json.Marshal
+			s.(*mongoDBWrapper).marshal = json.Marshal //nolint:forcetypeassert
 		}()
 
 		docBytes, err := s.Get(key)
@@ -237,6 +236,7 @@ func TestMongoDBGet(t *testing.T) {
 	})
 }
 
+//nolint:forcetypeassert
 func TestMongoDBGetBulk(t *testing.T) {
 	store := &mocks.MongoDBStore{}
 
@@ -304,6 +304,7 @@ func TestMongoDBGetBulk(t *testing.T) {
 	})
 }
 
+//nolint:forcetypeassert
 func TestMongoDBQuery(t *testing.T) {
 	store := &mocks.MongoDBStore{}
 

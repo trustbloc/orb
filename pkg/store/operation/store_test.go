@@ -18,7 +18,6 @@ import (
 	"github.com/trustbloc/orb/pkg/store/mocks"
 )
 
-//nolint:lll
 //go:generate counterfeiter -o ./../mocks/store.gen.go --fake-name Store github.com/hyperledger/aries-framework-go/spi/storage.Store
 //go:generate counterfeiter -o ./../mocks/provider.gen.go --fake-name Provider github.com/hyperledger/aries-framework-go/spi/storage.Provider
 //go:generate counterfeiter -o ./../mocks/iterator.gen.go --fake-name Iterator github.com/hyperledger/aries-framework-go/spi/storage.Iterator

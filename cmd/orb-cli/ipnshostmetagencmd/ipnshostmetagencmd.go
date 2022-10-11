@@ -70,7 +70,7 @@ func GetCmd() *cobra.Command {
 	return cmd
 }
 
-func hostMetaGenCmd() *cobra.Command { //nolint: funlen,gocyclo,cyclop
+func hostMetaGenCmd() *cobra.Command { //nolint: funlen,cyclop
 	return &cobra.Command{
 		Use:          "host-meta-doc-gen",
 		Short:        "generate IPNS host-meta document",

@@ -84,7 +84,7 @@ func TestRun(t *testing.T) {
 	announceActivities := aptestutil.NewMockAnnounceActivities(3)
 	createActivities := aptestutil.NewMockCreateActivities(3)
 
-	activities := append(createActivities, announceActivities...)
+	activities := append(createActivities, announceActivities...) //nolint: gocritic
 	activities = append(activities, aptestutil.NewMockLikeActivities(1)...)
 	activities = append(activities, announceActivities[0]) // Add a duplicate activity.
 

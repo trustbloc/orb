@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -44,7 +43,7 @@ func NewWriter(mgr allowedOriginsMgr) *Writer {
 	return &Writer{
 		mgr:     mgr,
 		marshal: json.Marshal,
-		readAll: ioutil.ReadAll,
+		readAll: io.ReadAll,
 	}
 }
 

@@ -37,6 +37,8 @@ const (
 
 // permit is used as an entry within the coordination store to ensure that only one Orb instance
 // within a cluster has the duty of running tasks periodically.
+//
+//nolint:tagliatelle
 type permit struct {
 	// TaskID is the ID of the task that is being run.
 	TaskID string `json:"task_id"`
@@ -195,7 +197,6 @@ func (s *Manager) run(t *registration) error {
 	return nil
 }
 
-//nolint:funlen
 func (s *Manager) shouldRun(t *registration) (bool, error) {
 	currentPermitBytes, err := s.coordinationStore.Get(getPermitKey(t.id))
 	if err != nil {

@@ -9,7 +9,7 @@ package resthandler
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -141,7 +141,7 @@ func TestFollowers_Handler(t *testing.T) {
 		result := rw.Result()
 		require.Equal(t, http.StatusOK, result.StatusCode)
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 
 		t.Logf("%s", respBytes)
@@ -491,7 +491,7 @@ func handleRequest(t *testing.T, h *handler, handle http.HandlerFunc, page, page
 	result := rw.Result()
 	require.Equal(t, http.StatusOK, result.StatusCode)
 
-	respBytes, err := ioutil.ReadAll(result.Body)
+	respBytes, err := io.ReadAll(result.Body)
 	require.NoError(t, err)
 	require.NoError(t, result.Body.Close())
 

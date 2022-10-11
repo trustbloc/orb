@@ -6,7 +6,6 @@ SPDX-License-Identifier: Apache-2.0
 package tlsutil_test
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 
@@ -42,10 +41,10 @@ func TestGetCertPool(t *testing.T) {
 	})
 
 	t.Run("test error from decode pem", func(t *testing.T) {
-		file, err := ioutil.TempFile("", "file")
+		file, err := os.CreateTemp("", "file")
 		require.NoError(t, err)
 
-		_, err = file.Write([]byte("data"))
+		_, err = file.WriteString("data")
 		require.NoError(t, err)
 
 		defer func() { require.NoError(t, os.Remove(file.Name())) }()
@@ -56,10 +55,10 @@ func TestGetCertPool(t *testing.T) {
 	})
 
 	t.Run("test error from success", func(t *testing.T) {
-		file, err := ioutil.TempFile("", "file")
+		file, err := os.CreateTemp("", "file")
 		require.NoError(t, err)
 
-		_, err = file.Write([]byte(tlsCaOrg1))
+		_, err = file.WriteString(tlsCaOrg1)
 		require.NoError(t, err)
 
 		defer func() { require.NoError(t, os.Remove(file.Name())) }()

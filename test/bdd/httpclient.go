@@ -10,7 +10,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"mime"
 	"net/http"
 	"strings"
@@ -100,7 +100,7 @@ func (c *httpClient) GetWithSignature(url, domain string) (*httpResponse, error)
 		}
 	}()
 
-	payload, err := ioutil.ReadAll(resp.Body)
+	payload, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("reading response body failed: %s", err)
 	}
@@ -202,7 +202,7 @@ func (c *httpClient) PostWithSignature(url string, data []byte, contentType, dom
 		}
 	}()
 
-	payload, err := ioutil.ReadAll(resp.Body)
+	payload, err := io.ReadAll(resp.Body)
 	if err != nil {
 		logger.Infof("Error reading response body from [%s]: %s", url, err)
 	}

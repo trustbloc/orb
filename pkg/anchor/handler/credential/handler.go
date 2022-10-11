@@ -71,7 +71,8 @@ func New(anchorPublisher anchorPublisher, casResolver casResolver,
 }
 
 // HandleAnchorEvent handles an anchor event.
-// nolint:funlen,gocyclo,cyclop
+//
+//nolint:cyclop
 func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorRef, source *url.URL,
 	anchorEvent *vocab.AnchorEventType) error {
 	logger.Debug("Received request for anchor", log.WithActorIRI(actor), log.WithAnchorEventURI(anchorRef))
@@ -203,7 +204,8 @@ func (h *AnchorEventHandler) ensureParentAnchorsAreProcessed(anchorRef *url.URL,
 
 // getUnprocessedParentAnchors returns all unprocessed ancestors (parents, grandparents, etc.) of the given
 // anchor event, sorted by oldest to newest.
-//nolint:gocyclo,cyclop
+//
+//nolint: cyclop,goimports
 func (h *AnchorEventHandler) getUnprocessedParentAnchors(hl string, anchorLink *linkset.Link) (anchorInfoSlice, error) {
 	logger.Debug("Getting unprocessed parents of anchor", log.WithAnchorURIString(hl))
 
@@ -236,12 +238,12 @@ func (h *AnchorEventHandler) getUnprocessedParentAnchors(hl string, anchorLink *
 			continue
 		}
 
-		info, err := h.getUnprocessedParentAnchor(hl, parentHL)
+		processed, info, err := h.getUnprocessedParentAnchor(hl, parentHL)
 		if err != nil {
 			return nil, err
 		}
 
-		if info == nil {
+		if processed {
 			continue
 		}
 
@@ -262,41 +264,41 @@ func (h *AnchorEventHandler) getUnprocessedParentAnchors(hl string, anchorLink *
 	return unprocessed, nil
 }
 
-func (h *AnchorEventHandler) getUnprocessedParentAnchor(hl string, parentHL *url.URL) (*anchorInfo, error) {
+func (h *AnchorEventHandler) getUnprocessedParentAnchor(hl string, parentHL *url.URL) (bool, *anchorInfo, error) {
 	logger.Debug("Checking parent of anchor to see if it has been processed",
 		log.WithAnchorURIString(hl), log.WithParentURI(parentHL))
 
 	isProcessed, err := h.isAnchorProcessed(parentHL)
 	if err != nil {
-		return nil, fmt.Errorf("is anchor processed [%s]: %w", parentHL, err)
+		return false, nil, fmt.Errorf("is anchor processed [%s]: %w", parentHL, err)
 	}
 
 	if isProcessed {
 		logger.Debug("Parent of anchor was already processed",
 			log.WithAnchorURIString(hl), log.WithParentURI(parentHL))
 
-		return nil, nil
+		return true, nil, nil
 	}
 
 	anchorLinksetBytes, localHL, err := h.casResolver.Resolve(nil, parentHL.String(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("resolve anchor [%s]: %w", parentHL, err)
+		return false, nil, fmt.Errorf("resolve anchor [%s]: %w", parentHL, err)
 	}
 
 	parentAnchorLinkset := &linkset.Linkset{}
 
 	err = h.unmarshal(anchorLinksetBytes, parentAnchorLinkset)
 	if err != nil {
-		return nil, fmt.Errorf("unmarshal anchor Linkset: %w", err)
+		return false, nil, fmt.Errorf("unmarshal anchor Linkset: %w", err)
 	}
 
 	parentAnchorLink := parentAnchorLinkset.Link()
 
 	if parentAnchorLink == nil {
-		return nil, fmt.Errorf("parent Linkset [%s] is empty", parentHL)
+		return false, nil, fmt.Errorf("parent Linkset [%s] is empty", parentHL)
 	}
 
-	return &anchorInfo{
+	return false, &anchorInfo{
 		anchorLink: parentAnchorLink,
 		AnchorInfo: &anchorinfo.AnchorInfo{
 			Hashlink:      parentHL.String(),

@@ -23,7 +23,7 @@ func TestNew(t *testing.T) {
 		p := &mocks.Provider{}
 
 		s, err := New(p, func(issuerID, keyID string) (*verifier.PublicKey, error) {
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		})
 		require.NoError(t, err)
 		require.NotNil(t, s)
@@ -36,7 +36,7 @@ func TestNew(t *testing.T) {
 		p.OpenStoreReturns(nil, errExpected)
 
 		s, err := New(p, func(issuerID, keyID string) (*verifier.PublicKey, error) {
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
@@ -56,7 +56,7 @@ func TestStore_GetPublicKey(t *testing.T) {
 		p.OpenStoreReturns(store, nil)
 
 		s, err := New(p, func(issuerID, keyID string) (*verifier.PublicKey, error) {
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		})
 		require.NoError(t, err)
 		require.NotNil(t, s)
@@ -115,7 +115,7 @@ func TestStore_GetPublicKey(t *testing.T) {
 		p.OpenStoreReturns(store, nil)
 
 		s, err := New(p, func(issuerID, keyID string) (*verifier.PublicKey, error) {
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		})
 		require.NoError(t, err)
 		require.NotNil(t, s)

@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	backoff "github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/cucumber/godog"
 	"github.com/google/uuid"
 	ariescouchdbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb"
@@ -798,7 +797,7 @@ func (d *CommonSteps) doHTTPPostFileWithSignature(url, path, domain string) (*ht
 		return nil, err
 	}
 
-	contents, err := ioutil.ReadFile(filepath.Clean(path))
+	contents, err := os.ReadFile(filepath.Clean(path))
 	if err != nil {
 		return nil, err
 	}

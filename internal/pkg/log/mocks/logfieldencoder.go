@@ -36,7 +36,7 @@ func (e *arrayEncoder) AppendArray(v zapcore.ArrayMarshaler) error {
 
 	err := v.MarshalLogArray(enc)
 
-	e.items = append(e.items, enc.items)
+	e.items = append(e.items, enc.items) //nolint:asasalint
 
 	return err
 }

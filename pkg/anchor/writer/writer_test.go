@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -115,6 +115,7 @@ func TestNew(t *testing.T) {
 	})
 }
 
+//nolint:maintidx
 func TestWriter_WriteAnchor(t *testing.T) {
 	ps := mempubsub.New(mempubsub.Config{})
 	defer ps.Stop()
@@ -142,7 +143,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 	wfHTTPClient := httpMock(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
-			Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
+			Body:       io.NopCloser(bytes.NewBufferString(webfingerPayload)),
 			StatusCode: http.StatusOK,
 		}, nil
 	})
@@ -1038,6 +1039,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 	})
 }
 
+//nolint:maintidx
 func TestWriter_handle(t *testing.T) {
 	ps := mempubsub.New(mempubsub.Config{})
 	defer ps.Stop()
@@ -1352,7 +1354,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 
 	wfHTTPClient := httpMock(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
-			Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
+			Body:       io.NopCloser(bytes.NewBufferString(webfingerPayload)),
 			StatusCode: http.StatusOK,
 		}, nil
 	})
@@ -1687,7 +1689,7 @@ func TestWriter_getBatchWitnessesIRI(t *testing.T) {
 
 	wfHTTPClient := httpMock(func(req *http.Request) (*http.Response, error) {
 		return &http.Response{
-			Body:       ioutil.NopCloser(bytes.NewBufferString(webfingerPayload)),
+			Body:       io.NopCloser(bytes.NewBufferString(webfingerPayload)),
 			StatusCode: http.StatusOK,
 		}, nil
 	})
@@ -1987,7 +1989,6 @@ func (wp *mockWitnessPolicy) Select(witnesses []*proof.Witness, _ ...*proof.Witn
 	return witnesses, nil
 }
 
-//nolint: lll
 const jsonAnchorLinkset = `{
   "linkset": [
     {
@@ -2024,7 +2025,6 @@ const jsonAnchorLinkset = `{
   ]
 }`
 
-//nolint: lll
 const jsonAnchorLinksetInvalidReply = `{
   "linkset": [
     {

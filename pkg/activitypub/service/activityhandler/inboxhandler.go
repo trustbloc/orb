@@ -74,6 +74,7 @@ func NewInbox(cfg *Config, s store.Store, outbox service.Outbox,
 }
 
 // HandleActivity handles the ActivityPub activity in the inbox.
+//
 //nolint:cyclop
 func (h *Inbox) HandleActivity(source *url.URL, activity *vocab.ActivityType) error {
 	typeProp := activity.Type()
@@ -653,7 +654,7 @@ func (h *Inbox) handleAnchorEventReference(actor, anchorRef, source *url.URL) er
 	return nil
 }
 
-//nolint:cyclop,gocyclo
+//nolint:cyclop
 func (h *Inbox) handleAnnounceCollection(source *url.URL, announce *vocab.ActivityType,
 	items []*vocab.ObjectProperty) (int, error) {
 	var anchorURIs []*url.URL
@@ -814,7 +815,7 @@ func (h *Inbox) announceAnchorEventRef(create *vocab.ActivityType) error {
 	return nil
 }
 
-//nolint:gocyclo,cyclop
+//nolint:cyclop
 func (h *Inbox) validateAndUnmarshalOfferActivity(offer *vocab.ActivityType) (*linkset.Link, error) {
 	if offer.StartTime() == nil {
 		return nil, fmt.Errorf("startTime is required")

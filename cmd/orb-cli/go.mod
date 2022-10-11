@@ -4,7 +4,7 @@
 
 module github.com/trustbloc/orb/cmd/orb-cli
 
-go 1.17
+go 1.19
 
 require (
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce

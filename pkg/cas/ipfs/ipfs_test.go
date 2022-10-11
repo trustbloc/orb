@@ -128,10 +128,10 @@ func TestWrite(t *testing.T) {
 			extendedcasclient.WithCIDVersion(1))
 		require.NotNil(t, cas)
 
-		read, err := cas.Read("hl:uEiBGzo1CWjNplt9iSVJdU9B9vfCm7u1d5CvqYsNbuMVT7Q:uoQ-BeEJpcGZzOi8vYmFma3JlaWNnejJndWV3cnRuZ2xuNnlzamtqb3ZodWQ1eHh5a24zeG5seHNjeDJ0Y3lubjNycmt0NXU") //nolint:lll
+		read, err := cas.Read("hl:uEiBGzo1CWjNplt9iSVJdU9B9vfCm7u1d5CvqYsNbuMVT7Q:uoQ-BeEJpcGZzOi8vYmFma3JlaWNnejJndWV3cnRuZ2xuNnlzamtqb3ZodWQ1eHh5a24zeG5seHNjeDJ0Y3lubjNycmt0NXU")
 		require.Error(t, err)
 		require.Nil(t, read)
-		require.Contains(t, err.Error(), "http://localhost:5001/api/v0/cat?arg=bafkreicgz2guewrtngln6ysjkjovhud5xxykn3xnlxscx2tcynn3rrkt5u") //nolint:lll
+		require.Contains(t, err.Error(), "http://localhost:5001/api/v0/cat?arg=bafkreicgz2guewrtngln6ysjkjovhud5xxykn3xnlxscx2tcynn3rrkt5u")
 	})
 
 	t.Run("error - internal server error", func(t *testing.T) {

@@ -117,7 +117,7 @@ func TestAnchorEventType_JustURL(t *testing.T) {
 	anchorEvent := NewAnchorEvent(
 		nil,
 		WithURL(testutil.MustParseURL(
-			"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk", //nolint:lll
+			"hl:uEiCJWrCq8ttsWob5UVueRQiQ_QUrocJY6ZA8BDgzgakuhg:uoQ-BeEJpcGZzOi8vYmFma3JlaWVqbGt5a3Y0dzNucm5pbjZrcmxvcGVrY2VxN3Vjc3hpb2NsZHV6YXBhZWhhenlka2pvcXk",
 		)),
 	)
 
@@ -131,6 +131,7 @@ func TestAnchorEventType_JustURL(t *testing.T) {
 	require.NoError(t, anchorEvent.Validate())
 }
 
+//nolint:tagliatelle
 type sampleContentObj struct {
 	Field1 string `json:"field_1"`
 	Field2 string `json:"field_2"`
@@ -150,7 +151,6 @@ const (
   "url": "hl:uEiAfDoaIG1rgG9-HRnRMveKAhR-5kjwZXOAQ1ABl1qBCWA"
 }`
 
-	//nolint:lll
 	jsonAnchorEventRef = `{
   "@context": "https://w3id.org/activityanchors/v1",
   "type": "AnchorEvent",

@@ -34,7 +34,7 @@ func TestHashLink_CreateHashLink(t *testing.T) {
 
 	t.Run("success - activity pub test case values", func(t *testing.T) {
 		expectedResourceHash := "uEiB0I06Yr-dJj7Xa8fNqwteKzDOUZPlQcDuMAZiS-YK5Cw"
-		expectedMetadata := "uoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQjBJMDZZci1kSmo3WGE4Zk5xd3RlS3pET1VaUGxRY0R1TUFaaVMtWUs1Q3c" //nolint:lll
+		expectedMetadata := "uoQ-BeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQjBJMDZZci1kSmo3WGE4Zk5xd3RlS3pET1VaUGxRY0R1TUFaaVMtWUs1Q3c"
 
 		hl := New()
 		hash, err := hl.CreateHashLink([]byte("null"), []string{"https://orb.domain1.com/cas/" + expectedResourceHash})
@@ -53,7 +53,7 @@ func TestHashLink_CreateHashLink(t *testing.T) {
 		hl := New(WithEncoder(base58Encoder))
 		hash, err := hl.CreateHashLink([]byte(exampleContent), []string{exampleURL})
 		require.NoError(t, err)
-		require.Equal(t, "hl:zQmWvQxTqbG2Z9HPJgG57jjwR154cKhbtJenbyYTWkjgF3e:z3TSgXTuaHxY2tsArhUreJ4ixgw9NW7DYuQ9QTPQyLHy", hash) //nolint:lll
+		require.Equal(t, "hl:zQmWvQxTqbG2Z9HPJgG57jjwR154cKhbtJenbyYTWkjgF3e:z3TSgXTuaHxY2tsArhUreJ4ixgw9NW7DYuQ9QTPQyLHy", hash)
 	})
 
 	t.Run("success - with links", func(t *testing.T) {
@@ -65,9 +65,9 @@ func TestHashLink_CreateHashLink(t *testing.T) {
 		hl := New()
 		hash, err := hl.CreateHashLink([]byte(exampleContent), links)
 		require.NoError(t, err)
-		require.Equal(t, "hl:uEiB_g7Flf_H8U7ktwYFIodZd_C1LH6PWdyhK3dIAEm2QaQ:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3g1aXBmczovL1FtVUI5TnI3UnBxTllRcHloNFc5cjNSUU50dGlQUTZCUTlpUUxrdzlMenRKRno", hash) //nolint:lll
+		require.Equal(t, "hl:uEiB_g7Flf_H8U7ktwYFIodZd_C1LH6PWdyhK3dIAEm2QaQ:uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3g1aXBmczovL1FtVUI5TnI3UnBxTllRcHloNFc5cjNSUU50dGlQUTZCUTlpUUxrdzlMenRKRno", hash)
 
-		mdLinks, err := hl.GetLinksFromMetadata("uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3g1aXBmczovL1FtVUI5TnI3UnBxTllRcHloNFc5cjNSUU50dGlQUTZCUTlpUUxrdzlMenRKRno") //nolint:lll
+		mdLinks, err := hl.GetLinksFromMetadata("uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3g1aXBmczovL1FtVUI5TnI3UnBxTllRcHloNFc5cjNSUU50dGlQUTZCUTlpUUxrdzlMenRKRno")
 		require.NoError(t, err)
 		require.Equal(t, links, mdLinks)
 	})
@@ -92,7 +92,7 @@ func TestHashLink_GetLinksFromMetadata(t *testing.T) {
 		hl := New()
 		md, err := hl.CreateMetadataFromLinks(links)
 		require.NoError(t, err)
-		require.Equal(t, "uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3g1aXBmczovL1FtVUI5TnI3UnBxTllRcHloNFc5cjNSUU50dGlQUTZCUTlpUUxrdzlMenRKRno", md) //nolint:lll
+		require.Equal(t, "uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3g1aXBmczovL1FtVUI5TnI3UnBxTllRcHloNFc5cjNSUU50dGlQUTZCUTlpUUxrdzlMenRKRno", md)
 
 		mdLinks, err := hl.GetLinksFromMetadata(md)
 		require.NoError(t, err)
@@ -129,7 +129,7 @@ func TestHashLink_GetLinksFromMetadata(t *testing.T) {
 		mdLinks, err := hl.GetLinksFromMetadata(hl.encoder(bytes))
 		require.Error(t, err)
 		require.Nil(t, mdLinks)
-		require.Contains(t, err.Error(), "failed to convert links from metadata to string array: expecting an array, got 'string'") //nolint:lll
+		require.Contains(t, err.Error(), "failed to convert links from metadata to string array: expecting an array, got 'string'")
 		hl.encoder(bytes)
 	})
 
@@ -145,7 +145,7 @@ func TestHashLink_GetLinksFromMetadata(t *testing.T) {
 		mdLinks, err := hl.GetLinksFromMetadata(hl.encoder(bytes))
 		require.Error(t, err)
 		require.Nil(t, mdLinks)
-		require.Contains(t, err.Error(), "failed to convert links from metadata to string array: expecting string, got 'uint64'") //nolint:lll
+		require.Contains(t, err.Error(), "failed to convert links from metadata to string array: expecting string, got 'uint64'")
 		hl.encoder(bytes)
 	})
 
@@ -214,7 +214,7 @@ func TestHashLink_CreateMetadataFromLinks(t *testing.T) {
 
 		md, err := hl.CreateMetadataFromLinks(links)
 		require.NoError(t, err)
-		require.Equal(t, "uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3g1aXBmczovL1FtVUI5TnI3UnBxTllRcHloNFc5cjNSUU50dGlQUTZCUTlpUUxrdzlMenRKRno", md) //nolint:lll
+		require.Equal(t, "uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3g1aXBmczovL1FtVUI5TnI3UnBxTllRcHloNFc5cjNSUU50dGlQUTZCUTlpUUxrdzlMenRKRno", md)
 	})
 
 	t.Run("error - links not provided", func(t *testing.T) {
@@ -245,7 +245,7 @@ func TestHashLink_ParseHashLink(t *testing.T) {
 		hl := New(WithEncoder(base58Encoder), WithDecoder(base58Decoder))
 		hash, err := hl.CreateHashLink([]byte(exampleContent), []string{exampleURL})
 		require.NoError(t, err)
-		require.Equal(t, "hl:zQmWvQxTqbG2Z9HPJgG57jjwR154cKhbtJenbyYTWkjgF3e:z3TSgXTuaHxY2tsArhUreJ4ixgw9NW7DYuQ9QTPQyLHy", hash) //nolint:lll
+		require.Equal(t, "hl:zQmWvQxTqbG2Z9HPJgG57jjwR154cKhbtJenbyYTWkjgF3e:z3TSgXTuaHxY2tsArhUreJ4ixgw9NW7DYuQ9QTPQyLHy", hash)
 
 		hlInfo, err := hl.ParseHashLink(hash)
 		require.NoError(t, err)
@@ -255,7 +255,7 @@ func TestHashLink_ParseHashLink(t *testing.T) {
 
 	t.Run("success - with links", func(t *testing.T) {
 		testRH := "uEiB_g7Flf_H8U7ktwYFIodZd_C1LH6PWdyhK3dIAEm2QaQ"
-		testMD := "uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3g1aXBmczovL1FtVUI5TnI3UnBxTllRcHloNFc5cjNSUU50dGlQUTZCUTlpUUxrdzlMenRKRno" //nolint:lll
+		testMD := "uoQ-CeEdodHRwczovL2V4YW1wbGUuY29tL2Nhcy91RWlBc2l3amFYT1lEbU9IeG12RGwzTXgwVGZKMHVDYXI1WVhxdW1qRkpVTklCZ3g1aXBmczovL1FtVUI5TnI3UnBxTllRcHloNFc5cjNSUU50dGlQUTZCUTlpUUxrdzlMenRKRno"
 		testHL := GetHashLink(testRH, testMD)
 
 		links := []string{
@@ -350,12 +350,12 @@ func TestGetResourceHashFromHashLink(t *testing.T) {
 
 func TestToString(t *testing.T) {
 	const (
-		hl1 = "hl:uEiC8e7XhtySK1lYVLTIiAi66FAEmmxdiu2_EwVkJYTlsLw:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQzhlN1hodHlTSzFsWVZMVElpQWk2NkZBRW1teGRpdTJfRXdWa0pZVGxzTHd4QmlwZnM6Ly9iYWZrcmVpZjRwbzI2ZG56ZXJsbGZtZmpuZ2lyYWVsdjJjcWFzbmd5eG1rNXc3cmdibGVld2NvbG1mNA" //nolint:lll
+		hl1 = "hl:uEiC8e7XhtySK1lYVLTIiAi66FAEmmxdiu2_EwVkJYTlsLw:uoQ-CeEtodHRwczovL29yYi5kb21haW4xLmNvbS9jYXMvdUVpQzhlN1hodHlTSzFsWVZMVElpQWk2NkZBRW1teGRpdTJfRXdWa0pZVGxzTHd4QmlwZnM6Ly9iYWZrcmVpZjRwbzI2ZG56ZXJsbGZtZmpuZ2lyYWVsdjJjcWFzbmd5eG1rNXc3cmdibGVld2NvbG1mNA"
 		hl2 = "xx:xxx"
 	)
 
 	str := ToString(testutil.MustParseURL(hl1), testutil.MustParseURL(hl2))
-	require.Equal(t, "{Hash [uEiC8e7XhtySK1lYVLTIiAi66FAEmmxdiu2_EwVkJYTlsLw], Links [https://orb.domain1.com/cas/uEiC8e7XhtySK1lYVLTIiAi66FAEmmxdiu2_EwVkJYTlsLw ipfs://bafkreif4po26dnzerllfmfjngiraelv2cqasngyxmk5w7rgbleewcolmf4]}, {INVALID HASHLINK [xx:xxx]}", str) //nolint:lll
+	require.Equal(t, "{Hash [uEiC8e7XhtySK1lYVLTIiAi66FAEmmxdiu2_EwVkJYTlsLw], Links [https://orb.domain1.com/cas/uEiC8e7XhtySK1lYVLTIiAi66FAEmmxdiu2_EwVkJYTlsLw ipfs://bafkreif4po26dnzerllfmfjngiraelv2cqasngyxmk5w7rgbleewcolmf4]}, {INVALID HASHLINK [xx:xxx]}", str)
 }
 
 var base58Encoder = func(data []byte) string {

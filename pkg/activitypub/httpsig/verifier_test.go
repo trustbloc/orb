@@ -143,7 +143,7 @@ func TestVerifier_VerifyRequest(t *testing.T) {
 		req, err := http.NewRequest(http.MethodPost, "https://domain1.com", bytes.NewBuffer(payload))
 		require.NoError(t, err)
 
-		req.Header["Signature"] = []string{fmt.Sprintf(`keyId="%s"`, []byte{0})}
+		req.Header["Signature"] = []string{fmt.Sprintf(`keyId="%s"`, []byte{0})} //nolint:gocritic
 
 		ok, actorID, err := v.VerifyRequest(req)
 		require.NoError(t, err)

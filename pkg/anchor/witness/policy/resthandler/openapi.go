@@ -7,11 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package resthandler
 
 // swagger:parameters policyGetReq
-type policyGetReq struct { // nolint: unused,deadcode
+type policyGetReq struct { //nolint: unused
 }
 
 // swagger:response policyGetResp
-type policyGetResp struct { // nolint: unused,deadcode
+type policyGetResp struct { //nolint: unused
 	Body string
 }
 
@@ -20,18 +20,19 @@ type policyGetResp struct { // nolint: unused,deadcode
 // Retrieves the current witness policy.
 //
 // Responses:
-//        200: policyGetResp
-func getPolicy() { // nolint: unused,deadcode
+//
+//	200: policyGetResp
+func getPolicy() { //nolint: unused
 }
 
 // swagger:parameters policyPostReq
-type policyPostReq struct { // nolint: unused,deadcode
+type policyPostReq struct { //nolint: unused
 	// in: body
 	Body string
 }
 
 // swagger:response policyPostResp
-type policyPostResp struct { // nolint: unused,deadcode
+type policyPostResp struct { //nolint: unused
 	Body string
 }
 
@@ -40,6 +41,7 @@ type policyPostResp struct { // nolint: unused,deadcode
 // Retrieves the current witness policy.
 //
 // Responses:
-//        200: policyPostResp
-func postPolicy() { // nolint: unused,deadcode
+//
+//	200: policyPostResp
+func postPolicy() { //nolint: unused
 }

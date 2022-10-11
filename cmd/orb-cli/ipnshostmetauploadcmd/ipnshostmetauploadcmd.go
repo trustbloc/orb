@@ -56,7 +56,7 @@ func GetCmd() *cobra.Command {
 	return cmd
 }
 
-func hostMetaDocUploadCmd() *cobra.Command { //nolint: funlen
+func hostMetaDocUploadCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:          "host-meta-dir-upload",
 		Short:        "upload IPNS host-meta document",

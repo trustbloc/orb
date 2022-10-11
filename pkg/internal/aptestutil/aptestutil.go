@@ -310,6 +310,7 @@ func NewActivityID(id fmt.Stringer) *url.URL {
 	return testutil.NewMockID(id, uuid.New().String())
 }
 
+//nolint: gosec,goimports
 const verifiableCred = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",

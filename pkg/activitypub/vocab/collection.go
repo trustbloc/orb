@@ -42,9 +42,7 @@ func (t *CollectionType) Items() []*ObjectProperty {
 
 	items := make([]*ObjectProperty, len(t.coll.Items))
 
-	for i, item := range t.coll.Items {
-		items[i] = item
-	}
+	copy(items, t.coll.Items)
 
 	return items
 }
@@ -150,9 +148,7 @@ type orderedCollectionType struct {
 func (t *OrderedCollectionType) Items() []*ObjectProperty {
 	items := make([]*ObjectProperty, len(t.orderedColl.OrderedItems))
 
-	for i, item := range t.orderedColl.OrderedItems {
-		items[i] = item
-	}
+	copy(items, t.orderedColl.OrderedItems)
 
 	return items
 }

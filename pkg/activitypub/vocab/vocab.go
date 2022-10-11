@@ -15,12 +15,11 @@ const (
 	// ContextSecurity is the security context.
 	ContextSecurity Context = "https://w3id.org/security/v1"
 	// ContextCredentials is the verifiable credential context.
-	ContextCredentials Context = "https://www.w3.org/2018/credentials/v1"
+	ContextCredentials Context = "https://www.w3.org/2018/credentials/v1" //nolint:gosec
 	// ContextActivityAnchors is the Activity Anchors context.
 	ContextActivityAnchors Context = "https://w3id.org/activityanchors/v1"
 )
 
-//nolint:gochecknoglobals
 var (
 	// PublicIRI indicates that the object is public, i.e. it may be viewed by anyone.
 	PublicIRI = MustParseURL("https://www.w3.org/ns/activitystreams#Public")
@@ -63,7 +62,7 @@ const (
 	TypeLink Type = "Link"
 
 	// TypeVerifiableCredential specifies the "VerifiableCredential" object type.
-	TypeVerifiableCredential Type = "VerifiableCredential"
+	TypeVerifiableCredential Type = "VerifiableCredential" //nolint:gosec
 
 	// TypeAnchorEvent specifies the "AnchorEvent" object type.
 	TypeAnchorEvent Type = "AnchorEvent"

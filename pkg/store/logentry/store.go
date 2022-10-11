@@ -163,7 +163,7 @@ func (s *Store) StoreLogEntries(logURL string, start, end uint64, entries []comm
 }
 
 // FailLogEntriesFrom updates all log entries from start (until end) and tags them with status=failure.
-func (s *Store) FailLogEntriesFrom(logURL string, start uint64) error { // nolint:funlen,gocyclo,cyclop
+func (s *Store) FailLogEntriesFrom(logURL string, start uint64) error { //nolint: cyclop
 	if logURL == "" {
 		return errors.New("missing log URL")
 	}

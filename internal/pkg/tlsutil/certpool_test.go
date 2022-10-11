@@ -84,7 +84,7 @@ func TestTLSCAConfigWithMultipleCerts(t *testing.T) {
 	c, err := loadSystemCertPool(true)
 	assert.Nil(t, err)
 
-	numberOfSubjects := len(c.Subjects())
+	numberOfSubjects := len(c.Subjects()) //nolint:staticcheck
 
 	// create certpool instance
 	tlsCertPool, err := NewCertPool(true)
@@ -155,7 +155,7 @@ func verifyCertPoolInstance(t *testing.T, pool *x509.CertPool, tlsCertPool *Cert
 	assert.Equal(t, dirty, tlsCertPool.dirty)
 	assert.Equal(t, numberOfCerts, len(tlsCertPool.certs))
 	assert.Equal(t, numberOfCertsByName, len(tlsCertPool.certsByName))
-	assert.Equal(t, numberOfSubjects+numberOfCertsInPool, len(pool.Subjects()))
+	assert.Equal(t, numberOfSubjects+numberOfCertsInPool, len(pool.Subjects())) //nolint:staticcheck
 }
 
 func TestAddingDuplicateCertsToPool(t *testing.T) {
@@ -176,7 +176,7 @@ func TestAddingDuplicateCertsToPool(t *testing.T) {
 	c, err := loadSystemCertPool(true)
 	assert.Nil(t, err)
 
-	numberOfSubjects := len(c.Subjects())
+	numberOfSubjects := len(c.Subjects()) //nolint:staticcheck
 
 	// create certpool instance
 	tlsCertPool, err := NewCertPool(true)
@@ -266,7 +266,7 @@ func TestTLSCAConfig(t *testing.T) {
 	cPool, err := tlsCertPool.Get()
 	require.NoError(t, err)
 	assert.Len(t, tlsCertPool.certs, 1)
-	assert.Len(t, cPool.Subjects(), 1)
+	assert.Len(t, cPool.Subjects(), 1) //nolint:staticcheck
 }
 
 func TestTLSCAPoolManyCerts(t *testing.T) {
@@ -286,18 +286,18 @@ func TestTLSCAPoolManyCerts(t *testing.T) {
 	pool, err := tlsCertPool.Get()
 	assert.NoError(t, err)
 
-	originalLen := len(pool.Subjects())
+	originalLen := len(pool.Subjects()) //nolint:staticcheck
 
 	certs := createNCerts(size)
 	tlsCertPool.Add(certs[0])
 	pool, err = tlsCertPool.Get()
 	assert.NoError(t, err)
-	assert.Len(t, pool.Subjects(), originalLen+1)
+	assert.Len(t, pool.Subjects(), originalLen+1) //nolint:staticcheck
 
 	tlsCertPool.Add(certs...)
 	pool, err = tlsCertPool.Get()
 	assert.NoError(t, err)
-	assert.Len(t, pool.Subjects(), originalLen+size)
+	assert.Len(t, pool.Subjects(), originalLen+size) //nolint:staticcheck
 }
 
 func TestConcurrent(t *testing.T) {
@@ -307,7 +307,7 @@ func TestConcurrent(t *testing.T) {
 	tlsCertPool, err := NewCertPool(false)
 	require.NoError(t, err)
 
-	systemCerts := len(tlsCertPool.certPool.Subjects())
+	systemCerts := len(tlsCertPool.certPool.Subjects()) //nolint:staticcheck
 
 	writeDone := make(chan bool)
 	readDone := make(chan bool)
@@ -346,7 +346,7 @@ func TestConcurrent(t *testing.T) {
 	certPool, err := tlsCertPool.Get()
 	assert.Len(t, tlsCertPool.certs, concurrency)
 	require.NoError(t, err)
-	assert.Len(t, certPool.Subjects(), concurrency+systemCerts)
+	assert.Len(t, certPool.Subjects(), concurrency+systemCerts) //nolint:staticcheck
 }
 
 func createNCerts(n int) []*x509.Certificate {

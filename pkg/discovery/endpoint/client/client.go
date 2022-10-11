@@ -5,7 +5,6 @@ SPDX-License-Identifier: Apache-2.0
 */
 
 // Package client implements endpoint client
-//
 package client
 
 import (
@@ -14,7 +13,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -143,13 +141,13 @@ func New(docLoader ld.DocumentLoader, casReader casReader, opts ...Option) (*Cli
 	configService.endpointsCache = gcache.New(configService.cacheSize).
 		Expiration(configService.cacheLifetime).
 		LoaderFunc(func(key interface{}) (interface{}, error) {
-			return configService.getEndpoint(key.(string))
+			return configService.getEndpoint(key.(string)) //nolint:forcetypeassert
 		}).Build()
 
 	configService.domainCache = gcache.New(configService.cacheSize).
 		Expiration(configService.cacheLifetime).
 		LoaderFunc(func(key interface{}) (interface{}, error) {
-			return configService.loadDomainForDID(key.(string))
+			return configService.loadDomainForDID(key.(string)) //nolint:forcetypeassert
 		}).Build()
 
 	return configService, nil
@@ -164,7 +162,7 @@ func (cs *Client) GetEndpoint(domain string) (*models.Endpoint, error) {
 
 	logger.Debug("Got value from endpoints cache", log.WithKey(domain), log.WithAnchorOriginEndpoint(endpoint))
 
-	return endpoint.(*models.Endpoint), nil
+	return endpoint.(*models.Endpoint), nil //nolint:forcetypeassert
 }
 
 // GetEndpointFromAnchorOrigin fetches endpoints from anchor origin, caching the value.
@@ -179,10 +177,10 @@ func (cs *Client) ResolveDomainForDID(id string) (string, error) {
 		return "", err
 	}
 
-	return domain.(string), nil
+	return domain.(string), nil //nolint:forcetypeassert
 }
 
-func (cs *Client) getEndpoint(uri string) (*models.Endpoint, error) { //nolint:gocyclo,cyclop
+func (cs *Client) getEndpoint(uri string) (*models.Endpoint, error) { //nolint:cyclop
 	var domain string
 
 	switch {
@@ -331,7 +329,7 @@ func (cs *Client) populateAnchorResolutionEndpoint(
 	return endpoint, nil
 }
 
-//nolint: funlen,gocyclo,cyclop
+//nolint: cyclop,goimports
 func (cs *Client) populateResolutionEndpoint(webFingerURL string) (*models.Endpoint, error) {
 	var jrd restapi.JRD
 
@@ -542,7 +540,7 @@ func (cs *Client) send(req []byte, method, endpointURL string) ([]byte, error) {
 
 	if len(req) == 0 {
 		httpReq, err = http.NewRequestWithContext(context.Background(),
-			method, endpointURL, nil)
+			method, endpointURL, http.NoBody)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create http request: %w", err)
 		}
@@ -563,7 +561,7 @@ func (cs *Client) send(req []byte, method, endpointURL string) ([]byte, error) {
 
 	defer closeResponseBody(resp.Body)
 
-	responseBytes, err := ioutil.ReadAll(resp.Body)
+	responseBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response : %w", err)
 	}
@@ -586,8 +584,7 @@ func (cs *Client) sendRequest(req []byte, method, endpointURL string, respObj in
 }
 
 func closeResponseBody(respBody io.Closer) {
-	e := respBody.Close() // nolint: ifshort
-	if e != nil {
+	if e := respBody.Close(); e != nil {
 		log.CloseResponseBodyError(logger, e)
 	}
 }

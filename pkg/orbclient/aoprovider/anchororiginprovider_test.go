@@ -317,5 +317,5 @@ func newMockAnchorLinkset(t *testing.T, payload *subject.Payload) *linkset.Links
 }
 
 var pubKeyFetcherFnc = func(issuerID, keyID string) (*verifier.PublicKey, error) {
-	return nil, nil
+	return nil, nil //nolint:nilnil
 }

@@ -22,9 +22,13 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
-const startingPort = 27016
+const (
+	startingPort = 27016
 
-var currentPort uint32 = startingPort //nolint:gochecknoglobals
+	base10 = 10
+)
+
+var currentPort uint32 = startingPort
 
 // StartMongoDB starts a MongoDB Docker container. The connection string is returned,
 // as well as a function that should be invoked to stop the Docker container when it is
@@ -89,7 +93,7 @@ func waitForMongoDBToBeUp(t *testing.T, mongoDBConnString string) error {
 		t.Logf("Failed to ping MongoDB at %s. Retrying.", mongoDBConnString)
 
 		return pingMongoDB(t, mongoDBConnString)
-	}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 5))
+	}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), base10))
 }
 
 func pingMongoDB(t *testing.T, mongoDBConnString string) error {

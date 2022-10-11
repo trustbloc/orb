@@ -138,9 +138,7 @@ func (m *MockProtocolClientProvider) ForNamespace(namespace string) (protocol.Cl
 	return pc, nil
 }
 
-//nolint:funlen
 func (m *MockProtocolClientProvider) create() *MockProtocolClient {
-	//nolint:gomnd
 	latest := protocol.Protocol{
 		GenesisTime:                  0,
 		MultihashAlgorithms:          []uint{18},

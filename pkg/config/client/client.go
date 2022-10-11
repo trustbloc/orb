@@ -58,7 +58,7 @@ func New(cfg storage.Store, opts ...Option) *Client {
 	client.configCache = gcache.New(client.cacheSize).ARC().
 		Expiration(client.cacheExpiry).
 		LoaderFunc(func(key interface{}) (interface{}, error) {
-			return client.get(key.(string))
+			return client.get(key.(string)) //nolint:forcetypeassert
 		}).Build()
 
 	return client

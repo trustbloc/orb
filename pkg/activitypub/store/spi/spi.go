@@ -208,6 +208,7 @@ type ReferenceIterator interface {
 	Close() error
 }
 
+//nolint:tagliatelle
 type loggedCriteria struct {
 	Types         []vocab.Type                 `json:"types,omitempty"`
 	ReferenceType ReferenceType                `json:"referenceType,omitempty"`

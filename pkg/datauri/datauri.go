@@ -12,7 +12,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"strings"
 
@@ -135,7 +135,7 @@ func GzipDecompress(content string) ([]byte, error) {
 		return nil, fmt.Errorf("new gzip reader: %w", err)
 	}
 
-	decompressedBytes, err := ioutil.ReadAll(zr)
+	decompressedBytes, err := io.ReadAll(zr)
 	if err != nil {
 		return nil, fmt.Errorf("gzip decompress: %w", err)
 	}

@@ -7,13 +7,13 @@ SPDX-License-Identifier: Apache-2.0
 package vcresthandler
 
 // swagger:parameters vcGetReq
-type vcGetReq struct { // nolint: unused,deadcode
+type vcGetReq struct { //nolint: unused
 	// in: path
 	ID string `json:"id"`
 }
 
 // swagger:response vcGetResp
-type vcGetResp struct { // nolint: unused,deadcode
+type vcGetResp struct { //nolint: unused
 	Body string
 }
 
@@ -22,6 +22,7 @@ type vcGetResp struct { // nolint: unused,deadcode
 // Retrieves the current witness vc.
 //
 // Responses:
-//        200: vcGetResp
-func getVC() { // nolint: unused,deadcode
+//
+//	200: vcGetResp
+func getVC() { //nolint: unused
 }

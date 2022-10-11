@@ -9,7 +9,7 @@ package resthandler
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -29,7 +29,6 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
-//nolint:lll
 //go:generate counterfeiter -o ../mocks/activityiterator.gen.go --fake-name ActivityIterator ../store/spi ActivityIterator
 
 const (
@@ -204,7 +203,7 @@ func TestActivities_Handler(t *testing.T) {
 		result := rw.Result()
 		require.Equal(t, http.StatusOK, result.StatusCode)
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 
 		t.Logf("%s", respBytes)
@@ -483,7 +482,7 @@ func TestReadOutbox_Handler(t *testing.T) {
 		result := rw.Result()
 		require.Equal(t, http.StatusOK, result.StatusCode)
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 
 		t.Logf("%s", respBytes)
@@ -510,7 +509,7 @@ func TestReadOutbox_Handler(t *testing.T) {
 		result := rw.Result()
 		require.Equal(t, http.StatusOK, result.StatusCode)
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 
 		t.Logf("%s", respBytes)
@@ -583,7 +582,7 @@ func TestShares_Handler(t *testing.T) {
 		result := rw.Result()
 		require.Equal(t, http.StatusOK, result.StatusCode)
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 
 		t.Logf("%s", respBytes)
@@ -639,7 +638,7 @@ func TestShares_PageHandler(t *testing.T) {
 		result := rw.Result()
 		require.Equal(t, http.StatusOK, result.StatusCode)
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 
 		t.Logf("%s", respBytes)
@@ -666,7 +665,7 @@ func TestShares_PageHandler(t *testing.T) {
 		result := rw.Result()
 		require.Equal(t, http.StatusOK, result.StatusCode)
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 
 		t.Logf("%s", respBytes)
@@ -755,7 +754,7 @@ func TestActivity_Handler(t *testing.T) {
 		result := rw.Result()
 		require.Equal(t, http.StatusOK, result.StatusCode)
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 
 		t.Logf("%s", respBytes)
@@ -881,7 +880,7 @@ func TestActivity_Handler(t *testing.T) {
 			result := rw.Result()
 			require.Equal(t, http.StatusOK, result.StatusCode)
 
-			respBytes, err := ioutil.ReadAll(result.Body)
+			respBytes, err := io.ReadAll(result.Body)
 			require.NoError(t, err)
 
 			t.Logf("%s", respBytes)
@@ -971,7 +970,7 @@ func handleActivitiesRequest(t *testing.T, serviceIRI *url.URL, as spi.Store, pa
 	result := rw.Result()
 	require.Equal(t, http.StatusOK, result.StatusCode)
 
-	respBytes, err := ioutil.ReadAll(result.Body)
+	respBytes, err := io.ReadAll(result.Body)
 	require.NoError(t, err)
 	require.NoError(t, result.Body.Close())
 
@@ -1001,8 +1000,8 @@ func newMockActivity(t vocab.Type, id *url.URL, to ...*url.URL) *vocab.ActivityT
 
 	if t == vocab.TypeLike {
 		actor := testutil.MustParseURL("https://example1.com/services/orb")
-		ref := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1")           //nolint:lll
-		additionalRef := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-JS571mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1") //nolint:lll
+		ref := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-HS561mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1")
+		additionalRef := testutil.MustParseURL("hl:uEiCsFp-ft8tI1DFGbXs78tw-JS571mMPa3Z6GsGAHElrNQ:uoQ-CeE1odHRwczovL3NhbGx5LmV4YW1wbGUuY29tL2Nhcy91RWlDc0ZwLWZ0OHRJMURGR2JYczc4dHctSFM1NjFtTVBhM1o2R3NHQUhFbHJOUXhCaXBmczovL2JhZmtyZWlmbWMycHo3bjZsamRrZGNydG5wbTU3ZnhiNmR1eGh2dnRkYjV2eG02cTJ5Z2FieXNsbGd1")
 
 		publishedTime := getStaticTime()
 
@@ -1070,7 +1069,6 @@ const (
   "last": "https://example1.com/services/orb/inbox?page=true&page-num=0"
 }`
 
-	//nolint:lll
 	inboxFirstPageJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
   "id": "https://example1.com/services/orb/inbox?page=true&page-num=4",
@@ -1121,7 +1119,6 @@ const (
   "type": "OrderedCollectionPage"
 }`
 
-	//nolint:lll
 	inboxLastPageJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
   "id": "https://example1.com/services/orb/inbox?page=true&page-num=0",
@@ -1162,7 +1159,6 @@ const (
   "type": "OrderedCollectionPage"
 }`
 
-	//nolint:lll
 	inboxPage3JSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
   "id": "https://example1.com/services/orb/inbox?page=true&page-num=3",
@@ -1213,6 +1209,7 @@ const (
   "totalItems": 19,
   "type": "OrderedCollectionPage"
 }`
+
 	inboxPageTooLargeJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
   "id": "https://example1.com/services/orb/inbox?page=true&page-num=30",
@@ -1220,7 +1217,7 @@ const (
   "totalItems": 19,
   "type": "OrderedCollectionPage"
 }`
-	//nolint:lll
+
 	sharesJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
   "first": "https://sally.example.com/services/orb/shares/https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760?page=true",
@@ -1230,7 +1227,6 @@ const (
   "type": "OrderedCollection"
 }`
 
-	//nolint:lll
 	sharesFirstPageJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
   "id": "https://sally.example.com/services/orb/shares/https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760?page=true&page-num=4",
@@ -1265,7 +1261,6 @@ const (
   ]
 }`
 
-	//nolint:lll
 	sharesPage1JSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
   "id": "https://sally.example.com/services/orb/shares/https%3A%2F%2Fsally.example.com%2Ftransactions%2Fd607506e-6964-4991-a19f-674952380760?page=true&page-num=1",
@@ -1310,7 +1305,6 @@ const (
   "type": "OrderedCollection"
 }`
 
-	//nolint:lll
 	likedFirstPageJSON = `{
   "@context": "https://www.w3.org/ns/activitystreams",
   "id": "https://example1.com/services/orb/liked?page=true&page-num=0",

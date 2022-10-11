@@ -10,7 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -72,15 +72,16 @@ func New(casClient extendedcasclient.Client, ipfsReader ipfsReader, webCASResolv
 }
 
 // Resolve does the following:
+//
 // 1. If data is provided (not nil), then it will be stored via the local CAS. That data passed in will then simply be
-//    returned back to the caller, along with the hashlink of the stored data.
+// returned back to the caller, along with the hashlink of the stored data.
 // 2. If data is not provided (is nil), then the local CAS will be checked to see if it has data at the cid provided.
-//    If it does, then it is returned. If it doesn't, and a webCASURL is provided, then the data will be retrieved by
-//    querying the webCASURL. This data will then get stored in the local CAS.
-//    Finally, the data is returned to the caller, along with the hashlink of the stored data.
+// If it does, then it is returned. If it doesn't, and a webCASURL is provided, then the data will be retrieved by
+// querying the webCASURL. This data will then get stored in the local CAS.
+// Finally, the data is returned to the caller, along with the hashlink of the stored data.
 // In both cases above, the CID produced by the local CAS will be checked against the cid passed in to ensure they are
 // the same.
-func (h *Resolver) Resolve(_ *url.URL, hashWithPossibleHint string, data []byte) ([]byte, string, error) { //nolint:gocyclo,cyclop,lll,funlen
+func (h *Resolver) Resolve(_ *url.URL, hashWithPossibleHint string, data []byte) ([]byte, string, error) { //nolint:cyclop
 	startTime := time.Now()
 
 	defer func() { h.metrics.CASResolveTime(time.Since(startTime)) }()
@@ -144,7 +145,7 @@ func (h *Resolver) Resolve(_ *url.URL, hashWithPossibleHint string, data []byte)
 	return dataFromLocal, "", nil
 }
 
-func (h *Resolver) getResourceHashWithPossibleDomainAndLinks(hashWithPossibleHint string) (string, string, []string, error) { //nolint:lll
+func (h *Resolver) getResourceHashWithPossibleDomainAndLinks(hashWithPossibleHint string) (string, string, []string, error) {
 	var domain string
 
 	var links []string
@@ -375,7 +376,7 @@ func (w *WebCASResolver) GetDataViaWebCASEndpoint(webCASEndpoint *url.URL) ([]by
 		}
 	}()
 
-	responseBody, err := ioutil.ReadAll(resp.Body)
+	responseBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, orberrors.NewTransientf("failed to read response body from remote WebCAS endpoint: %w", err)
 	}

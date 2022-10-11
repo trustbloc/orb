@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"sort"
@@ -126,19 +126,20 @@ func New(cfg Config, t httpTransport, fetchPublicKey verifiable.PublicKeyFetcher
 	c.actorCache = gcache.New(cacheSize).ARC().
 		Expiration(cacheExpiration).
 		LoaderFunc(func(i interface{}) (interface{}, error) {
-			return c.loadActor(i.(string))
+			return c.loadActor(i.(string)) //nolint:forcetypeassert
 		}).Build()
 
 	c.publicKeyCache = gcache.New(cacheSize).ARC().
 		Expiration(cacheExpiration).
 		LoaderFunc(func(i interface{}) (interface{}, error) {
-			return c.loadPublicKey(i.(string))
+			return c.loadPublicKey(i.(string)) //nolint:forcetypeassert
 		}).Build()
 
 	return c
 }
 
 // GetActor retrieves the actor at the given IRI.
+//
 //nolint:interfacer
 func (c *Client) GetActor(actorIRI *url.URL) (*vocab.ActorType, error) {
 	result, err := c.actorCache.Get(actorIRI.String())
@@ -148,7 +149,7 @@ func (c *Client) GetActor(actorIRI *url.URL) (*vocab.ActorType, error) {
 		return nil, err
 	}
 
-	return result.(*vocab.ActorType), nil
+	return result.(*vocab.ActorType), nil //nolint:forcetypeassert
 }
 
 func (c *Client) loadActor(actorIRI string) (*vocab.ActorType, error) {
@@ -184,7 +185,8 @@ func (c *Client) loadActor(actorIRI string) (*vocab.ActorType, error) {
 }
 
 // GetPublicKey retrieves the public key at the given IRI.
-//nolint:interfacer
+//
+//nolint:interfacer,forcetypeassert
 func (c *Client) GetPublicKey(keyIRI *url.URL) (*vocab.PublicKeyType, error) {
 	result, err := c.publicKeyCache.Get(keyIRI.String())
 	if err != nil {
@@ -351,7 +353,7 @@ func (c *Client) get(iri *url.URL) ([]byte, error) {
 		return nil, fmt.Errorf("request to %s returned status code %d", iri, resp.StatusCode)
 	}
 
-	respBytes, err := ioutil.ReadAll(resp.Body)
+	respBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, orberrors.NewTransientf("transient http error: read response body from %s: %w",
 			iri, err)

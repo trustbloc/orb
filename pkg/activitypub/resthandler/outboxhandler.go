@@ -9,7 +9,7 @@ package resthandler
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -65,7 +65,7 @@ func (h *Outbox) Handler() common.HTTPRequestHandler {
 	return h.handlePost
 }
 
-func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) { //nolint:funlen
+func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 	ok, _, err := h.Authorize(req)
 	if err != nil {
 		h.logger.Error("Error authorizing request", log.WithError(err), log.WithRequestURL(req.URL))
@@ -83,7 +83,7 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) { //nolint
 		return
 	}
 
-	activityBytes, err := ioutil.ReadAll(req.Body)
+	activityBytes, err := io.ReadAll(req.Body)
 	if err != nil {
 		h.logger.Error("Error reading request body", log.WithError(err), log.WithRequestURL(req.URL))
 

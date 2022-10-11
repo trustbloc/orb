@@ -12,7 +12,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os/exec"
 	"runtime"
@@ -354,7 +353,7 @@ func (e *Steps) checkDeactivatedDID() error {
 	return fmt.Errorf("document has not been deactivated ")
 }
 
-func (e *Steps) checkUpdatedDID() error { //nolint: gocyclo
+func (e *Steps) checkUpdatedDID() error {
 	const numberOfVerificationMethods = 2
 
 	const numberOfServices = 1
@@ -641,7 +640,7 @@ func (e *Steps) execute(argsStr string) error {
 
 func execCMD(args ...string) (string, error) {
 	path := fmt.Sprintf("../../.build/extract/orb-cli-%s-%s", runtime.GOOS, runtime.GOARCH)
-	cmd := exec.Command(path, args...) // nolint: gosec
+	cmd := exec.Command(path, args...) //nolint: gosec
 
 	var out bytes.Buffer
 
@@ -688,7 +687,7 @@ func sendRequest(httpClient *http.Client, req []byte, headers map[string]string,
 
 	defer closeResponseBody(resp.Body)
 
-	responseBytes, err := ioutil.ReadAll(resp.Body)
+	responseBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response : %w", err)
 	}

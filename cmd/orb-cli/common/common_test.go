@@ -13,7 +13,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -220,7 +219,7 @@ func TestGetKey(t *testing.T) {
 	t.Run("test private key success", func(t *testing.T) {
 		os.Clearenv()
 
-		file, err := ioutil.TempFile("", "*.json")
+		file, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = file.WriteString(privateKeyPEM)
@@ -240,7 +239,7 @@ func TestGetKey(t *testing.T) {
 	t.Run("test public key success", func(t *testing.T) {
 		os.Clearenv()
 
-		file, err := ioutil.TempFile("", "*.json")
+		file, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = file.WriteString(pkPEM)
@@ -274,7 +273,7 @@ func TestGetServices(t *testing.T) {
 	})
 
 	t.Run("test services wrong path", func(t *testing.T) {
-		servicesFile, err := ioutil.TempFile("", "*.json")
+		servicesFile, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = servicesFile.WriteString("wrong")
@@ -289,7 +288,7 @@ func TestGetServices(t *testing.T) {
 	})
 
 	t.Run("test success", func(t *testing.T) {
-		servicesFile, err := ioutil.TempFile("", "*.json")
+		servicesFile, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = servicesFile.WriteString(servicesData)
@@ -439,7 +438,7 @@ func TestGetVDRPublicKeys(t *testing.T) {
 	})
 
 	t.Run("test public key invalid jwk path", func(t *testing.T) {
-		file, err := ioutil.TempFile("", "*.json")
+		file, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = file.WriteString(publicKeyData)
@@ -454,19 +453,19 @@ func TestGetVDRPublicKeys(t *testing.T) {
 	})
 
 	t.Run("test public key unmarshal error", func(t *testing.T) {
-		jwk1File, err := ioutil.TempFile("", "*.json")
+		jwk1File, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = jwk1File.WriteString("oops")
 		require.NoError(t, err)
 
-		jwk2File, err := ioutil.TempFile("", "*.json")
+		jwk2File, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = jwk2File.WriteString("oops again")
 		require.NoError(t, err)
 
-		file, err := ioutil.TempFile("", "*.json")
+		file, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = file.WriteString(fmt.Sprintf(publicKeyData, jwk1File.Name(), jwk2File.Name()))
@@ -486,7 +485,7 @@ func TestGetVDRPublicKeys(t *testing.T) {
 	})
 
 	t.Run("test public key multiple key material fields", func(t *testing.T) {
-		file, err := ioutil.TempFile("", "*.json")
+		file, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = file.WriteString(publicKeyDataWithJWKAndB58)
@@ -501,19 +500,19 @@ func TestGetVDRPublicKeys(t *testing.T) {
 	})
 
 	t.Run("test public key success", func(t *testing.T) {
-		jwk1File, err := ioutil.TempFile("", "*.json")
+		jwk1File, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = jwk1File.WriteString(jwk1Data)
 		require.NoError(t, err)
 
-		jwk2File, err := ioutil.TempFile("", "*.json")
+		jwk2File, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = jwk2File.WriteString(jwk2Data)
 		require.NoError(t, err)
 
-		file, err := ioutil.TempFile("", "*.json")
+		file, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
 		_, err = file.WriteString(fmt.Sprintf(publicKeyData, jwk1File.Name(), jwk2File.Name()))

@@ -4,7 +4,7 @@
 
 module github.com/trustbloc/orb/cmd/orb-server
 
-go 1.17
+go 1.19
 
 require (
 	github.com/ThreeDotsLabs/watermill v1.2.0-rc.7

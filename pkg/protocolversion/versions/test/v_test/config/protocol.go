@@ -12,7 +12,6 @@ import (
 
 // GetProtocolConfig returns protocol config for test version.
 func GetProtocolConfig() protocol.Protocol {
-	//nolint:gomnd
 	p := protocol.Protocol{
 		GenesisTime:                  777,
 		MultihashAlgorithms:          []uint{18},

@@ -316,7 +316,6 @@ func TestStore_DeleteAll(t *testing.T) {
 	})
 }
 
-//nolint:lll
 const operationRequest = `
 {
   "delta": {
@@ -348,7 +347,6 @@ const operationRequest = `
   "type": "update"
 }`
 
-//nolint:lll
 const secondOperationRequest = `
 {
   "delta": {

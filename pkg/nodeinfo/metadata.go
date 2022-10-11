@@ -9,5 +9,4 @@ package nodeinfo
 // Following are variables set during the build with ldflags:
 
 // OrbVersion contains the version of the Orb build.
-//nolint:gochecknoglobals
 var OrbVersion = "latest"

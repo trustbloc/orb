@@ -246,7 +246,7 @@ func TestManager_Get(t *testing.T) {
 		it.NextReturnsOnCall(1, true, nil)
 		it.NextReturnsOnCall(2, false, nil)
 		it.ValueReturnsOnCall(0, []byte(`{"allowedOrigin":"%"}`), nil)
-		it.ValueReturnsOnCall(1, []byte(fmt.Sprintf(`{"allowedOrigin":"%s"}`, uri1)), nil)
+		it.ValueReturnsOnCall(1, []byte(fmt.Sprintf(`{"allowedOrigin":%q}`, uri1)), nil)
 
 		s := &mocks.Store{}
 		s.QueryReturns(it, nil)

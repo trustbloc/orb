@@ -304,7 +304,7 @@ func getDidParts(did string) (cid, suffix string, err error) {
 	return did[0:pos], did[pos+1:], nil
 }
 
-//nolint:funlen,gocyclo,cyclop
+//nolint:funlen,cyclop
 func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 	anchorLink *linkset.Link, suffixes ...string) error {
 	logger.Debug("Processing anchor", log.WithAnchorEventURIString(anchor.Hashlink),
@@ -420,8 +420,8 @@ func (o *Observer) setupProofMonitoring(vc *verifiable.Credential) {
 	// not just during anchor creation/publishing
 	for _, proof := range getUniqueDomainCreated(vc.Proofs) {
 		// getUniqueDomainCreated already checked that data is a string
-		domain := proof["domain"].(string)   // nolint: errcheck, forcetypeassert
-		created := proof["created"].(string) // nolint: errcheck, forcetypeassert
+		domain := proof["domain"].(string)   //nolint: forcetypeassert
+		created := proof["created"].(string) //nolint: forcetypeassert
 
 		createdTime, err := time.Parse(time.RFC3339, created)
 		if err != nil {
@@ -445,7 +445,7 @@ func (o *Observer) setupProofMonitoring(vc *verifiable.Credential) {
 	}
 }
 
-//nolint:gocyclo,cyclop
+//nolint:cyclop
 func (o *Observer) saveAnchorLinkAndPostLikeActivity(anchor *anchorinfo.AnchorInfo) error {
 	refURL, err := url.Parse(anchor.Hashlink)
 	if err != nil {
@@ -620,7 +620,7 @@ func getSuffixes(m []*subject.SuffixAnchor) (suffixes []string, areNewSuffixes [
 
 func newLikeResult(hashLink string) (*vocab.ObjectProperty, error) {
 	if hashLink == "" {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	u, e := url.Parse(hashLink)

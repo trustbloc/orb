@@ -76,7 +76,6 @@ func TestLogVerifier_VerifyConsistencyProof(t *testing.T) {
 	})
 }
 
-//nolint:lll
 var sth0 = `{
   "tree_size": 0,
   "timestamp": 1647375563852,
@@ -84,7 +83,6 @@ var sth0 = `{
   "tree_head_signature": "eyJhbGdvcml0aG0iOnsiaGFzaCI6IlNIQTI1NiIsInNpZ25hdHVyZSI6IkVDRFNBIiwidHlwZSI6IkVDRFNBUDI1NklFRUVQMTM2MyJ9LCJzaWduYXR1cmUiOiIySWhVNzUwQlkxWG5tY1A4OHlONlViZG1NaEhLMjdORWxHU0l0V2ZoNFV4Z2Z3WWhXTm8yYVVSSjk2Q3JsOWs3T09Ddm9zamxtME9rR2kwTjlVODJ5UT09In0="
 }`
 
-//nolint:lll
 var sth4 = `{
   "tree_size": 4,
   "timestamp": 1647375715221,
@@ -92,7 +90,6 @@ var sth4 = `{
   "tree_head_signature": "eyJhbGdvcml0aG0iOnsiaGFzaCI6IlNIQTI1NiIsInNpZ25hdHVyZSI6IkVDRFNBIiwidHlwZSI6IkVDRFNBUDI1NklFRUVQMTM2MyJ9LCJzaWduYXR1cmUiOiIyWVh4NHZxalZhSTdFMGhKdnhldW1mYXBwRU9RZWU2Qm51Wmc0WmNXM2JqdlF6ZGd5bmtsVVNZYm9DbFkreDNiRXFXSXlGdEtVaE9UUjMxckpwbXpDdz09In0="
 }`
 
-//nolint:lll
 var sth5 = `{
   "tree_size": 5,
   "timestamp": 1647375720248,

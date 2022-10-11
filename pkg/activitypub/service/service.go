@@ -100,7 +100,6 @@ type metricsProvider interface {
 }
 
 // New returns a new ActivityPub service.
-//nolint:funlen
 func New(cfg *Config, activityStore store.Store, t httpTransport, sigVerifier signatureVerifier,
 	pubSub PubSub, activityPubClient activityPubClient, resourceResolver resourceResolver,
 	tm authTokenManager, m metricsProvider, handlerOpts ...spi.HandlerOpt) (*Service, error) {

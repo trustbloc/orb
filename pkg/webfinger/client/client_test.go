@@ -11,7 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -51,7 +51,7 @@ func TestGetLedgerType(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body: ioutil.NopCloser(
+				Body: io.NopCloser(
 					bytes.NewBufferString(`{"properties":{"https://trustbloc.dev/ns/ledger-type":"vct"}}`),
 				),
 				StatusCode: http.StatusOK,
@@ -68,7 +68,7 @@ func TestGetLedgerType(t *testing.T) {
 	t.Run("success - cache entry expired", func(t *testing.T) {
 		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body: ioutil.NopCloser(
+				Body: io.NopCloser(
 					bytes.NewBufferString(`{"properties":{"https://trustbloc.dev/ns/ledger-type":"vct"}}`),
 				),
 				StatusCode: http.StatusOK,
@@ -109,7 +109,7 @@ func TestGetLedgerType(t *testing.T) {
 	t.Run("error - ledger type not a string", func(t *testing.T) {
 		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body: ioutil.NopCloser(
+				Body: io.NopCloser(
 					bytes.NewBufferString(`{"properties":{"https://trustbloc.dev/ns/ledger-type": 100}}`),
 				),
 				StatusCode: http.StatusOK,
@@ -127,7 +127,7 @@ func TestGetLedgerType(t *testing.T) {
 	t.Run("error - no ledger type property", func(t *testing.T) {
 		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString(`{}`)),
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusOK,
 			}, nil
 		})
@@ -143,7 +143,7 @@ func TestGetLedgerType(t *testing.T) {
 	t.Run("error - resource not found", func(t *testing.T) {
 		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       ioutil.NopCloser(bytes.NewBufferString("not found")),
+				Body:       io.NopCloser(bytes.NewBufferString("not found")),
 				StatusCode: http.StatusNotFound,
 			}, nil
 		})
@@ -159,7 +159,7 @@ func TestGetLedgerType(t *testing.T) {
 	t.Run("error - internal server error", func(t *testing.T) {
 		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body: ioutil.NopCloser(
+				Body: io.NopCloser(
 					bytes.NewBufferString("internal server error"),
 				),
 				StatusCode: http.StatusInternalServerError,
@@ -178,7 +178,7 @@ func TestHasSupportedLedgerType(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body: ioutil.NopCloser(
+				Body: io.NopCloser(
 					bytes.NewBufferString(`{"properties":{"https://trustbloc.dev/ns/ledger-type":"vct-v1"}}`),
 				),
 				StatusCode: http.StatusOK,
@@ -195,7 +195,7 @@ func TestHasSupportedLedgerType(t *testing.T) {
 	t.Run("success - ledger type not supported", func(t *testing.T) {
 		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body: ioutil.NopCloser(
+				Body: io.NopCloser(
 					bytes.NewBufferString(`{"properties":{"https://trustbloc.dev/ns/ledger-type":"vct"}}`),
 				),
 				StatusCode: http.StatusOK,
@@ -212,7 +212,7 @@ func TestHasSupportedLedgerType(t *testing.T) {
 	t.Run("success - no ledger type not found", func(t *testing.T) {
 		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body: ioutil.NopCloser(
+				Body: io.NopCloser(
 					bytes.NewBufferString(`{}`),
 				),
 				StatusCode: http.StatusOK,
@@ -229,7 +229,7 @@ func TestHasSupportedLedgerType(t *testing.T) {
 	t.Run("error - internal server error", func(t *testing.T) {
 		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body: ioutil.NopCloser(
+				Body: io.NopCloser(
 					bytes.NewBufferString("internal server error"),
 				),
 				StatusCode: http.StatusInternalServerError,
@@ -273,7 +273,7 @@ func TestClient_ResolveLog(t *testing.T) {
 
 		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body: ioutil.NopCloser(
+				Body: io.NopCloser(
 					bytes.NewBufferString(string(respBytes)),
 				),
 				StatusCode: http.StatusOK,
@@ -307,7 +307,7 @@ func TestClient_ResolveLog(t *testing.T) {
 
 		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body: ioutil.NopCloser(
+				Body: io.NopCloser(
 					bytes.NewBufferString(string(respBytes)),
 				),
 				StatusCode: http.StatusOK,
@@ -325,7 +325,7 @@ func TestClient_ResolveLog(t *testing.T) {
 	t.Run("error - not found", func(t *testing.T) {
 		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body: ioutil.NopCloser(
+				Body: io.NopCloser(
 					bytes.NewBufferString(`{}`),
 				),
 				StatusCode: http.StatusOK,
@@ -373,7 +373,7 @@ func TestClient_ResolveLog(t *testing.T) {
 
 		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body: ioutil.NopCloser(
+				Body: io.NopCloser(
 					bytes.NewBufferString(string(respBytes)),
 				),
 				StatusCode: http.StatusOK,

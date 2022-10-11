@@ -139,7 +139,7 @@ func WithLogEntriesStoreEnabled(enabled bool) Option {
 }
 
 // New returns new client for monitoring VCT log consistency.
-func New(store logMonitorStore, httpClient httpClient, requestTokens map[string]string, opts ...Option) (*Client, error) { //nolint:lll
+func New(store logMonitorStore, httpClient httpClient, requestTokens map[string]string, opts ...Option) (*Client, error) {
 	client := &Client{
 		logVerifier:          verifier.New(),
 		monitorStore:         store,
@@ -208,7 +208,7 @@ func (c *Client) checkVCTConsistency(logMonitor *logmonitor.LogMonitor) error {
 	return nil
 }
 
-func (c *Client) verifySTH(logURL string, storedSTH, sth *command.GetSTHResponse, vctClient *vct.Client) error { // nolint: lll,gocyclo,cyclop
+func (c *Client) verifySTH(logURL string, storedSTH, sth *command.GetSTHResponse, vctClient *vct.Client) error { //nolint:cyclop
 	var err error
 
 	if storedSTH == nil {
@@ -468,7 +468,7 @@ func min(a, b uint64) uint64 {
 	return b
 }
 
-func (c *Client) verifySTHConsistency(logURL string, storedSTH, sth *command.GetSTHResponse, vctClient *vct.Client) error { //nolint:lll
+func (c *Client) verifySTHConsistency(logURL string, storedSTH, sth *command.GetSTHResponse, vctClient *vct.Client) error {
 	if storedSTH.TreeSize > 0 {
 		logger.Debug("Getting STH consistency for stored[%d] and latest[%d]",
 			log.WithLogURLString(logURL), zap.Uint64("stored-size", storedSTH.TreeSize),
@@ -548,7 +548,7 @@ func verifySTHSignature(sth *command.GetSTHResponse, pubKey []byte) error {
 		return fmt.Errorf("marshal TreeHeadSignature: %w", err)
 	}
 
-	return (&tinkcrypto.Crypto{}).Verify(sig.Signature, sigBytes, kh) // nolint: wrapcheck
+	return (&tinkcrypto.Crypto{}).Verify(sig.Signature, sigBytes, kh) //nolint: wrapcheck
 }
 
 // MonitorLogs will monitor logs for consistency.

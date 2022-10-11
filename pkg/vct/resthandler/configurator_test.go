@@ -10,7 +10,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -54,7 +54,7 @@ func TestHandler(t *testing.T) {
 		require.Equal(t, http.StatusOK, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 		require.Empty(t, respBytes)
 		require.NoError(t, result.Body.Close())
@@ -76,7 +76,7 @@ func TestHandler(t *testing.T) {
 		require.Equal(t, http.StatusOK, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 		require.Empty(t, respBytes)
 		require.NoError(t, result.Body.Close())
@@ -98,7 +98,7 @@ func TestHandler(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 		require.Equal(t, []byte(badRequestResponse), respBytes)
 		require.NoError(t, result.Body.Close())
@@ -120,7 +120,7 @@ func TestHandler(t *testing.T) {
 		require.Equal(t, http.StatusBadRequest, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 		require.Equal(t, []byte(badRequestResponse), respBytes)
 		require.NoError(t, result.Body.Close())
@@ -142,7 +142,7 @@ func TestHandler(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 		require.Equal(t, []byte(internalServerErrorResponse), respBytes)
 		require.NoError(t, result.Body.Close())
@@ -169,7 +169,7 @@ func TestHandler(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 		require.Equal(t, []byte(internalServerErrorResponse), respBytes)
 		require.NoError(t, result.Body.Close())
@@ -191,7 +191,7 @@ func TestHandler(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 
-		respBytes, err := ioutil.ReadAll(result.Body)
+		respBytes, err := io.ReadAll(result.Body)
 		require.NoError(t, err)
 		require.Equal(t, []byte(internalServerErrorResponse), respBytes)
 		require.NoError(t, result.Body.Close())

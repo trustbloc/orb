@@ -98,7 +98,7 @@ type witnessPolicy interface {
 }
 
 // HandleProof handles proof.
-func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchor string, endTime time.Time, proof []byte) error { //nolint:lll,funlen
+func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchor string, endTime time.Time, proof []byte) error {
 	logger.Debug("Received proof for anchor from witness", log.WithAnchorURIString(anchor),
 		log.WithActorIRI(witness), log.WithProof(proof))
 
@@ -181,7 +181,7 @@ func getCreatedTime(wp vct.Proof) (time.Time, error) {
 	return createdTime, nil
 }
 
-func (h *WitnessProofHandler) handleWitnessPolicy(anchorLink *linkset.Link, vc *verifiable.Credential) error { //nolint:funlen,gocyclo,cyclop,lll
+func (h *WitnessProofHandler) handleWitnessPolicy(anchorLink *linkset.Link, vc *verifiable.Credential) error { //nolint:cyclop
 	anchorID := anchorLink.Anchor().String()
 
 	logger.Debug("Handling witness policy for anchor link", log.WithAnchorURIString(anchorID))

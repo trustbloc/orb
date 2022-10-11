@@ -7,10 +7,11 @@ SPDX-License-Identifier: Apache-2.0
 package resource
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -63,7 +64,7 @@ func New(httpClient *http.Client, ipfsReader *ipfs.Client, domainResolver domain
 	resolver.hostMetaDocCache = gcache.New(resolver.cacheSize).
 		Expiration(resolver.cacheLifetime).
 		LoaderFunc(func(key interface{}) (interface{}, error) {
-			return resolver.resolveHostMetaLink(key.(string))
+			return resolver.resolveHostMetaLink(key.(string)) //nolint:forcetypeassert
 		}).Build()
 
 	return resolver
@@ -87,7 +88,7 @@ func (c *Resolver) ResolveHostMetaLink(urlToGetHostMetaFrom, linkType string) (s
 
 	hostMetaDocument, ok := hostMetaDocumentObj.(*discoveryrest.JRD)
 	if !ok {
-		return "", fmt.Errorf("unexpected value type[%T] for key[%s] in host metadata cache", hostMetaDocumentObj, urlToGetHostMetaFrom) //nolint:lll
+		return "", fmt.Errorf("unexpected value type[%T] for key[%s] in host metadata cache", hostMetaDocumentObj, urlToGetHostMetaFrom)
 	}
 
 	for _, link := range hostMetaDocument.Links {
@@ -176,7 +177,12 @@ func (c *Resolver) getHostMetaDocumentViaHTTP(urlToGetHostMetaDocumentFrom strin
 	hostMetaEndpoint := fmt.Sprintf("%s://%s%s", parsedURL.Scheme, parsedURL.Host,
 		discoveryrest.HostMetaJSONEndpoint)
 
-	resp, err := c.httpClient.Get(hostMetaEndpoint)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, hostMetaEndpoint, http.NoBody)
+	if err != nil {
+		return nil, fmt.Errorf("new request with context: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get a response from the host-meta endpoint: %w", err)
 	}
@@ -193,7 +199,7 @@ func (c *Resolver) getHostMetaDocumentViaHTTP(urlToGetHostMetaDocumentFrom strin
 			fmt.Errorf("got status code %d from %s (expected 200)", resp.StatusCode, hostMetaEndpoint)
 	}
 
-	hostMetaDocumentBytes, err := ioutil.ReadAll(resp.Body)
+	hostMetaDocumentBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
