@@ -21,7 +21,7 @@ require (
 	github.com/stretchr/testify v1.7.5
 	github.com/trustbloc/kms v0.1.9-0.20220927102932-412f152996fa
 	github.com/trustbloc/orb v0.1.3
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221005183541-1b59b4a9dd99
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221011173557-7c4f13946f96
 	github.com/trustbloc/vct v1.0.0-rc3.0.20221005225741-acba00018d6b
 	go.mongodb.org/mongo-driver v1.9.1
 	go.uber.org/zap v1.17.0

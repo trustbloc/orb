@@ -941,8 +941,8 @@ github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344 h1:KCEn2RI
 github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344/go.mod h1:B8FIw5LTq6DaULoHsVFRzYIUDkl8yuSwCdZnOZGKL/A=
 github.com/trustbloc/kms v0.1.9-0.20220927102932-412f152996fa h1:NeRi6ksYAYTmKG1eVBEy/LMPehkFeYwYWwQEH2Oi6zI=
 github.com/trustbloc/kms v0.1.9-0.20220927102932-412f152996fa/go.mod h1:Vv+mv35QeUo5f+Llm/gsp6x4FgLkLH9dTp4dGK0+aQU=
-github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221005183541-1b59b4a9dd99 h1:UBoQE2qEPmmEpOrLIvg6DQRDZeKrmSq6nrDuRFUwCUc=
-github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221005183541-1b59b4a9dd99/go.mod h1:vb3m2AnDSwkAYbH/i9Hj4eud5ie2d/UIuwVuniuE258=
+github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221011173557-7c4f13946f96 h1:K4We1JcnZmeikBD/XWIoBfJvakbeUWKZef22Rlaq8Qw=
+github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221011173557-7c4f13946f96/go.mod h1:SOuPJu8u7DSs2c494HPFAkkZ3KlfR/4swQ+YWqxZ2C8=
 github.com/trustbloc/vct v1.0.0-rc3.0.20221005225741-acba00018d6b h1:qL5S9RmF5/vk4oFdJpwDBbhSxPmjaMkKz9LwX8CMtIs=
 github.com/trustbloc/vct v1.0.0-rc3.0.20221005225741-acba00018d6b/go.mod h1:2n0PXsq0SCJwyqdWPUviAgpSj7FQRm/rOxA1e0aOq4Q=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=

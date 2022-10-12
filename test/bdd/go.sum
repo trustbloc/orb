@@ -1165,8 +1165,8 @@ github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1
 github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20200427203606-3cfed13b9966/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce/go.mod h1:o8v6yHRoik09Xen7gje4m9ERNah1d1PPsVq1VEx9vE4=
-github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221005183541-1b59b4a9dd99 h1:UBoQE2qEPmmEpOrLIvg6DQRDZeKrmSq6nrDuRFUwCUc=
-github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221005183541-1b59b4a9dd99/go.mod h1:vb3m2AnDSwkAYbH/i9Hj4eud5ie2d/UIuwVuniuE258=
+github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221011173557-7c4f13946f96 h1:K4We1JcnZmeikBD/XWIoBfJvakbeUWKZef22Rlaq8Qw=
+github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221011173557-7c4f13946f96/go.mod h1:SOuPJu8u7DSs2c494HPFAkkZ3KlfR/4swQ+YWqxZ2C8=
 github.com/trustbloc/vct v1.0.0-rc3.0.20221005225741-acba00018d6b h1:qL5S9RmF5/vk4oFdJpwDBbhSxPmjaMkKz9LwX8CMtIs=
 github.com/trustbloc/vct v1.0.0-rc3.0.20221005225741-acba00018d6b/go.mod h1:2n0PXsq0SCJwyqdWPUviAgpSj7FQRm/rOxA1e0aOq4Q=
 github.com/ugorji/go v1.1.4/go.mod h1:uQMGLiO92mf5W77hV/PUCpI3pbzQx3CRekS0kk+RGrc=
