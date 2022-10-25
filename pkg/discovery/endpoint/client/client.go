@@ -69,6 +69,7 @@ type Client struct {
 	httpClient        httpClient
 	casReader         casReader
 	authToken         string
+	authTokenProvider authTokenProvider
 	disableProofCheck bool
 	publicKeyFetcher  verifiable.PublicKeyFetcher
 	didWebHTTP        bool
@@ -329,8 +330,7 @@ func (cs *Client) populateAnchorResolutionEndpoint(
 	return endpoint, nil
 }
 
-//nolint: cyclop,goimports
-func (cs *Client) populateResolutionEndpoint(webFingerURL string) (*models.Endpoint, error) {
+func (cs *Client) populateResolutionEndpoint(webFingerURL string) (*models.Endpoint, error) { //nolint: cyclop
 	var jrd restapi.JRD
 
 	err := cs.sendRequest(nil, http.MethodGet, webFingerURL, &jrd)
@@ -554,6 +554,21 @@ func (cs *Client) send(req []byte, method, endpointURL string) ([]byte, error) {
 
 	httpReq.Header.Set("Content-Type", "application/json")
 
+	authToken := cs.authToken
+
+	if cs.authTokenProvider != nil {
+		v, errToken := cs.authTokenProvider.AuthToken()
+		if errToken != nil {
+			return nil, errToken
+		}
+
+		authToken = "Bearer " + v
+	}
+
+	if authToken != "" {
+		httpReq.Header.Add("Authorization", authToken)
+	}
+
 	resp, err := cs.httpClient.Do(httpReq)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
@@ -589,6 +604,10 @@ func closeResponseBody(respBody io.Closer) {
 	}
 }
 
+type authTokenProvider interface {
+	AuthToken() (string, error)
+}
+
 // Option is a config service instance option.
 type Option func(opts *Client)
 
@@ -603,6 +622,13 @@ func WithHTTPClient(httpClient httpClient) Option {
 func WithAuthToken(authToken string) Option {
 	return func(opts *Client) {
 		opts.authToken = "Bearer " + authToken
+	}
+}
+
+// WithAuthTokenProvider add auth token provider.
+func WithAuthTokenProvider(p authTokenProvider) Option {
+	return func(opts *Client) {
+		opts.authTokenProvider = p
 	}
 }
 
