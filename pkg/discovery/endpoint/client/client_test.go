@@ -164,7 +164,7 @@ func TestConfigService_GetEndpointAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("test get anchor origin return https", func(t *testing.T) {
-		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthToken("t1"))
+		cs, err := New(nil, &referenceCASReaderImplementation{}, WithAuthTokenProvider(&tokenProvider{}))
 		require.NoError(t, err)
 
 		cs.orbClient = &mockOrbClient{getAnchorOriginFunc: func(cid, suffix string) (interface{}, error) {
@@ -819,4 +819,10 @@ func (m *mockOrbClient) GetAnchorOrigin(cid, suffix string) (interface{}, error)
 	}
 
 	return nil, nil //nolint:nilnil
+}
+
+type tokenProvider struct{}
+
+func (t *tokenProvider) AuthToken() (string, error) {
+	return "newTK", nil
 }
