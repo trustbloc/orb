@@ -748,11 +748,11 @@ func TestWellKnownServiceDID(t *testing.T) {
 
 	rr := serveHTTP(t, handler.Handler(), http.MethodGet, webDIDEndpoint, nil, nil, false)
 
-	var doc ariesdid.Doc
-
 	require.Equal(t, http.StatusOK, rr.Code)
 
-	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &doc))
+	doc, err := ariesdid.ParseDocument(rr.Body.Bytes())
+	require.NoError(t, err)
+
 	require.Equal(t, doc.ID, id)
 	require.Len(t, doc.VerificationMethod, 1)
 	require.Len(t, doc.Service, 1)
