@@ -281,7 +281,7 @@ func (o *Operation) handleDIDWeb(did string, pubKeys []PublicKey, rw http.Respon
 			{
 				ID:              fmt.Sprintf("%s#%s", did, serviceID),
 				Type:            serviceTypeLinkedDomains,
-				ServiceEndpoint: ariesmodel.NewDIDCoreEndpoint([]string{o.baseURL}),
+				ServiceEndpoint: ariesmodel.NewDIDCommV1Endpoint(o.baseURL),
 			},
 		}
 	}
