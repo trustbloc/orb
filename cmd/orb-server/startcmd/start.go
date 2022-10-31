@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/signal"
 	"reflect"
+	"regexp"
 	"strings"
 	"syscall"
 	"time"
@@ -335,9 +336,20 @@ func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 
 		return webkms.New(keyStoreURL, client), webcrypto.New(keyStoreURL, client), nil
 	case kmsAWS:
+		region := parameters.kmsParams.kmsRegion
+
+		if strings.Contains(parameters.kmsParams.vcSignActiveKeyID, "arn") {
+			var err error
+
+			region, err = getRegion(parameters.kmsParams.vcSignActiveKeyID)
+			if err != nil {
+				return nil, nil, err
+			}
+		}
+
 		awsSession, err := session.NewSession(&aws.Config{
 			Endpoint:                      &parameters.kmsParams.kmsEndpoint,
-			Region:                        aws.String(parameters.kmsParams.kmsRegion),
+			Region:                        aws.String(region),
 			CredentialsChainVerboseErrors: aws.Bool(true),
 		})
 		if err != nil {
@@ -462,7 +474,7 @@ func importPrivateKey(km keyManager, httpSignKeyType bool, parameters *orbParame
 	}, parameters.syncTimeout)
 }
 
-//nolint: funlen,gocognit
+// nolint: funlen,gocognit
 func startOrbServices(parameters *orbParameters) error {
 	if parameters.logLevel != "" {
 		setLogLevels(logger, parameters.logLevel)
@@ -1832,4 +1844,20 @@ func NewMetricsProvider(parameters *orbParameters, pubSub pubSub, witness *vct.C
 	default:
 		return nil, nil
 	}
+}
+
+func getRegion(keyURI string) (string, error) {
+	// keyURI must have the following format: 'aws-kms://arn:<partition>:kms:<region>:[:path]'.
+	// See http://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html.
+	re1 := regexp.MustCompile(`aws-kms://arn:(aws[a-zA-Z0-9-_]*):kms:([a-z0-9-]+):`)
+
+	r := re1.FindStringSubmatch(keyURI)
+
+	const subStringCount = 3
+
+	if len(r) != subStringCount {
+		return "", fmt.Errorf("extracting region from URI failed")
+	}
+
+	return r[2], nil
 }
