@@ -54,6 +54,8 @@ jobs:
         run: |
           echo '127.0.0.1 orb.domain1.com' | sudo tee -a /etc/hosts
           echo '127.0.0.1 orb.vct' | sudo tee -a /etc/hosts
+          wget https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.6.1.deb
+          sudo apt install ./mongodb-database-tools-ubuntu2204-x86_64-100.6.1.deb
           make bdd-test-cas-local
 
       - uses: actions/upload-artifact@v2
