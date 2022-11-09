@@ -11,17 +11,17 @@ require (
 	github.com/aws/aws-sdk-go v1.43.9
 	github.com/cenkalti/backoff/v4 v4.1.3
 	github.com/google/uuid v1.3.0
-	github.com/hyperledger/aries-framework-go v0.1.9-0.20221025204933-b807371b6f1e
+	github.com/hyperledger/aries-framework-go v0.1.9-0.20221104133505-b2cd6a82a8e4
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20220428163625-96d8261511e1
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220615170242-cda5092b4faf
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220610133818-119077b0ec85
-	github.com/hyperledger/aries-framework-go/spi v0.0.0-20221021224215-368f53b380a4
+	github.com/hyperledger/aries-framework-go/spi v0.0.0-20221025204933-b807371b6f1e
 	github.com/piprate/json-gold v0.4.2
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.8.1
 	github.com/trustbloc/kms v0.1.9-0.20221024131747-f895f91207f1
-	github.com/trustbloc/orb v0.1.3
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221011173557-7c4f13946f96
+	github.com/trustbloc/orb v1.0.0-rc3.0.20221101120557-1cf1ce21c938
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221028171319-8d44bd1cace7
 	github.com/trustbloc/vct v1.0.0-rc3.0.20221027094648-3aa7f00ce64a
 	go.mongodb.org/mongo-driver v1.9.1
 	go.uber.org/zap v1.17.0
