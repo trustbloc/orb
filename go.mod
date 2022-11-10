@@ -33,8 +33,8 @@ require (
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.8.1
 	github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221028171319-8d44bd1cace7
-	github.com/trustbloc/vct v1.0.0-rc3.0.20221027094648-3aa7f00ce64a
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc4
+	github.com/trustbloc/vct v1.0.0-rc4
 	go.mongodb.org/mongo-driver v1.9.1
 	go.uber.org/zap v1.17.0
 	golang.org/x/net v0.1.0

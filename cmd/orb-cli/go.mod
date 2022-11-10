@@ -20,8 +20,8 @@ require (
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.8.1
 	github.com/trustbloc/orb v1.0.0-rc3.0.20221101120557-1cf1ce21c938
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221028171319-8d44bd1cace7
-	github.com/trustbloc/vct v1.0.0-rc3.0.20221027094648-3aa7f00ce64a
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc4
+	github.com/trustbloc/vct v1.0.0-rc4
 )
 
 require (

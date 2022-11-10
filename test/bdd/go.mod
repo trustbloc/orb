@@ -26,7 +26,7 @@ require (
 	github.com/sirupsen/logrus v1.8.1
 	github.com/tidwall/gjson v1.7.4
 	github.com/trustbloc/orb v1.0.0-rc3.0.20221101120557-1cf1ce21c938
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221028171319-8d44bd1cace7
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc4
 )
 
 require (
@@ -111,7 +111,7 @@ require (
 	github.com/teserakt-io/golang-ed25519 v0.0.0-20210104091850-3888c087a4c8 // indirect
 	github.com/tidwall/match v1.0.3 // indirect
 	github.com/tidwall/pretty v1.1.0 // indirect
-	github.com/trustbloc/vct v1.0.0-rc3.0.20221027094648-3aa7f00ce64a // indirect
+	github.com/trustbloc/vct v1.0.0-rc4 // indirect
 	github.com/whyrusleeping/tar-utils v0.0.0-20180509141711-8c6c8ba81d5c // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/xdg-go/pbkdf2 v1.0.0 // indirect
