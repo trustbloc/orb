@@ -138,7 +138,6 @@ func TestOutbox_Post(t *testing.T) {
 	}
 
 	httpServer := httpserver.New(":8003", "", "", time.Second, time.Second,
-		&mockService{}, &mockService{}, &mockService{}, &mockService{},
 		newTestHandler("/services/service2", http.MethodGet, mockServiceRequestHandler(t, service2URL)),
 		newTestHandler("/services/service3", http.MethodGet, mockServiceRequestHandler(t, service3URL)),
 		newTestHandler("/services/service4", http.MethodGet, mockServiceRequestHandler(t, service4URL)),
@@ -938,24 +937,6 @@ func handleMockCollectionPage(t *testing.T, collID *url.URL, uris []*url.URL,
 
 	_, err = w.Write(respBytes)
 	require.NoError(t, err)
-}
-
-type mockService struct {
-	isConnectedErr error
-	healthCheckErr error
-	pingErr        error
-}
-
-func (m *mockService) IsConnected() bool {
-	return m.isConnectedErr == nil
-}
-
-func (m *mockService) HealthCheck() error {
-	return m.healthCheckErr
-}
-
-func (m *mockService) Ping() error {
-	return m.pingErr
 }
 
 type wellKnownResolver struct {

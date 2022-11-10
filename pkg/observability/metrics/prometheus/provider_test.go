@@ -12,12 +12,25 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/stretchr/testify/require"
+
+	"github.com/trustbloc/orb/pkg/observability/metrics/prometheus/mocks"
 )
 
+//go:generate counterfeiter -o ./mocks/httpserver.gen.go --fake-name HttpServer . httpServer
+
 func TestMetrics(t *testing.T) {
-	m := GetMetrics()
+	s := &mocks.HttpServer{}
+
+	p := NewProvider(s)
+	require.NotNil(t, p)
+	require.NoError(t, p.Create())
+
+	defer func() {
+		require.NoError(t, p.Destroy())
+	}()
+
+	m := p.Metrics()
 	require.NotNil(t, m)
-	require.True(t, m == GetMetrics())
 
 	t.Run("ActivityPub", func(t *testing.T) {
 		require.NotPanics(t, func() { m.InboxHandlerTime("Create", time.Second) })

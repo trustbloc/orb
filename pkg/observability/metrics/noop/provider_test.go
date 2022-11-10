@@ -1,3 +1,9 @@
+/*
+Copyright SecureKey Technologies Inc. All Rights Reserved.
+
+SPDX-License-Identifier: Apache-2.0
+*/
+
 package noop
 
 import (
@@ -8,8 +14,13 @@ import (
 )
 
 func TestMetrics(t *testing.T) {
-	m := GetMetrics()
+	p := NewProvider()
+	require.NotNil(t, p)
+
+	m := p.Metrics()
 	require.NotNil(t, m)
+	require.NoError(t, p.Create())
+	require.NoError(t, p.Destroy())
 
 	t.Run("ActivityPub", func(t *testing.T) {
 		require.NotPanics(t, func() { m.InboxHandlerTime("Create", time.Second) })
