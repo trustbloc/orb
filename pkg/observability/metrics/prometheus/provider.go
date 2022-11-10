@@ -15,60 +15,65 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/trustbloc/orb/internal/pkg/log"
-	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/observability/metrics"
 )
 
 var logger = metrics.Logger
 
-var (
-	createOnce sync.Once
-	instance   metrics.Metrics
-)
+var createOnce sync.Once
 
-type promProvider struct {
-	httpServer *httpserver.Server
+type httpServer interface {
+	Start() error
+	Stop(ctx context.Context) error
 }
 
-// NewPrometheusProvider creates new instance of Prometheus Metrics Provider.
-func NewPrometheusProvider(httpServer *httpserver.Server) metrics.Provider {
-	return &promProvider{httpServer: httpServer}
+// Provider implements a Prometheus metrics provider.
+type Provider struct {
+	metrics    metrics.Metrics
+	httpServer httpServer
 }
 
-// Create creates/initializes the prometheus metrics provider.
-func (pp *promProvider) Create() error {
-	if pp.httpServer != nil {
-		return nil
+// NewProvider creates new instance of Prometheus Metrics Provider.
+func NewProvider(httpServer httpServer) *Provider {
+	var instance metrics.Metrics
+
+	// Ensure that the metrics are registered exactly once, otherwise
+	// Prometheus will panic.
+	createOnce.Do(func() {
+		instance = newMetrics()
+	})
+
+	return &Provider{
+		metrics:    instance,
+		httpServer: httpServer,
 	}
+}
 
+// Create starts the prometheus metrics HTTP server.
+func (pp *Provider) Create() error {
 	if err := pp.httpServer.Start(); err != nil {
-		return fmt.Errorf("start metrics HTTP server: %w", err)
+		return fmt.Errorf("start HTTP server: %w", err)
 	}
+
+	logger.Info("Started prometheus HTTP server")
 
 	return nil
 }
 
 // Metrics returns supported metrics.
-func (pp *promProvider) Metrics() metrics.Metrics {
-	return GetMetrics()
+func (pp *Provider) Metrics() metrics.Metrics {
+	return pp.metrics
 }
 
-// Destroy destroys the prometheus metrics provider.
-func (pp *promProvider) Destroy() error {
-	if pp.httpServer != nil {
-		return pp.httpServer.Stop(context.Background())
+// Destroy stops the prometheus metrics HTTP server.
+func (pp *Provider) Destroy() error {
+	if err := pp.httpServer.Stop(context.Background()); err != nil {
+		return fmt.Errorf("stop HTTP server: %w", err)
 	}
 
+	logger.Info("Stopped prometheus HTTP server")
+
 	return nil
-}
-
-// GetMetrics returns metrics implementation.
-func GetMetrics() metrics.Metrics {
-	createOnce.Do(func() {
-		instance = NewMetrics()
-	})
-
-	return instance
 }
 
 // PromMetrics manages the metrics for Orb.
@@ -169,8 +174,8 @@ type PromMetrics struct {
 	awsVerifyTime           prometheus.Histogram
 }
 
-// NewMetrics creates instance of prometheus metrics.
-func NewMetrics() metrics.Metrics {
+// newMetrics creates instance of prometheus metrics.
+func newMetrics() metrics.Metrics {
 	activityTypes := []string{"Create", "Announce", "Offer", "Like", "Follow", "InviteWitness", "Accept", "Reject"}
 	dbTypes := []string{"CouchDB", "MongoDB"}
 	modelTypes := []string{"core index", "core proof", "provisional proof", "chunk", "provisional index"}

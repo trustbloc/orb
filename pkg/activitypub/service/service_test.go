@@ -1014,8 +1014,7 @@ func containsIRI(iris []*url.URL, iri fmt.Stringer) bool {
 func startHTTPServer(t *testing.T, listenAddress string, handlers ...common.HTTPHandler) func() {
 	t.Helper()
 
-	httpServer := httpserver.New(listenAddress, "", "", time.Second, time.Second,
-		&mockService{}, &mockService{}, &mockService{}, &mockService{}, handlers...)
+	httpServer := httpserver.New(listenAddress, "", "", time.Second, time.Second, handlers...)
 
 	require.NoError(t, httpServer.Start())
 
@@ -1048,21 +1047,3 @@ const proof = `{
    "jws": "eyJ..."
  }
 }`
-
-type mockService struct {
-	isConnectedErr error
-	healthCheckErr error
-	pingErr        error
-}
-
-func (m *mockService) IsConnected() bool {
-	return m.isConnectedErr == nil
-}
-
-func (m *mockService) HealthCheck() error {
-	return m.healthCheckErr
-}
-
-func (m *mockService) Ping() error {
-	return m.pingErr
-}

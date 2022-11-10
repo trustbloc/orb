@@ -25,8 +25,6 @@ import (
 	"syscall"
 	"time"
 
-	noopMetricsProvider "github.com/trustbloc/orb/pkg/observability/metrics/noop"
-
 	"go.uber.org/zap"
 
 	"github.com/ThreeDotsLabs/watermill/message"
@@ -123,12 +121,14 @@ import (
 	"github.com/trustbloc/orb/pkg/document/updatehandler/decorator"
 	"github.com/trustbloc/orb/pkg/document/util"
 	"github.com/trustbloc/orb/pkg/document/webresolver"
+	"github.com/trustbloc/orb/pkg/healthcheck"
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/httpserver/auth/signature"
 	"github.com/trustbloc/orb/pkg/nodeinfo"
 	metricsProvider "github.com/trustbloc/orb/pkg/observability/metrics"
-	promMetricsProvider "github.com/trustbloc/orb/pkg/observability/metrics/prometheus"
+	noopmetrics "github.com/trustbloc/orb/pkg/observability/metrics/noop"
+	"github.com/trustbloc/orb/pkg/observability/metrics/prometheus"
 	"github.com/trustbloc/orb/pkg/observer"
 	"github.com/trustbloc/orb/pkg/protocolversion/factoryregistry"
 	"github.com/trustbloc/orb/pkg/pubsub/amqp"
@@ -480,10 +480,12 @@ func startOrbServices(parameters *orbParameters) error {
 		setLogLevels(logger, parameters.logLevel)
 	}
 
-	metrics, err := NewMetrics(parameters)
+	mp, err := newMetricsProvider(parameters)
 	if err != nil {
 		return err
 	}
+
+	metrics := mp.Metrics()
 
 	storeProviders, err := createStoreProviders(parameters, metrics)
 	if err != nil {
@@ -1328,26 +1330,11 @@ func startOrbServices(parameters *orbParameters) error {
 		parameters.tlsParams.serveKeyPath,
 		parameters.serverIdleTimeout,
 		parameters.serverReadHeaderTimeout,
-		pubSub,
-		logEndpoint,
-		storeProviders.provider,
-		km,
-		handlers...,
+		append(handlers, healthcheck.NewHandler(pubSub, logEndpoint, storeProviders.provider, km))...,
 	)
 
-	metricsProvider, err := NewMetricsProvider(parameters, pubSub, witness, storeProviders, km)
-	if err != nil {
-		return err
-	}
-
-	if metricsProvider != nil {
-		err = metricsProvider.Create()
-		if err != nil {
-			return err
-		}
-	}
-
-	err = run(httpServer, activityPubService, opQueue, observer, batchWriter, taskMgr, nodeInfoService)
+	err = run(httpServer, activityPubService, opQueue, observer, batchWriter, taskMgr,
+		nodeInfoService, newMPLifecycleWrapper(mp))
 	if err != nil {
 		return err
 	}
@@ -1822,27 +1809,17 @@ func asURIs(strs ...string) ([]*url.URL, error) {
 	return uris, nil
 }
 
-func NewMetrics(parameters *orbParameters) (metricsProvider.Metrics, error) {
-	switch parameters.metricsProviderName {
-	case "prometheus":
-		return promMetricsProvider.GetMetrics(), nil
-	default:
-		return noopMetricsProvider.GetMetrics(), nil
-	}
-}
-
-func NewMetricsProvider(parameters *orbParameters, pubSub pubSub, witness *vct.Client, storeProviders *storageProviders,
-	km keyManager) (metricsProvider.Provider, error) {
+func newMetricsProvider(parameters *orbParameters) (metricsProvider.Provider, error) {
 	switch parameters.metricsProviderName {
 	case "prometheus":
 		metricsHttpServer := httpserver.New(
 			parameters.prometheusMetricsProviderParams.url, "", "", parameters.serverIdleTimeout,
-			parameters.serverReadHeaderTimeout, pubSub, witness, storeProviders.provider, km,
-			promMetricsProvider.NewHandler(),
+			parameters.serverReadHeaderTimeout, prometheus.NewHandler(),
 		)
-		return promMetricsProvider.NewPrometheusProvider(metricsHttpServer), nil
+
+		return prometheus.NewProvider(metricsHttpServer), nil
 	default:
-		return nil, nil
+		return noopmetrics.NewProvider(), nil
 	}
 }
 
@@ -1860,4 +1837,24 @@ func getRegion(keyURI string) (string, error) {
 	}
 
 	return r[2], nil
+}
+
+type mpLifecycleWrapper struct {
+	mp metricsProvider.Provider
+}
+
+func newMPLifecycleWrapper(mp metricsProvider.Provider) *mpLifecycleWrapper {
+	return &mpLifecycleWrapper{mp: mp}
+}
+
+func (w *mpLifecycleWrapper) Start() {
+	if err := w.mp.Create(); err != nil {
+		panic(fmt.Errorf("create metrics provider: %w", err))
+	}
+}
+
+func (w *mpLifecycleWrapper) Stop() {
+	if err := w.mp.Destroy(); err != nil {
+		logger.Warn("Failed to stop metrics provider", log.WithError(err))
+	}
 }

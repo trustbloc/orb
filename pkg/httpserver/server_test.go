@@ -9,19 +9,15 @@ package httpserver
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
-
-	vct2 "github.com/trustbloc/orb/pkg/vct"
 )
 
 const (
@@ -37,10 +33,6 @@ func TestServer_Start(t *testing.T) {
 		"",
 		time.Second,
 		time.Second,
-		&mockService{},
-		&mockService{},
-		&mockService{},
-		&mockService{},
 		&mockUpdateHandler{},
 		&mockResolveHandler{},
 	)
@@ -62,170 +54,9 @@ func TestServer_Start(t *testing.T) {
 		require.NotNil(t, resp)
 	})
 
-	t.Run("success - health check", func(t *testing.T) {
-		b := &httptest.ResponseRecorder{}
-		s.healthCheckHandler(b, nil)
-
-		require.Equal(t, http.StatusOK, b.Code)
-	})
-
-	t.Run("error - health check", func(t *testing.T) {
-		b := httptest.NewRecorder()
-		s1 := New(url,
-			"",
-			"",
-			time.Second,
-			time.Second,
-			&mockService{isConnectedErr: fmt.Errorf("not connected")},
-			&mockService{healthCheckErr: fmt.Errorf("failed")},
-			&mockService{pingErr: fmt.Errorf("failed")},
-			&mockService{healthCheckErr: fmt.Errorf("failed")},
-			&mockUpdateHandler{},
-			&mockResolveHandler{},
-		)
-		s1.healthCheckHandler(b, nil)
-
-		result := b.Result()
-
-		require.Equal(t, http.StatusServiceUnavailable, result.StatusCode)
-
-		resp := &healthCheckResp{}
-
-		require.NoError(t, json.NewDecoder(result.Body).Decode(resp))
-		require.NoError(t, result.Body.Close())
-
-		require.Equal(t, "failed", resp.VCTStatus)
-		require.Equal(t, "failed", resp.DBStatus)
-		require.Equal(t, "failed", resp.KMSStatus)
-		require.Equal(t, "not connected", resp.MQStatus)
-	})
-
-	t.Run("VCT disabled - health check", func(t *testing.T) {
-		b := httptest.NewRecorder()
-		s1 := New(url,
-			"",
-			"",
-			time.Second,
-			time.Second,
-			&mockService{},
-			&mockService{healthCheckErr: vct2.ErrDisabled},
-			&mockService{},
-			&mockService{},
-			&mockUpdateHandler{},
-			&mockResolveHandler{},
-		)
-		s1.healthCheckHandler(b, nil)
-
-		result := b.Result()
-
-		require.Equal(t, http.StatusOK, result.StatusCode)
-
-		resp := &healthCheckResp{}
-
-		require.NoError(t, json.NewDecoder(result.Body).Decode(resp))
-		require.NoError(t, result.Body.Close())
-
-		require.Equal(t, vct2.ErrDisabled.Error(), resp.VCTStatus)
-		require.Equal(t, "success", resp.DBStatus)
-		require.Equal(t, "success", resp.KMSStatus)
-		require.Equal(t, "success", resp.MQStatus)
-	})
-
-	t.Run("VCT log endpoint not configured - health check", func(t *testing.T) {
-		b := httptest.NewRecorder()
-		s1 := New(url,
-			"",
-			"",
-			time.Second,
-			time.Second,
-			&mockService{},
-			&mockService{healthCheckErr: vct2.ErrLogEndpointNotConfigured},
-			&mockService{},
-			&mockService{},
-			&mockUpdateHandler{},
-			&mockResolveHandler{},
-		)
-		s1.healthCheckHandler(b, nil)
-
-		result := b.Result()
-
-		require.Equal(t, http.StatusOK, result.StatusCode)
-
-		resp := &healthCheckResp{}
-
-		require.NoError(t, json.NewDecoder(result.Body).Decode(resp))
-		require.NoError(t, result.Body.Close())
-
-		require.Equal(t, vct2.ErrLogEndpointNotConfigured.Error(), resp.VCTStatus)
-		require.Equal(t, "success", resp.DBStatus)
-		require.Equal(t, "success", resp.KMSStatus)
-		require.Equal(t, "success", resp.MQStatus)
-	})
-
-	t.Run("Unknown error - health check", func(t *testing.T) {
-		b := httptest.NewRecorder()
-		s1 := New(url,
-			"",
-			"",
-			time.Second,
-			time.Second,
-			&mockService{isConnectedErr: fmt.Errorf("")},
-			&mockService{healthCheckErr: fmt.Errorf("")},
-			&mockService{pingErr: fmt.Errorf("")},
-			&mockService{healthCheckErr: fmt.Errorf("")},
-			&mockUpdateHandler{},
-			&mockResolveHandler{},
-		)
-		s1.healthCheckHandler(b, nil)
-
-		result := b.Result()
-
-		require.Equal(t, http.StatusServiceUnavailable, result.StatusCode)
-
-		resp := &healthCheckResp{}
-
-		require.NoError(t, json.NewDecoder(result.Body).Decode(resp))
-		require.NoError(t, result.Body.Close())
-
-		require.Equal(t, "unknown error", resp.VCTStatus)
-		require.Equal(t, "unknown error", resp.DBStatus)
-		require.Equal(t, "unknown error", resp.KMSStatus)
-		require.Equal(t, "not connected", resp.MQStatus)
-	})
-
 	t.Run("Stop", func(t *testing.T) {
 		require.NoError(t, s.Stop(context.Background()))
 		require.Error(t, s.Stop(context.Background()))
-	})
-}
-
-func TestServer_HealthCheckNoServices(t *testing.T) {
-	s := New(url,
-		"",
-		"",
-		time.Second,
-		time.Second,
-		nil,
-		nil,
-		nil,
-		nil,
-		&mockUpdateHandler{},
-		&mockResolveHandler{},
-	)
-	require.NoError(t, s.Start())
-
-	defer func() {
-		require.NoError(t, s.Stop(context.Background()))
-	}()
-
-	// Wait for the service to start
-	time.Sleep(time.Second)
-
-	t.Run("success - health check", func(t *testing.T) {
-		b := &httptest.ResponseRecorder{}
-		s.healthCheckHandler(b, nil)
-
-		require.Equal(t, http.StatusOK, b.Code)
 	})
 }
 
@@ -335,22 +166,4 @@ func (h *mockResolveHandler) Method() string {
 func (h *mockResolveHandler) Handler() common.HTTPRequestHandler {
 	return func(writer http.ResponseWriter, request *http.Request) {
 	}
-}
-
-type mockService struct {
-	isConnectedErr error
-	healthCheckErr error
-	pingErr        error
-}
-
-func (m *mockService) IsConnected() bool {
-	return m.isConnectedErr == nil
-}
-
-func (m *mockService) HealthCheck() error {
-	return m.healthCheckErr
-}
-
-func (m *mockService) Ping() error {
-	return m.pingErr
 }

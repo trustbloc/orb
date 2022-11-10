@@ -1,3 +1,9 @@
+/*
+Copyright SecureKey Technologies Inc. All Rights Reserved.
+
+SPDX-License-Identifier: Apache-2.0
+*/
+
 package noop
 
 import (
@@ -6,13 +12,32 @@ import (
 	"github.com/trustbloc/orb/pkg/observability/metrics"
 )
 
-// NoOptMetrics provides default no operation implementation for the Metrics interface.
-type NoOptMetrics struct{}
+// Provider implements a no-op metrics provider.
+type Provider struct {
+}
 
-// GetMetrics returns metrics implementation.
-func GetMetrics() metrics.Metrics {
+// NewProvider creates new instance of Prometheus Metrics Provider.
+func NewProvider() *Provider {
+	return &Provider{}
+}
+
+// Create does nothing.
+func (pp *Provider) Create() error {
+	return nil
+}
+
+// Destroy does nothing.
+func (pp *Provider) Destroy() error {
+	return nil
+}
+
+// Metrics returns supported metrics.
+func (pp *Provider) Metrics() metrics.Metrics {
 	return &NoOptMetrics{}
 }
+
+// NoOptMetrics provides default no operation implementation for the Metrics interface.
+type NoOptMetrics struct{}
 
 // CASIncrementCacheHitCount increments the number of CAS cache hits.
 func (nm NoOptMetrics) CASIncrementCacheHitCount() {}

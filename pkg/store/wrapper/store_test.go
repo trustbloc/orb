@@ -20,7 +20,7 @@ import (
 )
 
 func TestStoreWrapper(t *testing.T) {
-	s := NewStore(&ariesmockstorage.Store{}, "CouchDB", noop.GetMetrics())
+	s := NewStore(&ariesmockstorage.Store{}, "CouchDB", noop.NewProvider().Metrics())
 	require.NotNil(t, s)
 
 	t.Run("put", func(t *testing.T) {
@@ -67,7 +67,7 @@ func TestStoreWrapper(t *testing.T) {
 func TestMongoDBStoreWrapper(t *testing.T) {
 	ms := &mocks.MongoDBStore{}
 
-	s := NewMongoDBStore(ms, noop.GetMetrics())
+	s := NewMongoDBStore(ms, noop.NewProvider().Metrics())
 	require.NotNil(t, s)
 
 	doc := map[string]interface{}{
