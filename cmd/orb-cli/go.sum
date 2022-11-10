@@ -880,10 +880,10 @@ github.com/tmc/grpc-websocket-proxy v0.0.0-20170815181823-89b8d40f7ca8/go.mod h1
 github.com/tmc/grpc-websocket-proxy v0.0.0-20190109142713-0ad062ec5ee5/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/tmc/grpc-websocket-proxy v0.0.0-20200427203606-3cfed13b9966/go.mod h1:ncp9v5uamzpCO7NfCPTXjqaC+bZgJeR0sMTm6dMHP7U=
 github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce/go.mod h1:o8v6yHRoik09Xen7gje4m9ERNah1d1PPsVq1VEx9vE4=
-github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221028171319-8d44bd1cace7 h1:/7Ak2CW7iJEVF/uYhOu3KUAKTTlNII0DnJlAkw/hGoQ=
-github.com/trustbloc/sidetree-core-go v1.0.0-rc3.0.20221028171319-8d44bd1cace7/go.mod h1:SOuPJu8u7DSs2c494HPFAkkZ3KlfR/4swQ+YWqxZ2C8=
-github.com/trustbloc/vct v1.0.0-rc3.0.20221027094648-3aa7f00ce64a h1:z2IVgArThOzy3DOa9qPMVT9tnzZa9O3dntvpONVeM9I=
-github.com/trustbloc/vct v1.0.0-rc3.0.20221027094648-3aa7f00ce64a/go.mod h1:0ZzWC2AR/8Z2lRs8WqqFMt2nlAgi/z8kv31ELEZ5/1s=
+github.com/trustbloc/sidetree-core-go v1.0.0-rc4 h1:dkmNLKbHjr//JgJPLQgTNBgK40LAYXL9IV69gZCn2fo=
+github.com/trustbloc/sidetree-core-go v1.0.0-rc4/go.mod h1:SOuPJu8u7DSs2c494HPFAkkZ3KlfR/4swQ+YWqxZ2C8=
+github.com/trustbloc/vct v1.0.0-rc4 h1:XYvbsyy2mxdeILiT6lQH1EGXSSD6C2zHSr670Vppn+g=
+github.com/trustbloc/vct v1.0.0-rc4/go.mod h1:2kzD3kdeD1LFVRpWo2/C8ktnsfJR3gtH3pf/AqfRqow=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
 github.com/ugorji/go v1.1.4/go.mod h1:uQMGLiO92mf5W77hV/PUCpI3pbzQx3CRekS0kk+RGrc=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=
