@@ -7,10 +7,10 @@ module github.com/trustbloc/orb/cmd/orb-driver
 go 1.19
 
 require (
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc3.0.20221108185002-ec7f44fccffe
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc4
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.8.1
-	github.com/trustbloc/orb v1.0.0-rc3.0.20221101120557-1cf1ce21c938
+	github.com/trustbloc/orb v1.0.0-rc3.0.20221110183921-dc5feded4796
 	github.com/trustbloc/sidetree-core-go v1.0.0-rc4
 )
 
