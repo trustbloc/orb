@@ -82,8 +82,6 @@ Flags:
   -P, --activitypub-page-size string                         The maximum page size for an ActivityPub collection or ordered collection. Alternatively, this can be set with the following environment variable: ACTIVITYPUB_PAGE_SIZE
   -o, --allowed-origins stringArray                          Allowed origins for this did method. Alternatively, this can be set with the following environment variable: ALLOWED_ORIGINS
   -d, --anchor-credential-domain string                      Anchor credential domain (required). Alternatively, this can be set with the following environment variable: ANCHOR_CREDENTIAL_DOMAIN
-  -i, --anchor-credential-issuer string                      Anchor credential issuer (required). Alternatively, this can be set with the following environment variable: ANCHOR_CREDENTIAL_ISSUER
-  -g, --anchor-credential-url string                         Anchor credential url (required). Alternatively, this can be set with the following environment variable: ANCHOR_CREDENTIAL_URL
       --anchor-data-uri-media-type string                    The media type for data URIs in an anchor Linkset. Possible values are 'application/json' and 'application/gzip;base64'. If 'application/json' is specified then the content of the data URIs in the anchor LInkset are encoded as an escaped JSON string. If 'application/gzip;base64' is specified then the content is compressed with gzip and base64 encoded (default is 'application/gzip;base64').Alternatively, this can be set with the following environment variable: ANCHOR_DATA_URI_MEDIA_TYPE
       --anchor-status-in-process-grace-period string         The period in which witnesses will not be re-selected for 'in-process' anchors.Defaults to 1m if not set. Alternatively, this can be set with the following environment variable: ANCHOR_STATUS_IN_PROCESS_GRACE_PERIOD
       --anchor-status-monitoring-interval string             The interval in which 'in-process' anchors are monitored to ensure that they will be witnessed(completed) as per policy.Defaults to 5s if not set. Alternatively, this can be set with the following environment variable: ANCHOR_STATUS_MONITORING_INTERVAL
@@ -98,7 +96,7 @@ A complete list of required and optional parameters is documented
 
 The minimal configuration to run a service is:
 
-```./.build/bin/orb start --host-url="0.0.0.0:7890" --cas-type=local --external-endpoint=http://localhost:7890 --did-namespace=test --database-type=mem --kms-secrets-database-type=mem --anchor-credential-domain=http://localhost:7890 --anchor-credential-issuer=http://localhost:7890 --anchor-credential-url=http://localhost:7890/vc --anchor-credential-signature-suite=Ed25519Signature2020```
+```./.build/bin/orb start --host-url="0.0.0.0:7890" --cas-type=local --external-endpoint=http://localhost:7890 --did-namespace=test --database-type=mem --kms-secrets-database-type=mem --anchor-credential-domain=http://localhost:7890```
 
 ## Databases
 
