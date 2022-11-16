@@ -260,6 +260,37 @@ Feature:
     Then container "orb.mq.domain1.com" is started
     Then we wait 30 seconds
 
+ @orb_health_check_vct
+  Scenario: VCT Health Check
+
+    When an HTTP GET is sent to "https://orb.domain1.com/healthcheck"
+    Then the JSON path "mqStatus" of the response equals "success"
+    And the JSON path "vctStatus" of the response equals "success"
+    And the JSON path "dbStatus" of the response equals "success"
+    And the JSON path "kmsStatus" of the response equals "success"
+
+    # update with invalid URL
+    When an HTTP POST is sent to "https://orb.domain1.com/log" with content "http://orb.vct:8097/invalid2020" of type "text/plain"
+
+    Then we wait 5 seconds
+
+    When an HTTP GET is sent to "https://orb.domain1.com/healthcheck" and the returned status code is 503
+    Then the JSON path "mqStatus" of the response equals "success"
+    # And the JSON path "vctStatus" of the response equals "success"
+    And the JSON path "dbStatus" of the response equals "success"
+    And the JSON path "kmsStatus" of the response equals "success"
+
+    # set up logs for domains
+    When an HTTP POST is sent to "https://orb.domain1.com/log" with content "http://orb.vct:8077/maple2020" of type "text/plain"
+
+    Then we wait 5 seconds
+
+    When an HTTP GET is sent to "https://orb.domain1.com/healthcheck"
+    Then the JSON path "mqStatus" of the response equals "success"
+    And the JSON path "vctStatus" of the response equals "success"
+    And the JSON path "dbStatus" of the response equals "success"
+    And the JSON path "kmsStatus" of the response equals "success"
+
   @vct_backup_and_restore
   Scenario: Backup VCT database and restore VCT database from backup
 
