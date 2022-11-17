@@ -36,7 +36,6 @@ import (
 	"github.com/hyperledger/aries-framework-go/component/storageutil/cachedstore"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	ariesrest "github.com/hyperledger/aries-framework-go/pkg/controller/rest"
-	ldrest "github.com/hyperledger/aries-framework-go/pkg/controller/rest/ld"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	webcrypto "github.com/hyperledger/aries-framework-go/pkg/crypto/webkms"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
@@ -48,7 +47,6 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/webkms"
-	ldsvc "github.com/hyperledger/aries-framework-go/pkg/ld"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/local"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
@@ -1310,10 +1308,6 @@ func startOrbServices(parameters *orbParameters) error {
 	handlers = append(handlers,
 		endpointDiscoveryOp.GetRESTHandlers()...)
 
-	for _, handler := range ldrest.New(ldsvc.New(ldStore)).GetRESTHandlers() {
-		handlers = append(handlers, auth.NewHandlerWrapper(&httpHandler{handler}, authTokenManager))
-	}
-
 	if parameters.followAuthPolicy == acceptListPolicy || parameters.inviteWitnessAuthPolicy == acceptListPolicy {
 		// Register endpoints to manage the 'accept list'.
 		handlers = append(handlers, auth.NewHandlerWrapper(
@@ -1324,13 +1318,15 @@ func startOrbServices(parameters *orbParameters) error {
 		)
 	}
 
+	handlers = append(handlers, healthcheck.NewHandler(pubSub, logEndpoint, storeProviders.provider, km))
+
 	httpServer := httpserver.New(
 		parameters.hostURL,
 		parameters.tlsParams.serveCertPath,
 		parameters.tlsParams.serveKeyPath,
 		parameters.serverIdleTimeout,
 		parameters.serverReadHeaderTimeout,
-		append(handlers, healthcheck.NewHandler(pubSub, logEndpoint, storeProviders.provider, km))...,
+		handlers...,
 	)
 
 	err = run(httpServer, activityPubService, opQueue, observer, batchWriter, taskMgr,
