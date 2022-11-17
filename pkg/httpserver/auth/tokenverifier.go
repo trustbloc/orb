@@ -178,7 +178,7 @@ func (m *TokenManager) RequiredAuthTokens(endpoint, method string) ([]string, er
 		switch method {
 		case http.MethodGet:
 			tokens = def.readTokens
-		case http.MethodPost:
+		case http.MethodPost, http.MethodPut, http.MethodDelete:
 			tokens = def.writeTokens
 		default:
 			return nil, fmt.Errorf("unsupported HTTP method [%s]", method)
