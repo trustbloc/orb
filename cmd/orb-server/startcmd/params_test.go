@@ -576,6 +576,31 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid value for include-published-operations-in-metadata")
 	})
 
+	t.Run("test invalid enable-maintenance-mode", func(t *testing.T) {
+		startCmd := GetStartCmd()
+
+		args := []string{
+			"--" + hostURLFlagName, "localhost:8247",
+			"--" + metricsProviderFlagName, "prometheus",
+			"--" + promHttpUrlFlagName, "localhost:8248",
+			"--" + externalEndpointFlagName, "orb.example.com",
+			"--" + casTypeFlagName, "ipfs",
+			"--" + ipfsURLFlagName, "localhost:8081",
+			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
+			"--" + anchorCredentialDomainFlagName, "domain.com",
+			"--" + LogLevelFlagName, log.ERROR.String(),
+			"--" + maintenanceModeEnabledFlagName, "invalid bool",
+		}
+
+		startCmd.SetArgs(args)
+
+		err := startCmd.Execute()
+
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value for enable-maintenance-mode")
+	})
+
 	t.Run("Invalid ActivityPub page size", func(t *testing.T) {
 		restoreEnv := setEnv(t, activityPubPageSizeEnvKey, "-125")
 		defer restoreEnv()
@@ -1725,6 +1750,9 @@ func setEnvVars(t *testing.T, databaseType, casType, replicateLocalCASToIPFS str
 
 	err = os.Setenv(kmsSecretsDatabaseTypeFlagName, "mem")
 	require.NoError(t, err)
+
+	err = os.Setenv(maintenanceModeEnabledEnvKey, "false")
+	require.NoError(t, err)
 }
 
 func unsetEnvVars(t *testing.T) {
@@ -1813,6 +1841,7 @@ func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType,
 		"--" + sidetreeProtocolVersionsFlagName, "1.0",
 		"--" + currentSidetreeProtocolVersionFlagName, "1.0",
 		"--" + kmsTypeFlagName, "local",
+		"--" + maintenanceModeEnabledFlagName, "false",
 	}
 
 	if databaseURL != "" {

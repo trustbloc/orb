@@ -33,10 +33,11 @@ const (
 
 // Handler implements a health check HTTP handler.
 type Handler struct {
-	pubSub     pubSub
-	vct        vctService
-	db         db
-	keyManager keyManager
+	pubSub          pubSub
+	vct             vctService
+	db              db
+	keyManager      keyManager
+	maintenanceMode bool
 }
 
 type pubSub interface {
@@ -56,12 +57,13 @@ type keyManager interface {
 }
 
 // NewHandler returns a new health check handler.
-func NewHandler(pubSub pubSub, vctService vctService, db db, keyManager keyManager) *Handler {
+func NewHandler(pubSub pubSub, vctService vctService, db db, keyManager keyManager, maintenanceMode bool) *Handler {
 	return &Handler{
-		pubSub:     pubSub,
-		vct:        vctService,
-		db:         db,
-		keyManager: keyManager,
+		pubSub:          pubSub,
+		vct:             vctService,
+		db:              db,
+		keyManager:      keyManager,
+		maintenanceMode: maintenanceMode,
 	}
 }
 
@@ -86,6 +88,7 @@ type response struct {
 	VCTStatus   string    `json:"vctStatus,omitempty"`
 	DBStatus    string    `json:"dbStatus,omitempty"`
 	KMSStatus   string    `json:"kmsStatus,omitempty"`
+	Status      string    `json:"status,omitempty"`
 	CurrentTime time.Time `json:"currentTime,omitempty"`
 	Version     string    `json:"version,omitempty"`
 }
@@ -127,7 +130,15 @@ func (h *Handler) checkHealth(rw http.ResponseWriter, _ *http.Request) {
 		DBStatus:    dbStatus,
 		KMSStatus:   kmsStatus,
 		CurrentTime: time.Now(),
+		Status:      "OK",
 		Version:     httpserver.BuildVersion,
+	}
+
+	if h.maintenanceMode {
+		// server has been started in maintenance mode so we should return 200 from health check
+		// even if health check is failing in order to give an admin opportunity to fix system configuration
+		status = http.StatusOK
+		hc.Status = "Maintenance"
 	}
 
 	hcBytes, err := json.Marshal(hc)

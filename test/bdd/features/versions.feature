@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-@did-versioning
+@versions_maintenance
 Feature:
   Background: Setup
     Given variable "domain1IRI" is assigned the value "https://orb.domain1.com/services/orb"
@@ -184,3 +184,102 @@ Feature:
 
     # wait for domain4 log monitor to verify domain1 log consistency proof between the two given log(tree) sizes
     Then we wait 10 seconds
+
+  @maintenance_mode
+  Scenario: server running in maintenance mode
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+    Then check success response contains "#interimDID"
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with equivalent did
+    Then check success response contains "canonicalId"
+
+    When an HTTP GET is sent to "https://orb.domain1.com/healthcheck"
+    Then the JSON path "mqStatus" of the response equals "success"
+    And the JSON path "vctStatus" of the response equals "success"
+    And the JSON path "dbStatus" of the response equals "success"
+    And the JSON path "kmsStatus" of the response equals "success"
+    And the JSON path "status" of the response equals "OK"
+
+    # update with invalid VCT URL
+    When an HTTP POST is sent to "https://orb.domain1.com/log" with content "http://orb.vct:8097/invalid2020" of type "text/plain"
+
+    Then we wait 5 seconds
+
+    When an HTTP GET is sent to "https://orb.domain1.com/healthcheck" and the returned status code is 503
+    # vct status returns an error, all other services are success
+    Then the JSON path "mqStatus" of the response equals "success"
+    And the JSON path "dbStatus" of the response equals "success"
+    And the JSON path "kmsStatus" of the response equals "success"
+    # And the JSON path "vctStatus" of the response contains "success"
+    And the JSON path "status" of the response equals "OK"
+
+    # this is the point where pods are going down - restart in maintenance mode
+
+    Then set environment variable "MAINTENANCE_MODE" to the value "true"
+
+    Then container "orb-domain1" is recreated
+
+    And we wait 15 seconds
+
+    When an HTTP GET is sent to "https://orb.domain1.com/healthcheck"
+    Then the JSON path "mqStatus" of the response equals "success"
+    # And the JSON path "vctStatus" of the response equals "success"
+    And the JSON path "dbStatus" of the response equals "success"
+    And the JSON path "kmsStatus" of the response equals "success"
+    # And the JSON path "vctStatus" of the response equals "success"
+    And the JSON path "status" of the response equals "Maintenance"
+
+    # update document
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check error response contains "Service Unavailable"
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add public key with ID "testKey" to DID document
+    Then check error response contains "Service Unavailable"
+
+    And variable "followActivity" is assigned the JSON value '{"@context":"https://www.w3.org/ns/activitystreams","type":"Follow","actor":"${domain2IRI}","to":"${domain1IRI}","object":"${domain1IRI}"}'
+    When an HTTP POST is sent to "${domain1IRI}/inbox" with content "${followActivity}" of type "application/json" and the returned status code is 503
+
+    # update VCT log to valid URL
+    When an HTTP POST is sent to "https://orb.domain1.com/log" with content "http://orb.vct:8077/maple2020" of type "text/plain"
+
+    Then we wait 5 seconds
+
+    # vct health check is now successful
+    When an HTTP GET is sent to "https://orb.domain1.com/healthcheck"
+    Then the JSON path "mqStatus" of the response equals "success"
+    And the JSON path "vctStatus" of the response equals "success"
+    And the JSON path "dbStatus" of the response equals "success"
+    And the JSON path "kmsStatus" of the response equals "success"
+    And the JSON path "status" of the response equals "Maintenance"
+
+    # now that we fixed VCT URL - restart in regular mode
+    Then set environment variable "MAINTENANCE_MODE" to the value "false"
+
+    Then container "orb-domain1" is recreated
+
+    And we wait 15 seconds
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "createKey"
+
+    # update document
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to add public key with ID "testKey" to DID document
+    Then check for request success
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with canonical did
+    Then check success response contains "testKey"
+
+    # check that create still works properly
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create DID document
+    Then check success response contains "#interimDID"
+
+    When client sends request to "https://orb.domain1.com/sidetree/v1/identifiers" to resolve DID document with equivalent did
+    Then check success response contains "canonicalId"
+
+    When an HTTP GET is sent to "https://orb.domain1.com/healthcheck"
+    Then the JSON path "mqStatus" of the response equals "success"
+    And the JSON path "vctStatus" of the response equals "success"
+    And the JSON path "dbStatus" of the response equals "success"
+    And the JSON path "kmsStatus" of the response equals "success"
+    And the JSON path "status" of the response equals "OK"

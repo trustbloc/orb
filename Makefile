@@ -150,9 +150,9 @@ bdd-test-cas-local: generate-test-keys orb-docker orb-driver-docker build-orb-cl
 bdd-test-cas-ipfs: generate-test-keys orb-docker orb-driver-docker build-orb-cli-binaries extract-orb-cli-binaries
 	@scripts/integration_cas_ipfs.sh
 
-.PHONY: bdd-test-protocol-versions
-bdd-test-protocol-versions: generate-test-keys orb-docker orb-test-docker
-	@scripts/integration_protocol_versions.sh
+.PHONY: bdd-test-versions-maintenance
+bdd-test-versions-maintenance: generate-test-keys orb-docker orb-test-docker
+	@scripts/integration_versions_maintenance.sh
 
 .PHONY: clean
 clean:
