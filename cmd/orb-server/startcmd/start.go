@@ -123,6 +123,7 @@ import (
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/httpserver/auth/signature"
+	"github.com/trustbloc/orb/pkg/httpserver/maintenance"
 	"github.com/trustbloc/orb/pkg/nodeinfo"
 	metricsProvider "github.com/trustbloc/orb/pkg/observability/metrics"
 	noopmetrics "github.com/trustbloc/orb/pkg/observability/metrics/noop"
@@ -179,6 +180,7 @@ const (
 	defaultVerifyLatestFromAnchorOrigin     = false
 	defaultLocalCASReplicateInIPFSEnabled   = false
 	defaultDevModeEnabled                   = false
+	defaultMaintenanceModeEnabled           = false
 	defaultVCTEnabled                       = false
 	defaultCasCacheSize                     = 1000
 	defaultWebfingerCacheExpiration         = 5 * time.Minute
@@ -1260,17 +1262,32 @@ func startOrbServices(parameters *orbParameters) error {
 
 	didResolveHandler := didresolver.NewResolveHandler(orbResolveHandler, webResolveHandler)
 
+	var sidetreeOperationsHandler restcommon.HTTPHandler
+	var sidetreeResolutionHandler restcommon.HTTPHandler
+	var activityInboxHandler restcommon.HTTPHandler
+
+	sidetreeOperationsHandler = auth.NewHandlerWrapper(diddochandler.NewUpdateHandler(baseUpdatePath, orbDocUpdateHandler, pc, metrics), authTokenManager)
+	sidetreeResolutionHandler = signature.NewHandlerWrapper(diddochandler.NewResolveHandler(baseResolvePath, didResolveHandler, metrics),
+		&aphandler.Config{
+			ObjectIRI:              parameters.apServiceParams.serviceIRI(),
+			VerifyActorInSignature: parameters.httpSignaturesEnabled,
+			PageSize:               parameters.activityPubPageSize,
+		},
+		apStore, apSigVerifier, authTokenManager,
+	)
+
+	activityInboxHandler = activityPubService.InboxHTTPHandler()
+
+	if parameters.enableMaintenanceMode {
+		sidetreeOperationsHandler = maintenance.NewMaintenanceWrapper(sidetreeOperationsHandler)
+		sidetreeResolutionHandler = maintenance.NewMaintenanceWrapper(sidetreeResolutionHandler)
+		activityInboxHandler = maintenance.NewMaintenanceWrapper(activityInboxHandler)
+	}
+
 	handlers = append(handlers,
-		auth.NewHandlerWrapper(diddochandler.NewUpdateHandler(baseUpdatePath, orbDocUpdateHandler, pc, metrics), authTokenManager),
-		signature.NewHandlerWrapper(diddochandler.NewResolveHandler(baseResolvePath, didResolveHandler, metrics),
-			&aphandler.Config{
-				ObjectIRI:              parameters.apServiceParams.serviceIRI(),
-				VerifyActorInSignature: parameters.httpSignaturesEnabled,
-				PageSize:               parameters.activityPubPageSize,
-			},
-			apStore, apSigVerifier, authTokenManager,
-		),
-		activityPubService.InboxHTTPHandler(),
+		sidetreeOperationsHandler,
+		sidetreeResolutionHandler,
+		activityInboxHandler,
 		aphandler.NewServices(apEndpointCfg, apStore, httpSignActivePublicKey, authTokenManager),
 		aphandler.NewPublicKeys(apEndpointCfg, apStore, httpSignActivePublicKey, authTokenManager),
 		aphandler.NewFollowers(apEndpointCfg, apStore, apSigVerifier, authTokenManager),
@@ -1318,7 +1335,7 @@ func startOrbServices(parameters *orbParameters) error {
 		)
 	}
 
-	handlers = append(handlers, healthcheck.NewHandler(pubSub, logEndpoint, storeProviders.provider, km))
+	handlers = append(handlers, healthcheck.NewHandler(pubSub, logEndpoint, storeProviders.provider, km, parameters.enableMaintenanceMode))
 
 	httpServer := httpserver.New(
 		parameters.hostURL,

@@ -531,6 +531,11 @@ const (
 	devModeEnabledUsage    = `Set to "true" to enable dev mode. ` +
 		commonEnvVarUsageText + devModeEnabledEnvKey
 
+	maintenanceModeEnabledFlagName = "enable-maintenance-mode"
+	maintenanceModeEnabledEnvKey   = "MAINTENANCE_MODE_ENABLED"
+	maintenanceModeEnabledUsage    = `Set to "true" to enable maintenance mode. ` +
+		commonEnvVarUsageText + maintenanceModeEnabledEnvKey
+
 	nodeInfoRefreshIntervalFlagName      = "nodeinfo-refresh-interval"
 	nodeInfoRefreshIntervalFlagShorthand = "R"
 	nodeInfoRefreshIntervalEnvKey        = "NODEINFO_REFRESH_INTERVAL"
@@ -736,6 +741,7 @@ type orbParameters struct {
 	clientAuthTokens                        map[string]string
 	activityPubPageSize                     int
 	enableDevMode                           bool
+	enableMaintenanceMode                   bool
 	enableVCT                               bool
 	nodeInfoRefreshInterval                 time.Duration
 	ipfsTimeout                             time.Duration
@@ -891,7 +897,7 @@ func supportedKmsType(kmsType kmsMode) bool {
 	return true
 }
 
-//nolint: funlen
+// nolint: funlen
 func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	hostURL, err := cmdutil.GetUserSetVarFromString(cmd, hostURLFlagName, hostURLEnvKey, false)
 	if err != nil {
@@ -1112,6 +1118,18 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		}
 
 		enableDevMode = enable
+	}
+
+	enableMaintenanceModeStr := cmdutil.GetUserSetOptionalVarFromString(cmd, maintenanceModeEnabledFlagName, maintenanceModeEnabledEnvKey)
+
+	enableMaintenanceMode := defaultMaintenanceModeEnabled
+	if enableMaintenanceModeStr != "" {
+		enable, parseErr := strconv.ParseBool(enableMaintenanceModeStr)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid value for %s: %s", maintenanceModeEnabledFlagName, parseErr)
+		}
+
+		enableMaintenanceMode = enable
 	}
 
 	enableUnpublishedOperationStoreStr, err := cmdutil.GetUserSetVarFromString(cmd, enableUnpublishedOperationStoreFlagName, enableUnpublishedOperationStoreEnvKey, true)
@@ -1523,6 +1541,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		clientAuthTokens:                        clientAuthTokens,
 		activityPubPageSize:                     activityPubPageSize,
 		enableDevMode:                           enableDevMode,
+		enableMaintenanceMode:                   enableMaintenanceMode,
 		enableVCT:                               enableVCT,
 		nodeInfoRefreshInterval:                 nodeInfoRefreshInterval,
 		ipfsTimeout:                             ipfsTimeout,
@@ -2270,6 +2289,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringArrayP(clientAuthTokensFlagName, "", nil, clientAuthTokensFlagUsage)
 	startCmd.Flags().StringP(activityPubPageSizeFlagName, activityPubPageSizeFlagShorthand, "", activityPubPageSizeFlagUsage)
 	startCmd.Flags().String(devModeEnabledFlagName, "false", devModeEnabledUsage)
+	startCmd.Flags().String(maintenanceModeEnabledFlagName, "false", maintenanceModeEnabledUsage)
 	startCmd.Flags().String(enableVCTFlagName, "false", enableVCTFlagUsage)
 	startCmd.Flags().StringP(nodeInfoRefreshIntervalFlagName, nodeInfoRefreshIntervalFlagShorthand, "", nodeInfoRefreshIntervalFlagUsage)
 	startCmd.Flags().StringP(ipfsTimeoutFlagName, ipfsTimeoutFlagShorthand, "", ipfsTimeoutFlagUsage)

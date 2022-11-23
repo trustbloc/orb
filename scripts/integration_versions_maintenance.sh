@@ -18,9 +18,10 @@ export PGUSER=postgres
 export PGPASSWORD=password
 export DOCKER_COMPOSE_FILE=docker-compose-testver.yml
 export VERSION_TEST=true
+export MAINTENANCE_MODE=false
 
 cd test/bdd
-go test -tags "testver" -run sidetree_protocol_versions -count=1 -v -cover . -p 1 -timeout=30m -race
+go test -tags "testver" -run versions_maintenance -count=1 -v -cover . -p 1 -timeout=30m -race
 
 cd $PWD
 
