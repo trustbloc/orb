@@ -282,16 +282,6 @@ func equalMetadata(input, resolved document.Metadata) error {
 		return fmt.Errorf("unable to get resolved metadata: %w", err)
 	}
 
-	err = checkCommitment(inputMethodMetadata, resolvedMethodMetadata, document.UpdateCommitmentProperty)
-	if err != nil {
-		return fmt.Errorf("input and resolved update commitments don't match: %w", err)
-	}
-
-	err = checkCommitment(inputMethodMetadata, resolvedMethodMetadata, document.RecoveryCommitmentProperty)
-	if err != nil {
-		return fmt.Errorf("input and resolved recovery commitments don't match: %w", err)
-	}
-
 	if inputMethodMetadata[document.AnchorOriginProperty] != resolvedMethodMetadata[document.AnchorOriginProperty] {
 		return fmt.Errorf("input[%s] and resolved[%s] anchor origins don't match",
 			inputMethodMetadata[document.AnchorOriginProperty], resolvedMethodMetadata[document.AnchorOriginProperty])
@@ -300,6 +290,30 @@ func equalMetadata(input, resolved document.Metadata) error {
 	if input[document.CanonicalIDProperty] != resolved[document.CanonicalIDProperty] {
 		return fmt.Errorf("input[%s] and resolved[%s] canonical IDs don't match",
 			input[document.CanonicalIDProperty], resolved[document.CanonicalIDProperty])
+	}
+
+	// before checking commitments check if document has been deactivated first
+	inputDeactivated := getDeactivatedFlag(input)
+	resolvedDeactivated := getDeactivatedFlag(resolved)
+
+	if inputDeactivated != resolvedDeactivated {
+		return fmt.Errorf("input[%t] and resolved[%t] deactivate flags don't match",
+			inputDeactivated, resolvedDeactivated)
+	}
+
+	if inputDeactivated {
+		// if document has been deactivated, then commitments will not be there -- nothing further to do
+		return nil
+	}
+
+	err = checkCommitment(inputMethodMetadata, resolvedMethodMetadata, document.UpdateCommitmentProperty)
+	if err != nil {
+		return fmt.Errorf("input and resolved update commitments don't match: %w", err)
+	}
+
+	err = checkCommitment(inputMethodMetadata, resolvedMethodMetadata, document.RecoveryCommitmentProperty)
+	if err != nil {
+		return fmt.Errorf("input and resolved recovery commitments don't match: %w", err)
 	}
 
 	return nil
@@ -321,6 +335,20 @@ func checkCommitment(input, resolved map[string]interface{}, commitmentType stri
 	}
 
 	return nil
+}
+
+func getDeactivatedFlag(metadata document.Metadata) bool {
+	obj, ok := metadata[document.DeactivatedProperty]
+	if !ok {
+		return false
+	}
+
+	deactivated, ok := obj.(bool)
+	if !ok {
+		return false
+	}
+
+	return deactivated
 }
 
 type noopOperationStore struct{}
