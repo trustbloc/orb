@@ -12,8 +12,9 @@ import (
 	"reflect"
 
 	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 )
 
 // pooledSubscriber manages a pool of subscriptions. Each subscription listens on a topic and forwards
@@ -37,7 +38,7 @@ func newPooledSubscriber(ctx context.Context, size int, subscriber subscriber,
 	}
 
 	for i := 0; i < size; i++ {
-		l.Debug("Subscribing to topic...", log.WithIndex(i))
+		l.Debug("Subscribing to topic...", logfields.WithIndex(i))
 
 		msgChan, err := subscriber.Subscribe(ctx, topic)
 		if err != nil {
@@ -53,20 +54,20 @@ func newPooledSubscriber(ctx context.Context, size int, subscriber subscriber,
 
 func (s *pooledSubscriber) start() {
 	go func() {
-		s.logger.Info("Started pooled subscriber", log.WithSize(len(s.subscribers)))
+		s.logger.Info("Started pooled subscriber", logfields.WithSize(len(s.subscribers)))
 
 		for {
 			i, value, ok := reflect.Select(s.subscribers)
 
 			if !ok {
-				logger.Info("Message channel was closed. Exiting pooled subscriber.", log.WithIndex(i))
+				logger.Info("Message channel was closed. Exiting pooled subscriber.", logfields.WithIndex(i))
 
 				return
 			}
 
 			msg := value.Interface().(*message.Message) //nolint:forcetypeassert
 
-			logger.Debug("Pool subscriber got message", log.WithIndex(i), log.WithMessageID(msg.UUID))
+			logger.Debug("Pool subscriber got message", logfields.WithIndex(i), logfields.WithMessageID(msg.UUID))
 
 			s.msgChan <- msg
 		}

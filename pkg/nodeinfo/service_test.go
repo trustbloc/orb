@@ -13,8 +13,8 @@ import (
 	"github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	ariesmemstore "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/store/ariesstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"

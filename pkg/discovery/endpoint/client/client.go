@@ -25,9 +25,10 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/vdr"
 	"github.com/hyperledger/aries-framework-go/pkg/vdr/web"
 	"github.com/piprate/json-gold/ld"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/client/models"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
@@ -161,7 +162,7 @@ func (cs *Client) GetEndpoint(domain string) (*models.Endpoint, error) {
 		return nil, fmt.Errorf("failed to get key[%s] from endpoints cache: %w", domain, err)
 	}
 
-	logger.Debug("Got value from endpoints cache", log.WithKey(domain), log.WithAnchorOriginEndpoint(endpoint))
+	logger.Debug("Got value from endpoints cache", logfields.WithKey(domain), logfields.WithAnchorOriginEndpoint(endpoint))
 
 	return endpoint.(*models.Endpoint), nil //nolint:forcetypeassert
 }
@@ -205,7 +206,7 @@ func (cs *Client) getEndpoint(uri string) (*models.Endpoint, error) { //nolint:c
 		domain = uri
 	}
 
-	logger.Debug("Resolved domain from URI", log.WithURIString(uri), log.WithDomain(domain))
+	logger.Debug("Resolved domain from URI", logfields.WithURIString(uri), logfields.WithDomain(domain))
 
 	var wellKnownResponse restapi.WellKnownResponse
 
@@ -237,7 +238,7 @@ func (cs *Client) getEndpoint(uri string) (*models.Endpoint, error) { //nolint:c
 		endpoint.OperationEndpoints = append(endpoint.OperationEndpoints, v.Href)
 	}
 
-	logger.Debug("... resolved endpoint from URI", log.WithURIString(uri), log.WithAnchorOriginEndpoint(endpoint))
+	logger.Debug("... resolved endpoint from URI", logfields.WithURIString(uri), logfields.WithAnchorOriginEndpoint(endpoint))
 
 	return endpoint, nil
 }
@@ -289,7 +290,7 @@ func (cs *Client) loadDomainForDID(id string) (string, error) {
 				return "", fmt.Errorf("invalid service endpoint for did [%s]: %w", id, err)
 			}
 
-			logger.Debug("Resolved service endpoint domain", log.WithDID(id), log.WithURIString(uri))
+			logger.Debug("Resolved service endpoint domain", logfields.WithDID(id), logfields.WithURIString(uri))
 
 			return uri, nil
 		}
@@ -378,20 +379,20 @@ func (cs *Client) populateResolutionEndpoint(webFingerURL string) (*models.Endpo
 			}
 
 			if int(min) != endpoint.MinResolvers {
-				logger.Warn("Link has different policy for min resolvers", log.WithHRef(v.Href))
+				logger.Warn("Link has different policy for min resolvers", logfields.WithHRef(v.Href))
 
 				continue
 			}
 
 			if len(webFingerResp.Links) != len(jrd.Links) {
-				logger.Warn("Number of links is different", log.WithHRef(v.Href))
+				logger.Warn("Number of links is different", logfields.WithHRef(v.Href))
 
 				continue
 			}
 
 			for _, link := range webFingerResp.Links {
 				if _, ok = m[link.Href]; !ok {
-					logger.Warn("Link content is different", log.WithHRef(v.Href))
+					logger.Warn("Link content is different", logfields.WithHRef(v.Href))
 
 					continue
 				}

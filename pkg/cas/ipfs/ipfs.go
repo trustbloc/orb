@@ -16,8 +16,9 @@ import (
 
 	"github.com/bluele/gcache"
 	shell "github.com/ipfs/go-ipfs-api"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/hashlink"
@@ -79,7 +80,7 @@ func newClient(ipfs ipfsClient, cacheSize int, metrics metricsProvider,
 			return nil, err
 		}
 
-		logger.Debug("Content was cached for key", log.WithKey(key))
+		logger.Debug("Content was cached for key", logfields.WithKey(key))
 
 		return content, nil
 	}).Build()
@@ -102,7 +103,7 @@ func (m *Client) Write(content []byte) (string, error) {
 		return "", fmt.Errorf("failed to create hashlink for ipfs: %w", err)
 	}
 
-	logger.Debug("Wrote content to IPFS", log.WithHashlink(hl), log.WithCID(cid))
+	logger.Debug("Wrote content to IPFS", logfields.WithHashlink(hl), logfields.WithCID(cid))
 
 	return hl, nil
 }
@@ -135,7 +136,7 @@ func (m *Client) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CI
 		return "", orberrors.NewTransient(err)
 	}
 
-	logger.Debug("Wrote content to IPFS", log.WithCID(cid), log.WithCIDVersion(options.CIDVersion))
+	logger.Debug("Wrote content to IPFS", logfields.WithCID(cid), logfields.WithCIDVersion(options.CIDVersion))
 
 	return cid, nil
 }
@@ -148,7 +149,7 @@ func (m *Client) GetPrimaryWriterType() string {
 // Read reads the content for the given CID from CAS.
 // returns the contents of CID.
 func (m *Client) Read(cidOrHash string) ([]byte, error) {
-	logger.Debug("Reading CID or hash from IPFS", log.WithKey(cidOrHash))
+	logger.Debug("Reading CID or hash from IPFS", logfields.WithKey(cidOrHash))
 
 	cid, err := m.getCID(cidOrHash)
 	if err != nil {
@@ -172,12 +173,12 @@ func (m *Client) get(cid string) ([]byte, error) {
 
 	defer m.metrics.CASReadTime(casType, time.Since(startTime))
 
-	logger.Debug("Reading CID from IPFS", log.WithCID(cid))
+	logger.Debug("Reading CID from IPFS", logfields.WithCID(cid))
 
 	reader, err := m.ipfs.Cat(cid)
 	if err != nil {
 		if strings.Contains(err.Error(), "context deadline exceeded") {
-			logger.Debug("CID not found in IPFS (due to context deadline exceeded)", log.WithCID(cid))
+			logger.Debug("CID not found in IPFS (due to context deadline exceeded)", logfields.WithCID(cid))
 
 			return nil, fmt.Errorf("%s: %w", err.Error(), orberrors.ErrContentNotFound)
 		}
@@ -192,10 +193,10 @@ func (m *Client) get(cid string) ([]byte, error) {
 		return nil, fmt.Errorf("read all from IPFS mockReader: %w", err)
 	}
 
-	logger.Debug("Got content from IPFS for CID (base64-encoded)", log.WithCID(cid), log.WithCASData(content))
+	logger.Debug("Got content from IPFS for CID (base64-encoded)", logfields.WithCID(cid), logfields.WithCASData(content))
 
 	if string(content) == "null" {
-		logger.Debug("Got 'null' from IPFS", log.WithCID(cid))
+		logger.Debug("Got 'null' from IPFS", logfields.WithCID(cid))
 
 		return nil, orberrors.NewTransient(orberrors.ErrContentNotFound)
 	}
@@ -223,7 +224,7 @@ func (m *Client) getCID(cidOrHash string) (string, error) {
 			return "", fmt.Errorf("failed to get cid in ipfs reader: %w", err)
 		}
 
-		logger.Debug("Converted multihash to CID", log.WithMultihash(cidOrHash), log.WithCID(cid))
+		logger.Debug("Converted multihash to CID", logfields.WithMultihash(cidOrHash), logfields.WithCID(cid))
 	}
 
 	return cid, nil

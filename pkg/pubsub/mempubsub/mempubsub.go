@@ -12,8 +12,9 @@ import (
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
@@ -211,7 +212,7 @@ func (p *PubSub) publish(entry *entry) {
 			// Copy the message so that the Ack/Nack is specific to a subscriber
 			msg := m.Copy()
 
-			logger.Debug("Publishing message", log.WithMessageID(msg.UUID))
+			logger.Debug("Publishing message", logfields.WithMessageID(msg.UUID))
 
 			msgChan <- msg
 			p.ackChan <- msg
@@ -220,21 +221,21 @@ func (p *PubSub) publish(entry *entry) {
 }
 
 func (p *PubSub) check(msg *message.Message) {
-	logger.Debug("Checking for Ack/Nack on message", log.WithMessageID(msg.UUID))
+	logger.Debug("Checking for Ack/Nack on message", logfields.WithMessageID(msg.UUID))
 
 	select {
 	case <-msg.Acked():
-		logger.Info("Message was successfully acknowledged", log.WithMessageID(msg.UUID))
+		logger.Info("Message was successfully acknowledged", logfields.WithMessageID(msg.UUID))
 
 	case <-msg.Nacked():
 		logger.Info("Message was not successfully acknowledged. Posting to undeliverable queue",
-			log.WithMessageID(msg.UUID))
+			logfields.WithMessageID(msg.UUID))
 
 		p.postToUndeliverable(msg)
 
 	case <-time.After(p.Timeout):
 		logger.Warn("Timed out waiting for Ack/Nack. Posting to undeliverable queue",
-			log.WithTimeout(p.Timeout), log.WithMessageID(msg.UUID))
+			logfields.WithTimeout(p.Timeout), logfields.WithMessageID(msg.UUID))
 
 		p.postToUndeliverable(msg)
 	}
@@ -251,11 +252,11 @@ func (p *PubSub) postToUndeliverable(msg *message.Message) {
 	for _, msgChan := range msgChans {
 		select {
 		case msgChan <- msg:
-			logger.Info("Message was added to the undeliverable queue", log.WithMessageID(msg.UUID))
+			logger.Info("Message was added to the undeliverable queue", logfields.WithMessageID(msg.UUID))
 
 		default:
 			logger.Warn("Message could not be added to the undeliverable queue and will be dropped",
-				log.WithMessageID(msg.UUID))
+				logfields.WithMessageID(msg.UUID))
 		}
 	}
 }

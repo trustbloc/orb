@@ -12,8 +12,9 @@ import (
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 )
 
 const taskName = "data-expiry"
@@ -106,13 +107,13 @@ func (s *Service) deleteExpiredData() {
 
 	for _, registeredStore := range s.registeredStores {
 		if err := registeredStore.deleteExpiredData(); err != nil {
-			logger.Warn("Error deleting expired data", log.WithError(err), log.WithStoreName(registeredStore.name))
+			logger.Warn("Error deleting expired data", log.WithError(err), logfields.WithStoreName(registeredStore.name))
 		}
 	}
 }
 
 func (r *registeredStore) deleteExpiredData() error {
-	logger.Debug("Checking for expired data in store", log.WithStoreName(r.name))
+	logger.Debug("Checking for expired data in store", logfields.WithStoreName(r.name))
 
 	iterator, err := r.store.Query(fmt.Sprintf("%s<=%d", r.expiryTagName, time.Now().Unix()))
 	if err != nil {
@@ -142,7 +143,7 @@ func (r *registeredStore) deleteExpiredData() error {
 		}
 	}
 
-	logger.Debug("Found expired data to delete.", log.WithTotal(len(keysToDelete)), log.WithStoreName(r.name))
+	logger.Debug("Found expired data to delete.", logfields.WithTotal(len(keysToDelete)), logfields.WithStoreName(r.name))
 
 	err = r.expiryHandler.HandleExpiredKeys(keysToDelete...)
 	if err != nil {
@@ -153,7 +154,7 @@ func (r *registeredStore) deleteExpiredData() error {
 		operations := make([]storage.Operation, len(keysToDelete))
 
 		for i, key := range keysToDelete {
-			logger.Debug("Deleting expired data for key", log.WithStoreName(r.name), log.WithKey(key))
+			logger.Debug("Deleting expired data for key", logfields.WithStoreName(r.name), logfields.WithKey(key))
 
 			operations[i] = storage.Operation{Key: key}
 		}
@@ -163,8 +164,8 @@ func (r *registeredStore) deleteExpiredData() error {
 			return fmt.Errorf("delete expired data: %w", err)
 		}
 
-		logger.Debug("Successfully deleted expired data.", log.WithStoreName(r.name),
-			log.WithTotal(len(operations)))
+		logger.Debug("Successfully deleted expired data.", logfields.WithStoreName(r.name),
+			logfields.WithTotal(len(operations)))
 	}
 
 	return nil

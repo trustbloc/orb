@@ -17,9 +17,10 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/piprate/json-gold/ld"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/vct/pkg/client/vct"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/store"
 	"github.com/trustbloc/orb/pkg/webfinger/model"
 )
@@ -80,7 +81,7 @@ func New(provider storage.Provider, documentLoader ld.DocumentLoader, wfClient w
 		requestTokens:  requestTokens,
 	}
 
-	logger.Info("Registering task with Task Manager", log.WithTaskID(taskID), log.WithTaskMonitorInterval(interval))
+	logger.Info("Registering task with Task Manager", logfields.WithTaskID(taskID), logfields.WithTaskMonitorInterval(interval))
 
 	taskMgr.RegisterTask(taskID, interval, client.worker)
 
@@ -204,12 +205,12 @@ func (c *Client) handleEntities() error { //nolint:cyclop
 		err = c.exist(e)
 		if err == nil {
 			logger.Info("Credential existence in the ledger is confirmed",
-				log.WithVerifiableCredentialID(vc.ID), log.WithDomain(e.Domain))
+				logfields.WithVerifiableCredentialID(vc.ID), logfields.WithDomain(e.Domain))
 
 			// removes the entity from the store bc we confirmed that credential is in MT (log above).
 			if err = c.store.Delete(key(vc.ID)); err != nil {
 				logger.Error("Error deleting credential from queue",
-					log.WithVerifiableCredentialID(vc.ID), log.WithError(err))
+					logfields.WithVerifiableCredentialID(vc.ID), log.WithError(err))
 			}
 
 			continue
@@ -217,18 +218,18 @@ func (c *Client) handleEntities() error { //nolint:cyclop
 
 		if !errors.Is(err, errExpired) {
 			logger.Warn("Error determining credential existence",
-				log.WithVerifiableCredentialID(vc.ID), log.WithError(err))
+				logfields.WithVerifiableCredentialID(vc.ID), log.WithError(err))
 
 			continue
 		}
 
 		logger.Error("Credential existence in the ledger not confirmed.",
-			log.WithVerifiableCredentialID(vc.ID), log.WithDomain(e.Domain))
+			logfields.WithVerifiableCredentialID(vc.ID), logfields.WithDomain(e.Domain))
 
 		// removes entity from the store bc we failed our promise (log above).
 		if err = c.store.Delete(key(vc.ID)); err != nil {
 			logger.Error("Error deleting credential from queue",
-				log.WithVerifiableCredentialID(vc.ID), log.WithError(err))
+				logfields.WithVerifiableCredentialID(vc.ID), log.WithError(err))
 		}
 	}
 
@@ -238,7 +239,7 @@ func (c *Client) handleEntities() error { //nolint:cyclop
 // Watch starts monitoring.
 func (c *Client) Watch(vc *verifiable.Credential, endTime time.Time, domain string, created time.Time) error {
 	if domain == "" {
-		logger.Info("No domain for VC. Proof will not be monitored.", log.WithVerifiableCredentialID(vc.ID))
+		logger.Info("No domain for VC. Proof will not be monitored.", logfields.WithVerifiableCredentialID(vc.ID))
 
 		return nil
 	}
@@ -247,7 +248,7 @@ func (c *Client) Watch(vc *verifiable.Credential, endTime time.Time, domain stri
 	if err != nil {
 		if errors.Is(err, model.ErrResourceNotFound) {
 			logger.Info("Ledger not found for domain. Proof will not be monitored for VC.",
-				log.WithDomain(domain), log.WithVerifiableCredentialID(vc.ID), log.WithError(err))
+				logfields.WithDomain(domain), logfields.WithVerifiableCredentialID(vc.ID), log.WithError(err))
 
 			return nil
 		}
@@ -257,7 +258,7 @@ func (c *Client) Watch(vc *verifiable.Credential, endTime time.Time, domain stri
 
 	if !isLedgerTypeSupported(lt) {
 		logger.Warn("Ledger type for domain not supported. Proof will not be monitored for VC.",
-			log.WithType(lt), log.WithDomain(domain), log.WithVerifiableCredentialID(vc.ID))
+			logfields.WithType(lt), logfields.WithDomain(domain), logfields.WithVerifiableCredentialID(vc.ID))
 
 		return nil
 	}
@@ -282,22 +283,22 @@ func (c *Client) checkExistenceInLedger(vc *verifiable.Credential, domain string
 	err = c.exist(e)
 	// no error means that we have credential in MT, no need to put it in the queue.
 	if err == nil {
-		logger.Info("Credential existence in the ledger confirmed", log.WithVerifiableCredentialID(vc.ID),
-			log.WithDomain(e.Domain))
+		logger.Info("Credential existence in the ledger confirmed", logfields.WithVerifiableCredentialID(vc.ID),
+			logfields.WithDomain(e.Domain))
 
 		return nil
 	}
 
 	// if error is errExpired no need to put data in the queue.
 	if errors.Is(err, errExpired) {
-		logger.Error("Credential existence in the ledger not confirmed.", log.WithVerifiableCredentialID(vc.ID),
-			log.WithDomain(e.Domain))
+		logger.Error("Credential existence in the ledger not confirmed.", logfields.WithVerifiableCredentialID(vc.ID),
+			logfields.WithDomain(e.Domain))
 
 		return err
 	}
 
-	logger.Warn("Credential is not in the ledger yet. Will check again later.", log.WithVerifiableCredentialID(vc.ID),
-		log.WithDomain(e.Domain), log.WithError(err))
+	logger.Warn("Credential is not in the ledger yet. Will check again later.", logfields.WithVerifiableCredentialID(vc.ID),
+		logfields.WithDomain(e.Domain), log.WithError(err))
 
 	src, err := json.Marshal(e)
 	if err != nil {

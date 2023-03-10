@@ -12,9 +12,10 @@ import (
 	"net/http"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 )
 
 // PolicyRetriever retrieves the current witness policy.
@@ -64,7 +65,7 @@ func (pc *PolicyRetriever) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	logger.Debug("Retrieved witness policy", log.WithWitnessPolicy(policyStr))
+	logger.Debug("Retrieved witness policy", logfields.WithWitnessPolicy(policyStr))
 
 	writeResponse(w, http.StatusOK, []byte(policyStr))
 }

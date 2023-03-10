@@ -10,9 +10,10 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/anchor/witness/policy/config"
 )
 
@@ -23,7 +24,7 @@ const (
 	internalServerErrorResponse = "Internal Server Error."
 )
 
-var logger = log.New("policy-rest-handler", log.WithFields(log.WithServiceEndpoint(endpoint)))
+var logger = log.New("policy-rest-handler", log.WithFields(logfields.WithServiceEndpoint(endpoint)))
 
 type policyStore interface {
 	PutPolicy(policyStr string) error
@@ -73,7 +74,7 @@ func (pc *PolicyConfigurator) handle(w http.ResponseWriter, req *http.Request) {
 
 	_, err = config.Parse(policyStr)
 	if err != nil {
-		logger.Error("Invalid witness policy", log.WithError(err), log.WithWitnessPolicy(policyStr))
+		logger.Error("Invalid witness policy", log.WithError(err), logfields.WithWitnessPolicy(policyStr))
 
 		writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
 
@@ -89,7 +90,7 @@ func (pc *PolicyConfigurator) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	logger.Debug("Stored witness policy", log.WithWitnessPolicy(policyStr))
+	logger.Debug("Stored witness policy", logfields.WithWitnessPolicy(policyStr))
 
 	writeResponse(w, http.StatusOK, nil)
 }

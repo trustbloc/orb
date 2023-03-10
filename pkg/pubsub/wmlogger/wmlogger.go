@@ -8,9 +8,8 @@ package wmlogger
 
 import (
 	"github.com/ThreeDotsLabs/watermill"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"go.uber.org/zap"
-
-	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 // Module is the name of the Watermill module used for logging.

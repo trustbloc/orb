@@ -12,7 +12,9 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/logutil-go/pkg/log"
+
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -31,7 +33,7 @@ type Store struct {
 func New(serviceName string) *Store {
 	return &Store{
 		activityStore: newActivitiesStore(),
-		logger:        log.New(loggerModule, log.WithFields(log.WithServiceName(serviceName))),
+		logger:        log.New(loggerModule, log.WithFields(logfields.WithServiceName(serviceName))),
 		referenceStores: map[spi.ReferenceType]*referenceStore{
 			spi.Inbox:         newReferenceStore(),
 			spi.Outbox:        newReferenceStore(),
@@ -50,7 +52,7 @@ func New(serviceName string) *Store {
 
 // AddActivity adds the given activity to the activity store.
 func (s *Store) AddActivity(activity *vocab.ActivityType) error {
-	s.logger.Debug("Storing activity", log.WithActivityType(activity.Type().String()), log.WithActivityID(activity.ID()))
+	s.logger.Debug("Storing activity", logfields.WithActivityType(activity.Type().String()), logfields.WithActivityID(activity.ID()))
 
 	return s.activityStore.add(activity)
 }
@@ -58,7 +60,7 @@ func (s *Store) AddActivity(activity *vocab.ActivityType) error {
 // GetActivity returns the activity for the given ID from the activity store
 // or ErrNotFound error if it wasn't found.
 func (s *Store) GetActivity(activityID *url.URL) (*vocab.ActivityType, error) {
-	s.logger.Debug("Retrieving activity", log.WithActivityID(activityID))
+	s.logger.Debug("Retrieving activity", logfields.WithActivityID(activityID))
 
 	return s.activityStore.get(activityID.String())
 }
@@ -66,7 +68,7 @@ func (s *Store) GetActivity(activityID *url.URL) (*vocab.ActivityType, error) {
 // QueryActivities queries the given activity store using the provided criteria
 // and returns a results iterator.
 func (s *Store) QueryActivities(query *spi.Criteria, opts ...spi.QueryOpt) (spi.ActivityIterator, error) {
-	s.logger.Debug("Querying activities", log.WithQuery(query))
+	s.logger.Debug("Querying activities", logfields.WithQuery(query))
 
 	if query.ReferenceType != "" && query.ObjectIRI != nil {
 		return s.queryActivitiesByRef(query.ReferenceType, query, opts...)
@@ -78,8 +80,8 @@ func (s *Store) QueryActivities(query *spi.Criteria, opts ...spi.QueryOpt) (spi.
 // AddReference adds the reference of the given type to the given object.
 func (s *Store) AddReference(referenceType spi.ReferenceType, objectIRI *url.URL, referenceIRI *url.URL,
 	refMetaDataOpts ...spi.RefMetadataOpt) error {
-	s.logger.Debug("Adding reference to object", log.WithReferenceType(string(referenceType)),
-		log.WithObjectIRI(objectIRI), log.WithReferenceIRI(referenceIRI))
+	s.logger.Debug("Adding reference to object", logfields.WithReferenceType(string(referenceType)),
+		logfields.WithObjectIRI(objectIRI), logfields.WithReferenceIRI(referenceIRI))
 
 	if objectIRI == nil {
 		return fmt.Errorf("nil object IRI")
@@ -94,8 +96,8 @@ func (s *Store) AddReference(referenceType spi.ReferenceType, objectIRI *url.URL
 
 // DeleteReference deletes the reference of the given type from the given actor.
 func (s *Store) DeleteReference(referenceType spi.ReferenceType, objectIRI, referenceIRI *url.URL) error {
-	s.logger.Debug("Deleting reference", log.WithReferenceType(string(referenceType)),
-		log.WithObjectIRI(objectIRI), log.WithReferenceIRI(referenceIRI))
+	s.logger.Debug("Deleting reference", logfields.WithReferenceType(string(referenceType)),
+		logfields.WithObjectIRI(objectIRI), logfields.WithReferenceIRI(referenceIRI))
 
 	if objectIRI == nil {
 		return fmt.Errorf("nil object IRI")
@@ -111,7 +113,7 @@ func (s *Store) DeleteReference(referenceType spi.ReferenceType, objectIRI, refe
 // QueryReferences returns the list of references of the given type according to the given query.
 func (s *Store) QueryReferences(refType spi.ReferenceType,
 	query *spi.Criteria, opts ...spi.QueryOpt) (spi.ReferenceIterator, error) {
-	s.logger.Debug("Querying references", log.WithReferenceType(string(refType)), log.WithQuery(query))
+	s.logger.Debug("Querying references", logfields.WithReferenceType(string(refType)), logfields.WithQuery(query))
 
 	return s.referenceStores[refType].query(query, opts...)
 }

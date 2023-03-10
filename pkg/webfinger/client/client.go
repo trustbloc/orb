@@ -17,9 +17,10 @@ import (
 	"time"
 
 	"github.com/bluele/gcache"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	"github.com/trustbloc/orb/pkg/document/util"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
@@ -78,8 +79,8 @@ func New(opts ...Option) *Client {
 				return nil, err
 			}
 
-			logger.Debug("Loaded webfinger resource into cache", log.WithDomain(k.domainWithScheme),
-				log.WithResource(k.resource), log.WithJRD(r))
+			logger.Debug("Loaded webfinger resource into cache", logfields.WithDomain(k.domainWithScheme),
+				logfields.WithResource(k.resource), logfields.WithJRD(r))
 
 			return r, nil
 		}).Build()
@@ -226,7 +227,7 @@ func (c *Client) ResolveLog(uri string) (*url.URL, error) {
 		return nil, fmt.Errorf("failed to resolve WebFinger resource[%s]: %w", domain, err)
 	}
 
-	logger.Debug("Got response for domain", log.WithDomain(domain), log.WithJRD(jrd))
+	logger.Debug("Got response for domain", logfields.WithDomain(domain), logfields.WithJRD(jrd))
 
 	var logURL string
 

@@ -13,10 +13,11 @@ import (
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	diddoctransformer "github.com/trustbloc/orb/pkg/orbclient/doctransformer"
 )
@@ -122,7 +123,7 @@ func (r *ResolveHandler) ResolveDocument(id string) (*document.ResolutionResult,
 
 	result := &document.ResolutionResult{Document: didWebDoc, Context: localResponse.Context}
 
-	logger.Debug("Resolved DID", log.WithDID(id), log.WithResolutionResult(result))
+	logger.Debug("Resolved DID", logfields.WithDID(id), logfields.WithResolutionResult(result))
 
 	return result, nil
 }

@@ -18,8 +18,9 @@ import (
 	"time"
 
 	"github.com/bluele/gcache"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 )
@@ -83,8 +84,8 @@ func (c *Resolver) ResolveHostMetaLink(urlToGetHostMetaFrom, linkType string) (s
 		return "", fmt.Errorf("failed to get key[%s] from host metadata cache: %w", urlToGetHostMetaFrom, err)
 	}
 
-	logger.Debug("Got value from metadata cache", log.WithKey(urlToGetHostMetaFrom),
-		log.WithMetadata(hostMetaDocumentObj))
+	logger.Debug("Got value from metadata cache", logfields.WithKey(urlToGetHostMetaFrom),
+		logfields.WithMetadata(hostMetaDocumentObj))
 
 	hostMetaDocument, ok := hostMetaDocumentObj.(*discoveryrest.JRD)
 	if !ok {
@@ -204,7 +205,7 @@ func (c *Resolver) getHostMetaDocumentViaHTTP(urlToGetHostMetaDocumentFrom strin
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	logger.Debug("Host meta document for endpoint", log.WithServiceEndpoint(hostMetaEndpoint),
+	logger.Debug("Host meta document for endpoint", logfields.WithServiceEndpoint(hostMetaEndpoint),
 		log.WithResponse(hostMetaDocumentBytes))
 
 	var hostMetaDocument discoveryrest.JRD

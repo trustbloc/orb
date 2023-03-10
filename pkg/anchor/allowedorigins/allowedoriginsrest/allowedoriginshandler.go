@@ -13,13 +13,14 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
-var logger = log.New("allowed-origins", log.WithFields(log.WithServiceEndpoint(allowedOriginsPath)))
+var logger = log.New("allowed-origins", log.WithFields(logfields.WithServiceEndpoint(allowedOriginsPath)))
 
 const (
 	allowedOriginsPath          = "/allowedorigins"
@@ -73,7 +74,7 @@ func (h *Writer) handlePost(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	logger.Debug("Got request to update allowed origins", log.WithRequestBody(reqBytes))
+	logger.Debug("Got request to update allowed origins", logfields.WithRequestBody(reqBytes))
 
 	request, err := unmarshalAndValidateRequest(reqBytes)
 	if err != nil {

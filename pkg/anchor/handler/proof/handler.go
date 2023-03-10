@@ -17,9 +17,10 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/piprate/json-gold/ld"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/anchor/vcpubsub"
@@ -99,8 +100,8 @@ type witnessPolicy interface {
 
 // HandleProof handles proof.
 func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchor string, endTime time.Time, proof []byte) error {
-	logger.Debug("Received proof for anchor from witness", log.WithAnchorURIString(anchor),
-		log.WithActorIRI(witness), log.WithProof(proof))
+	logger.Debug("Received proof for anchor from witness", logfields.WithAnchorURIString(anchor),
+		logfields.WithActorIRI(witness), logfields.WithProof(proof))
 
 	var witnessProof vct.Proof
 
@@ -139,7 +140,7 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchor string, endTi
 		// clean up process for witness store and Sidetree batch files will have to be initiated differently
 		// since we can have scenario that proof never shows up
 		logger.Info("Proof created time for anchor from witness is either too early or too late.",
-			log.WithCreatedTime(proofCreatedTime), log.WithAnchorURIString(anchor), log.WithActorIRI(witness))
+			logfields.WithCreatedTime(proofCreatedTime), logfields.WithAnchorURIString(anchor), logfields.WithActorIRI(witness))
 
 		return nil
 	}
@@ -151,8 +152,8 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchor string, endTi
 
 	if status == proofapi.AnchorIndexStatusCompleted {
 		logger.Info("Received proof for anchor from witness but witness policy has already "+
-			"been satisfied so it will be ignored.", log.WithAnchorURIString(anchor),
-			log.WithActorIRI(witness), log.WithProof(proof))
+			"been satisfied so it will be ignored.", logfields.WithAnchorURIString(anchor),
+			logfields.WithActorIRI(witness), logfields.WithProof(proof))
 
 		// witness policy has been satisfied and witness proofs added to verifiable credential - nothing to do
 		return nil
@@ -184,7 +185,7 @@ func getCreatedTime(wp vct.Proof) (time.Time, error) {
 func (h *WitnessProofHandler) handleWitnessPolicy(anchorLink *linkset.Link, vc *verifiable.Credential) error { //nolint:cyclop
 	anchorID := anchorLink.Anchor().String()
 
-	logger.Debug("Handling witness policy for anchor link", log.WithAnchorURIString(anchorID))
+	logger.Debug("Handling witness policy for anchor link", logfields.WithAnchorURIString(anchorID))
 
 	witnessProofs, err := h.WitnessStore.Get(anchorID)
 	if err != nil {
@@ -199,14 +200,14 @@ func (h *WitnessProofHandler) handleWitnessPolicy(anchorLink *linkset.Link, vc *
 	if !ok {
 		// Witness policy has not been satisfied - wait for other witness proofs to arrive ...
 		logger.Info("Witness policy has not been satisfied for anchor. Waiting for other proofs.",
-			log.WithAnchorURIString(anchorID))
+			logfields.WithAnchorURIString(anchorID))
 
 		return nil
 	}
 
 	// Witness policy has been satisfied so add witness proofs to anchor, set 'complete' status for anchor
 	// publish witnessed anchor to batch writer channel for further processing
-	logger.Info("Witness policy has been satisfied for anchor", log.WithAnchorURIString(anchorID))
+	logger.Info("Witness policy has been satisfied for anchor", logfields.WithAnchorURIString(anchorID))
 
 	vc, err = addProofs(vc, witnessProofs)
 	if err != nil {
@@ -219,7 +220,7 @@ func (h *WitnessProofHandler) handleWitnessPolicy(anchorLink *linkset.Link, vc *
 	}
 
 	if status == proofapi.AnchorIndexStatusCompleted {
-		logger.Info("Anchor status has already been marked as completed for", log.WithAnchorURIString(anchorID))
+		logger.Info("Anchor status has already been marked as completed for", logfields.WithAnchorURIString(anchorID))
 
 		return nil
 	}
@@ -228,7 +229,7 @@ func (h *WitnessProofHandler) handleWitnessPolicy(anchorLink *linkset.Link, vc *
 	// then this handler would be invoked on another server instance. So, we want the status to remain in-process,
 	// otherwise the handler on the other instance would not publish the VC because it would think that is has
 	// already been processed.
-	logger.Debug("Publishing anchor", log.WithAnchorURIString(anchorID))
+	logger.Debug("Publishing anchor", logfields.WithAnchorURIString(anchorID))
 
 	vcBytes, err := canonicalizer.MarshalCanonical(vc)
 	if err != nil {
@@ -252,7 +253,7 @@ func (h *WitnessProofHandler) handleWitnessPolicy(anchorLink *linkset.Link, vc *
 		return fmt.Errorf("publish credential[%s]: %w", anchorID, err)
 	}
 
-	logger.Debug("Setting anchor status to completed", log.WithAnchorURIString(anchorID))
+	logger.Debug("Setting anchor status to completed", logfields.WithAnchorURIString(anchorID))
 
 	err = h.StatusStore.AddStatus(anchorID, proofapi.AnchorIndexStatusCompleted)
 	if err != nil {
@@ -277,13 +278,13 @@ func addProofs(vc *verifiable.Credential, proofs []*proofapi.WitnessProof) (*ver
 			}
 
 			if !proofExists(vc.Proofs, witnessProof.Proof) {
-				logger.Debug("Adding witness proof", log.WithProofDocument(witnessProof.Proof))
+				logger.Debug("Adding witness proof", logfields.WithProofDocument(witnessProof.Proof))
 
 				vc.Context = addContextsFromProof(vc.Context, witnessProof)
 
 				vc.Proofs = append(vc.Proofs, witnessProof.Proof)
 			} else {
-				logger.Debug("Not adding witness proof since it already exists", log.WithProofDocument(witnessProof.Proof))
+				logger.Debug("Not adding witness proof since it already exists", logfields.WithProofDocument(witnessProof.Proof))
 			}
 		}
 	}

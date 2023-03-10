@@ -10,9 +10,10 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/config"
 	"github.com/trustbloc/orb/pkg/context/common"
 	versioncommon "github.com/trustbloc/orb/pkg/protocolversion/common"
@@ -49,7 +50,7 @@ func (r *Registry) CreateClientVersion(version string, casClient common.CASReade
 		return nil, err
 	}
 
-	logger.Debug("Creating client version", log.WithVersion(version))
+	logger.Debug("Creating client version", logfields.WithVersion(version))
 
 	return v.Create(version, casClient, sidetreeCfg)
 }
@@ -63,7 +64,7 @@ func (r *Registry) Register(version string, factory factory) {
 		panic(fmt.Errorf("client version factory [%s] already registered", version))
 	}
 
-	logger.Debug("Registering client version factory", log.WithVersion(version))
+	logger.Debug("Registering client version factory", logfields.WithVersion(version))
 
 	r.factories[version] = factory
 }

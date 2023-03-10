@@ -13,8 +13,9 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/linkset"
 )
@@ -51,7 +52,7 @@ func (h *Publisher) Publish(anchorLinkset *linkset.Linkset) error {
 
 	msg := message.NewMessage(watermill.NewUUID(), payload)
 
-	logger.Debug("Publishing anchor linkset", log.WithTopic(anchorTopic), log.WithData(payload))
+	logger.Debug("Publishing anchor linkset", log.WithTopic(anchorTopic), logfields.WithData(payload))
 
 	err = h.pubSub.Publish(anchorTopic, msg)
 	if err != nil {

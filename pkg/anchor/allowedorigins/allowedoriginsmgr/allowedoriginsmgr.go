@@ -12,8 +12,9 @@ import (
 	"net/url"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
@@ -91,7 +92,7 @@ func (s *Manager) Update(additions, deletions []*url.URL) error {
 	}
 
 	logger.Info("Successfully updated the allowed anchor origins",
-		log.WithURLAdditions(additions...), log.WithURLDeletions(deletions...))
+		logfields.WithURLAdditions(additions...), logfields.WithURLDeletions(deletions...))
 
 	return nil
 }
@@ -126,7 +127,7 @@ func (s *Manager) Get() ([]*url.URL, error) {
 
 		uri, err := url.Parse(cfg.AllowedOrigin)
 		if err != nil {
-			logger.Warn("Ignoring invalid allowed origin", log.WithURIString(cfg.AllowedOrigin))
+			logger.Warn("Ignoring invalid allowed origin", logfields.WithURIString(cfg.AllowedOrigin))
 		} else {
 			allowed = append(allowed, uri)
 		}
@@ -137,7 +138,7 @@ func (s *Manager) Get() ([]*url.URL, error) {
 		}
 	}
 
-	logger.Debug("Loaded allowed anchor origins", log.WithURIs(allowed...))
+	logger.Debug("Loaded allowed anchor origins", logfields.WithURIs(allowed...))
 
 	return allowed, nil
 }

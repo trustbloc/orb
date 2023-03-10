@@ -11,9 +11,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
-
-	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 const internalServerErrorResponse = "Internal Server Error.\n"

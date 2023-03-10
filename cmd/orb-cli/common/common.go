@@ -32,6 +32,7 @@ import (
 	jwk2 "github.com/hyperledger/aries-framework-go/pkg/doc/jose/jwk"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/spf13/cobra"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/jws"
 	"github.com/trustbloc/sidetree-core-go/pkg/util/ecsigner"
 	"github.com/trustbloc/sidetree-core-go/pkg/util/edsigner"
@@ -39,7 +40,6 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/client"
 
 	"github.com/trustbloc/orb/internal/pkg/cmdutil"
-	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/internal/pkg/tlsutil"
 )
 

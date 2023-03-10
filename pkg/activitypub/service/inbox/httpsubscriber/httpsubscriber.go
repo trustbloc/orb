@@ -13,9 +13,10 @@ import (
 
 	wmhttp "github.com/ThreeDotsLabs/watermill-http/pkg/http"
 	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/lifecycle"
 )
@@ -73,7 +74,7 @@ func New(cfg *Config, sigVerifier signatureVerifier, tm authTokenManager) *Subsc
 		stopped:          make(chan struct{}),
 		done:             make(chan struct{}),
 		tokenVerifier:    auth.NewTokenVerifier(tm, cfg.ServiceEndpoint, http.MethodPost),
-		logger:           log.New(loggerModule, log.WithFields(log.WithServiceName(cfg.ServiceEndpoint))),
+		logger:           log.New(loggerModule, log.WithFields(logfields.WithServiceName(cfg.ServiceEndpoint))),
 	}
 
 	s.Lifecycle = lifecycle.New("httpsubscriber-"+cfg.ServiceEndpoint,
@@ -122,11 +123,11 @@ func (s *Subscriber) handleMessage(w http.ResponseWriter, r *http.Request) {
 
 	if !s.tokenVerifier.Verify(r) {
 		s.logger.Debug("Request was not verified using authorization bearer tokens. Verifying request via HTTP signature",
-			log.WithSenderURL(r.URL))
+			logfields.WithSenderURL(r.URL))
 
 		verified, actor, err := s.verifier.VerifyRequest(r)
 		if err != nil {
-			s.logger.Error("Error verifying HTTP signature", log.WithError(err), log.WithSenderURL(r.URL))
+			s.logger.Error("Error verifying HTTP signature", log.WithError(err), logfields.WithSenderURL(r.URL))
 
 			w.WriteHeader(http.StatusInternalServerError)
 
@@ -134,7 +135,7 @@ func (s *Subscriber) handleMessage(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !verified {
-			s.logger.Info("Invalid HTTP signature", log.WithSenderURL(r.URL))
+			s.logger.Info("Invalid HTTP signature", logfields.WithSenderURL(r.URL))
 
 			w.WriteHeader(http.StatusUnauthorized)
 
@@ -143,12 +144,12 @@ func (s *Subscriber) handleMessage(w http.ResponseWriter, r *http.Request) {
 
 		actorIRI = actor
 	} else {
-		s.logger.Debug("Request was verified with a bearer token or no authorization was required.", log.WithSenderURL(r.URL))
+		s.logger.Debug("Request was verified with a bearer token or no authorization was required.", logfields.WithSenderURL(r.URL))
 	}
 
 	msg, err := s.unmarshalMessage("", r)
 	if err != nil {
-		s.logger.Warn("Error reading message", log.WithError(err), log.WithSenderURL(r.URL))
+		s.logger.Warn("Error reading message", log.WithError(err), logfields.WithSenderURL(r.URL))
 
 		w.WriteHeader(http.StatusBadRequest)
 
@@ -159,11 +160,11 @@ func (s *Subscriber) handleMessage(w http.ResponseWriter, r *http.Request) {
 		msg.Metadata[ActorIRIKey] = actorIRI.String()
 	}
 
-	s.logger.Debug("Handling message", log.WithMessageID(msg.UUID), log.WithActorIRI(actorIRI), log.WithSenderURL(r.URL))
+	s.logger.Debug("Handling message", logfields.WithMessageID(msg.UUID), logfields.WithActorIRI(actorIRI), logfields.WithSenderURL(r.URL))
 
 	err = s.publish(msg)
 	if err != nil {
-		s.logger.Info("Message wasn't sent", log.WithMessageID(msg.UUID), log.WithError(err), log.WithSenderURL(r.URL))
+		s.logger.Info("Message wasn't sent", logfields.WithMessageID(msg.UUID), log.WithError(err), logfields.WithSenderURL(r.URL))
 
 		w.WriteHeader(http.StatusServiceUnavailable)
 
@@ -180,7 +181,7 @@ func (s *Subscriber) publish(msg *message.Message) error {
 
 	s.pubChan <- msg
 
-	s.logger.Debug("Message was posted to publisher", log.WithMessageID(msg.UUID))
+	s.logger.Debug("Message was posted to publisher", logfields.WithMessageID(msg.UUID))
 
 	return nil
 }
@@ -193,7 +194,7 @@ func (s *Subscriber) publisher() {
 		case msg := <-s.pubChan:
 			s.msgChan <- msg
 
-			s.logger.Debug("Message was delivered to subscriber", log.WithMessageID(msg.UUID))
+			s.logger.Debug("Message was delivered to subscriber", logfields.WithMessageID(msg.UUID))
 
 		case <-s.stopped:
 			s.logger.Info("Stopping publisher.")
@@ -208,23 +209,23 @@ func (s *Subscriber) publisher() {
 func (s *Subscriber) respond(msg *message.Message, w http.ResponseWriter, r *http.Request) {
 	select {
 	case <-msg.Acked():
-		s.logger.Debug("Ack received for message", log.WithMessageID(msg.UUID))
+		s.logger.Debug("Ack received for message", logfields.WithMessageID(msg.UUID))
 
 		w.WriteHeader(http.StatusOK)
 
 	case <-msg.Nacked():
-		s.logger.Warn("Nack received for message", log.WithMessageID(msg.UUID))
+		s.logger.Warn("Nack received for message", logfields.WithMessageID(msg.UUID))
 
 		w.WriteHeader(http.StatusInternalServerError)
 
 	case <-r.Context().Done():
 		s.logger.Info("Timed out waiting for ack or nack for message",
-			log.WithMessageID(msg.UUID), log.WithError(r.Context().Err()))
+			logfields.WithMessageID(msg.UUID), log.WithError(r.Context().Err()))
 
 		w.WriteHeader(http.StatusInternalServerError)
 
 	case <-s.stopped:
-		s.logger.Info("Message was not handled since service was stopped", log.WithMessageID(msg.UUID))
+		s.logger.Info("Message was not handled since service was stopped", logfields.WithMessageID(msg.UUID))
 
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}

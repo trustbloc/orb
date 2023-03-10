@@ -12,10 +12,11 @@ import (
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/hashing"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/store"
 	"github.com/trustbloc/orb/pkg/store/expiry"
@@ -99,8 +100,8 @@ func (s *Store) Put(op *operation.AnchoredOperation) error {
 		return fmt.Errorf("failed to marshal unpublished operation: %w", err)
 	}
 
-	logger.Debug("Storing unpublished operation", log.WithOperationType(string(op.Type)),
-		log.WithSuffix(op.UniqueSuffix), log.WithData(opBytes))
+	logger.Debug("Storing unpublished operation", logfields.WithOperationType(string(op.Type)),
+		logfields.WithSuffix(op.UniqueSuffix), logfields.WithData(opBytes))
 
 	tags := []storage.Tag{
 		{
@@ -178,7 +179,7 @@ func (s *Store) Get(suffix string) ([]*operation.AnchoredOperation, error) {
 		}
 	}
 
-	logger.Debug("Retrieved unpublished operations for suffix", log.WithTotal(len(ops)), log.WithSuffix(suffix))
+	logger.Debug("Retrieved unpublished operations for suffix", logfields.WithTotal(len(ops)), logfields.WithSuffix(suffix))
 
 	if len(ops) == 0 {
 		return nil, fmt.Errorf("suffix[%s] not found in the unpublished operation store", suffix)
@@ -223,7 +224,7 @@ func (s *Store) DeleteAll(ops []*operation.AnchoredOperation) error {
 		return orberrors.NewTransient(fmt.Errorf("failed to delete unpublished operations: %w", err))
 	}
 
-	logger.Debug("Deleted unpublished operations", log.WithTotal(len(ops)))
+	logger.Debug("Deleted unpublished operations", logfields.WithTotal(len(ops)))
 
 	return nil
 }

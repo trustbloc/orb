@@ -13,13 +13,12 @@ import (
 	"testing"
 	"time"
 
-	backoff "github.com/cenkalti/backoff/v4"
+	"github.com/cenkalti/backoff/v4"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
-
-	"github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/logutil-go/pkg/log"
 )
 
 func TestStartCmdContents(t *testing.T) {

@@ -16,11 +16,12 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 )
 
 var (
@@ -49,7 +50,7 @@ func New(url, certFile, keyFile string, serverIdleTimeout, serverReadHeaderTimeo
 	router := mux.NewRouter()
 
 	for _, handler := range handlers {
-		logger.Info("Registering handler", log.WithServiceEndpoint(handler.Path()))
+		logger.Info("Registering handler", logfields.WithServiceEndpoint(handler.Path()))
 
 		router.HandleFunc(handler.Path(), handler.Handler()).
 			Methods(handler.Method()).

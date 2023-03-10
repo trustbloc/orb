@@ -13,9 +13,10 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 )
 
 const idPathVariable = "id"
@@ -62,14 +63,14 @@ func (h *Handler) handle(w http.ResponseWriter, req *http.Request) {
 	vc, err := h.store.Get(id)
 	if err != nil {
 		if errors.Is(err, storage.ErrDataNotFound) {
-			logger.Debug("Verifiable credential not found", log.WithVerifiableCredentialID(id), log.WithError(err))
+			logger.Debug("Verifiable credential not found", logfields.WithVerifiableCredentialID(id), log.WithError(err))
 
 			writeResponse(w, http.StatusNotFound, []byte(statusNotFoundResponse))
 
 			return
 		}
 
-		logger.Error("Error retrieving verifiable credential", log.WithVerifiableCredentialID(id), log.WithError(err))
+		logger.Error("Error retrieving verifiable credential", logfields.WithVerifiableCredentialID(id), log.WithError(err))
 
 		writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 

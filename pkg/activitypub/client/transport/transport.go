@@ -14,7 +14,9 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/logutil-go/pkg/log"
+
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	apclientmocks "github.com/trustbloc/orb/pkg/activitypub/client/mocks"
 )
 
@@ -139,9 +141,9 @@ func (t *Transport) Post(ctx context.Context, r *Request, payload []byte) (*http
 			return nil, fmt.Errorf("sign request: %w", err)
 		}
 
-		logger.Debug("Signed HTTP POST", log.WithRequestURL(r.URL), log.WithRequestHeaders(req.Header))
+		logger.Debug("Signed HTTP POST", logfields.WithRequestURL(r.URL), logfields.WithRequestHeaders(req.Header))
 	} else {
-		logger.Debug("HTTP signature is not required for HTTP POST", log.WithRequestURL(r.URL))
+		logger.Debug("HTTP signature is not required for HTTP POST", logfields.WithRequestURL(r.URL))
 	}
 
 	return t.client.Do(req)
@@ -169,9 +171,9 @@ func (t *Transport) Get(ctx context.Context, r *Request) (*http.Response, error)
 			return nil, fmt.Errorf("sign request: %w", err)
 		}
 
-		logger.Debug("Signed HTTP GET", log.WithRequestURL(r.URL), log.WithRequestHeaders(req.Header))
+		logger.Debug("Signed HTTP GET", logfields.WithRequestURL(r.URL), logfields.WithRequestHeaders(req.Header))
 	} else {
-		logger.Debug("HTTP signature is not required for HTTP GET", log.WithRequestURL(r.URL))
+		logger.Debug("HTTP signature is not required for HTTP GET", logfields.WithRequestURL(r.URL))
 	}
 
 	return t.client.Do(req)

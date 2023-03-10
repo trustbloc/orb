@@ -13,9 +13,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/store"
 )
@@ -83,7 +84,7 @@ func (s *Store) Put(ops []*operation.AnchoredOperation) error {
 			PutOptions: putOptions,
 		}
 
-		logger.Debug("Adding operation to storage batch", log.WithOperation(op))
+		logger.Debug("Adding operation to storage batch", logfields.WithOperation(op))
 
 		operations[i] = op
 	}
@@ -93,7 +94,7 @@ func (s *Store) Put(ops []*operation.AnchoredOperation) error {
 		return orberrors.NewTransient(fmt.Errorf("failed to store operations: %w", err))
 	}
 
-	logger.Debug("Stored operations", log.WithOperation(len(ops)))
+	logger.Debug("Stored operations", logfields.WithOperation(len(ops)))
 
 	return nil
 }
@@ -147,7 +148,7 @@ func (s *Store) Get(suffix string) ([]*operation.AnchoredOperation, error) {
 		}
 	}
 
-	logger.Debug("Retrieved operations for suffix", log.WithTotal(len(ops)), log.WithSuffix(suffix))
+	logger.Debug("Retrieved operations for suffix", logfields.WithTotal(len(ops)), logfields.WithSuffix(suffix))
 
 	if len(ops) == 0 {
 		return nil, fmt.Errorf("suffix[%s] not found in the store", suffix)

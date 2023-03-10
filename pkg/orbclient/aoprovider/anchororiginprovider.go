@@ -12,11 +12,12 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/piprate/json-gold/ld"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
@@ -141,7 +142,7 @@ func (c *OrbClient) GetAnchorOrigin(cid, suffix string) (interface{}, error) {
 		return nil, fmt.Errorf("unable to read anchor[%s] from CAS: %w", cid, err)
 	}
 
-	logger.Debug("Got anchor linkset", log.WithCID(cid), log.WithAnchorLinkset(anchorLinksetBytes))
+	logger.Debug("Got anchor linkset", logfields.WithCID(cid), logfields.WithAnchorLinkset(anchorLinksetBytes))
 
 	anchorLinkset := &linkset.Linkset{}
 
@@ -215,8 +216,8 @@ func (c *OrbClient) getAnchoredOperation(anchor anchorinfo.AnchorInfo, anchorLin
 		CanonicalReference: anchor.Hashlink,
 	}
 
-	logger.Debug("Processing anchor", log.WithAnchorEventURIString(anchor.Hashlink),
-		log.WithCoreIndex(anchorPayload.CoreIndex))
+	logger.Debug("Processing anchor", logfields.WithAnchorEventURIString(anchor.Hashlink),
+		logfields.WithCoreIndex(anchorPayload.CoreIndex))
 
 	txnOps, err := v.OperationProvider().GetTxnOperations(&sidetreeTxn)
 	if err != nil {

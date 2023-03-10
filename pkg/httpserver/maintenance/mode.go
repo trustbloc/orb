@@ -9,9 +9,10 @@ package maintenance
 import (
 	"net/http"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 )
 
 const loggerModule = "maintenance"
@@ -29,7 +30,7 @@ type HandlerWrapper struct {
 
 // NewMaintenanceWrapper will return service unavailable for handler that was passed in.
 func NewMaintenanceWrapper(handler common.HTTPHandler) *HandlerWrapper {
-	logger := log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(handler.Path())))
+	logger := log.New(loggerModule, log.WithFields(logfields.WithServiceEndpoint(handler.Path())))
 
 	return &HandlerWrapper{
 		HTTPHandler: handler,

@@ -11,7 +11,9 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/logutil-go/pkg/log"
+
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
@@ -59,7 +61,7 @@ func (h *Services) handle(w http.ResponseWriter, req *http.Request) {
 
 	s, err := h.newService()
 	if err != nil {
-		h.logger.Error("Invalid service configuration", log.WithObjectIRI(h.ObjectIRI), log.WithError(err))
+		h.logger.Error("Invalid service configuration", logfields.WithObjectIRI(h.ObjectIRI), log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -68,7 +70,7 @@ func (h *Services) handle(w http.ResponseWriter, req *http.Request) {
 
 	serviceBytes, err := h.marshal(s)
 	if err != nil {
-		h.logger.Error("Unable to marshal service", log.WithObjectIRI(h.ObjectIRI), log.WithError(err))
+		h.logger.Error("Unable to marshal service", logfields.WithObjectIRI(h.ObjectIRI), log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -88,7 +90,7 @@ func (h *Services) handlePublicKey(w http.ResponseWriter, req *http.Request) {
 	keyID := getIDParam(req)
 
 	if keyID == "" {
-		h.logger.Info("Key ID not specified", log.WithObjectIRI(h.ObjectIRI))
+		h.logger.Info("Key ID not specified", logfields.WithObjectIRI(h.ObjectIRI))
 
 		h.writeResponse(w, http.StatusBadRequest, []byte(badRequestResponse))
 
@@ -96,7 +98,7 @@ func (h *Services) handlePublicKey(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if fmt.Sprintf("%s/keys/%s", h.ObjectIRI, keyID) != h.publicKey.ID().String() {
-		h.logger.Info("Public key not found", log.WithObjectIRI(h.ObjectIRI), log.WithKeyID(keyID))
+		h.logger.Info("Public key not found", logfields.WithObjectIRI(h.ObjectIRI), logfields.WithKeyID(keyID))
 
 		h.writeResponse(w, http.StatusNotFound, []byte(notFoundResponse))
 
@@ -105,7 +107,7 @@ func (h *Services) handlePublicKey(w http.ResponseWriter, req *http.Request) {
 
 	publicKeyBytes, err := h.marshal(h.publicKey)
 	if err != nil {
-		h.logger.Error("Unable to marshal public key", log.WithObjectIRI(h.ObjectIRI), log.WithError(err))
+		h.logger.Error("Unable to marshal public key", logfields.WithObjectIRI(h.ObjectIRI), log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 

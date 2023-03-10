@@ -20,8 +20,9 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/cenkalti/backoff"
 	ramqp "github.com/rabbitmq/amqp091-go"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
@@ -197,7 +198,7 @@ func (p *PubSub) SubscribeWithOpts(ctx context.Context, topic string,
 		return p.subscriber.Subscribe(ctx, topic)
 	}
 
-	logger.Debug("Creating subscriber pool", log.WithTopic(topic), log.WithSubscriberPoolSize(options.PoolSize))
+	logger.Debug("Creating subscriber pool", log.WithTopic(topic), logfields.WithSubscriberPoolSize(options.PoolSize))
 
 	pool, err := newPooledSubscriber(ctx, options.PoolSize, p.subscriber, topic)
 	if err != nil {
@@ -223,7 +224,7 @@ func (p *PubSub) Publish(topic string, messages ...*message.Message) error {
 
 	if err := p.publisher.Publish(topic, messages...); err != nil {
 		for _, msg := range messages {
-			logger.Error("Error publishing message", log.WithMessageID(msg.UUID), log.WithTopic(topic))
+			logger.Error("Error publishing message", logfields.WithMessageID(msg.UUID), log.WithTopic(topic))
 		}
 
 		return errors.NewTransientf("publish messages to topic [%s]: %w", topic, err)
@@ -246,8 +247,8 @@ func (p *PubSub) PublishWithOpts(topic string, msg *message.Message, opts ...spi
 }
 
 func (p *PubSub) publishWithDelay(topic string, msg *message.Message, delay time.Duration) error {
-	logger.Debug("Publishing message", log.WithMessageID(msg.UUID),
-		log.WithTopic(topic), log.WithDeliveryDelay(delay))
+	logger.Debug("Publishing message", logfields.WithMessageID(msg.UUID),
+		log.WithTopic(topic), logfields.WithDeliveryDelay(delay))
 
 	// Post the message to the wait queue with the given expiration so that it isn't immediately redelivered.
 	err := p.waitPublisher.Publish(waitQueue,
@@ -257,13 +258,13 @@ func (p *PubSub) publishWithDelay(topic string, msg *message.Message, delay time
 		),
 	)
 	if err != nil {
-		logger.Error("Error publishing message to wait queue", log.WithMessageID(msg.UUID), log.WithError(err))
+		logger.Error("Error publishing message to wait queue", logfields.WithMessageID(msg.UUID), log.WithError(err))
 
 		return errors.NewTransientf("publish message to wait queue: %w", err)
 	}
 
-	logger.Debug("Successfully published message", log.WithMessageID(msg.UUID),
-		log.WithTopic(topic), log.WithDeliveryDelay(delay))
+	logger.Debug("Successfully published message", logfields.WithMessageID(msg.UUID),
+		log.WithTopic(topic), logfields.WithDeliveryDelay(delay))
 
 	return nil
 }
@@ -330,7 +331,7 @@ func (p *PubSub) start() {
 		func(err error, duration time.Duration) {
 			logger.Debug("Error connecting to AMQP service. Will retry with backoff...",
 				log.WithAddress(extractEndpoint(p.amqpConfig.Connection.AmqpURI)),
-				log.WithBackoff(duration), log.WithError(err))
+				logfields.WithBackoff(duration), log.WithError(err))
 		},
 	)
 	if err != nil {
@@ -410,13 +411,13 @@ func (p *PubSub) processRedeliveryQueue() {
 }
 
 func (p *PubSub) handleRedelivery(msg *message.Message) {
-	logger.Debug("Got new RETRY message", log.WithMessageID(msg.UUID),
-		log.WithMetadata(msg.Metadata), log.WithData(msg.Payload))
+	logger.Debug("Got new RETRY message", logfields.WithMessageID(msg.UUID),
+		logfields.WithMetadata(msg.Metadata), logfields.WithData(msg.Payload))
 
 	queue, err := getQueue(msg)
 	if err != nil {
 		logger.Warn("Error resolving queue for message. Message will not be redelivered.",
-			log.WithMessageID(msg.UUID), log.WithError(err))
+			logfields.WithMessageID(msg.UUID), log.WithError(err))
 
 		msg.Ack()
 
@@ -429,7 +430,7 @@ func (p *PubSub) handleRedelivery(msg *message.Message) {
 		err = p.redeliver(msg, queue, redeliveryAttempts)
 		if err != nil {
 			logger.Error("Error redelivering message. The message will be nacked and retried.",
-				log.WithMessageID(msg.UUID), log.WithError(err))
+				logfields.WithMessageID(msg.UUID), log.WithError(err))
 
 			// Nack the message so that it may be retried.
 			msg.Nack()
@@ -438,7 +439,7 @@ func (p *PubSub) handleRedelivery(msg *message.Message) {
 		}
 	} else {
 		logger.Error("Message will not be redelivered since the maximum delivery attempts has been reached",
-			log.WithMessageID(msg.UUID), log.WithTopic(queue), log.WithDeliveryAttempts(redeliveryAttempts+1))
+			logfields.WithMessageID(msg.UUID), log.WithTopic(queue), logfields.WithDeliveryAttempts(redeliveryAttempts+1))
 	}
 
 	msg.Ack()
@@ -459,8 +460,8 @@ func (p *PubSub) redeliver(msg *message.Message, queue string, redeliveryAttempt
 			return fmt.Errorf("publish message to queue [%s]: %w", queue, err)
 		}
 
-		logger.Info("Successfully posted message for redelivery", log.WithMessageID(msg.UUID),
-			log.WithTopic(queue), log.WithDeliveryAttempts(redeliveryAttempts))
+		logger.Info("Successfully posted message for redelivery", logfields.WithMessageID(msg.UUID),
+			log.WithTopic(queue), logfields.WithDeliveryAttempts(redeliveryAttempts))
 
 		return nil
 	}
@@ -479,8 +480,8 @@ func (p *PubSub) redeliver(msg *message.Message, queue string, redeliveryAttempt
 			waitQueue, expiration, redeliveryAttempts, err)
 	}
 
-	logger.Info("Successfully posted message", log.WithMessageID(msg.UUID), log.WithTopic(waitQueue),
-		log.WithDeliveryDelay(expiration), log.WithDeliveryAttempts(redeliveryAttempts+1))
+	logger.Info("Successfully posted message", logfields.WithMessageID(msg.UUID), log.WithTopic(waitQueue),
+		logfields.WithDeliveryDelay(expiration), logfields.WithDeliveryAttempts(redeliveryAttempts+1))
 
 	return nil
 }
@@ -562,7 +563,7 @@ func (m *connectionMgr) getConnection(shared bool) (connection, error) {
 
 		m.connections = append(m.connections, c)
 
-		logger.Info("Created new connection.", log.WithTotal(len(m.connections)))
+		logger.Info("Created new connection.", logfields.WithTotal(len(m.connections)))
 
 		return c, nil
 	}
@@ -578,12 +579,12 @@ func (m *connectionMgr) getConnection(shared bool) (connection, error) {
 		m.connections = append(m.connections, newCurrent)
 		m.current = newCurrent
 
-		logger.Info("Created new shared connection.", log.WithTotal(len(m.connections)))
+		logger.Info("Created new shared connection.", logfields.WithTotal(len(m.connections)))
 	}
 
 	numChannels := m.current.incrementChannelCount()
 
-	logger.Debug("Incremented channel count for current connection.", log.WithTotal(int(numChannels)))
+	logger.Debug("Incremented channel count for current connection.", logfields.WithTotal(int(numChannels)))
 
 	return m.current, nil
 }
@@ -599,7 +600,7 @@ func (m *connectionMgr) close() error {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
-	logger.Info("Closing connections", log.WithTotal(len(m.connections)))
+	logger.Info("Closing connections", logfields.WithTotal(len(m.connections)))
 
 	for _, c := range m.connections {
 		if err := c.amqpConnection().Close(); err != nil {
@@ -651,7 +652,7 @@ func (m *subscriberMgr) Close() error {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
-	logger.Info("Closing subscribers", log.WithTotal(len(m.subscribers)))
+	logger.Info("Closing subscribers", logfields.WithTotal(len(m.subscribers)))
 
 	for _, s := range m.subscribers {
 		if err := s.subscriber.Close(); err != nil {
@@ -702,10 +703,10 @@ func (m *subscriberMgr) get() (initializingSubscriber, error) {
 
 		m.subscribers = append(m.subscribers, m.current)
 
-		logger.Debug("Created a subscriber.", log.WithTotal(len(m.subscribers)))
+		logger.Debug("Created a subscriber.", logfields.WithTotal(len(m.subscribers)))
 	}
 
-	logger.Debug("Incremented channel count for current connection.", log.WithTotal(int(conn.numChannels())))
+	logger.Debug("Incremented channel count for current connection.", logfields.WithTotal(int(conn.numChannels())))
 
 	return m.current.subscriber, nil
 }
@@ -735,7 +736,7 @@ func getRedeliveryAttempts(msg *message.Message) int {
 		c, err := strconv.ParseInt(countValue, base10, 0)
 		if err != nil {
 			logger.Warn("Message metadata property is not a valid int. Redelivery count will be set to 0",
-				log.WithMessageID(msg.UUID), log.WithProperty(metadataRedeliveryCount))
+				logfields.WithMessageID(msg.UUID), logfields.WithProperty(metadataRedeliveryCount))
 		} else {
 			count = int(c)
 		}
@@ -756,7 +757,7 @@ func getQueue(msg *message.Message) (string, error) {
 	}
 
 	logger.Warn("Message metadata property not found. Message will not be redelivered.",
-		log.WithMessageID(msg.UUID), log.WithProperty(metadataFirstDeathQueue))
+		logfields.WithMessageID(msg.UUID), logfields.WithProperty(metadataFirstDeathQueue))
 
 	return "", fmt.Errorf("metadata not found: %s", metadataFirstDeathReason)
 }

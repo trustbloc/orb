@@ -14,7 +14,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/logutil-go/pkg/log"
+
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	apstore "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/lifecycle"
@@ -178,7 +180,7 @@ func (r *Service) updateStatsUsingSingleTagQuery() error {
 		}
 	}
 
-	logger.Debug("Updated stats", log.WithData([]byte(s.String())))
+	logger.Debug("Updated stats", logfields.WithData([]byte(s.String())))
 
 	r.mutex.Lock()
 

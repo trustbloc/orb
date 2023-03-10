@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/logutil-go/pkg/log/mocks"
 	"go.uber.org/zap/zapcore"
 
-	"github.com/trustbloc/orb/internal/pkg/log/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/witness/policy/config"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"

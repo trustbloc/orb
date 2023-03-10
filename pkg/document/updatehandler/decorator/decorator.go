@@ -10,12 +10,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/client/models"
 	"github.com/trustbloc/orb/pkg/document/util"
 )
@@ -85,14 +86,14 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 
 	internalResult, err := d.processor.Resolve(op.UniqueSuffix)
 	if err != nil {
-		logger.Debug("Failed to resolve suffix[%s] for operation type[%s]: %s", log.WithSuffix(op.UniqueSuffix),
-			log.WithOperationType(string(op.Type)), log.WithError(err))
+		logger.Debug("Failed to resolve suffix[%s] for operation type[%s]: %s", logfields.WithSuffix(op.UniqueSuffix),
+			logfields.WithOperationType(string(op.Type)), log.WithError(err))
 
 		return nil, err
 	}
 
-	logger.Debug("Processor returned internal result", log.WithSuffix(op.UniqueSuffix),
-		log.WithOperationType(string(op.Type)), log.WithResolutionModel(internalResult))
+	logger.Debug("Processor returned internal result", logfields.WithSuffix(op.UniqueSuffix),
+		logfields.WithOperationType(string(op.Type)), logfields.WithResolutionModel(internalResult))
 
 	if internalResult.Deactivated {
 		return nil, fmt.Errorf("document has been deactivated, no further operations are allowed")
@@ -122,7 +123,7 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 
 	anchorOriginResponse, err := d.resolveDocumentFromAnchorOrigin(canonicalID, localAnchorOrigin)
 	if err != nil {
-		logger.Debug("Failed to resolve document from anchor origin", log.WithDID(canonicalID), log.WithError(err))
+		logger.Debug("Failed to resolve document from anchor origin", logfields.WithDID(canonicalID), log.WithError(err))
 
 		return op, nil
 	}
@@ -139,15 +140,15 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 		return nil, fmt.Errorf("anchor origin has different anchor origin for this did - please re-submit your request at later time")
 	}
 
-	logger.Debug("Got resolution response from anchor origin", log.WithDID(canonicalID),
-		log.WithResolutionResult(anchorOriginResponse))
+	logger.Debug("Got resolution response from anchor origin", logfields.WithDID(canonicalID),
+		logfields.WithResolutionResult(anchorOriginResponse))
 
 	// parse anchor origin response to get unpublished and published operations
 	anchorOriginUnpublishedOps, anchorOriginPublishedOps := getOperations(canonicalID, anchorOriginResponse.DocumentMetadata)
 
 	if len(anchorOriginPublishedOps) == 0 {
 		// published ops not provided at anchor origin - nothing to do
-		logger.Debug("Published ops not provided at anchor origin - nothing to check", log.WithDID(canonicalID))
+		logger.Debug("Published ops not provided at anchor origin - nothing to check", logfields.WithDID(canonicalID))
 
 		return op, nil
 	}
@@ -176,8 +177,8 @@ func (d *OperationDecorator) resolveDocumentFromAnchorOrigin(id, anchorOrigin st
 		return nil, fmt.Errorf("unable to get endpoint from anchor origin domain[%s]: %w", id, err)
 	}
 
-	logger.Debug("Got anchor domain resolution endpoints", log.WithDID(id),
-		log.WithResolutionEndpoints(endpoint.ResolutionEndpoints...))
+	logger.Debug("Got anchor domain resolution endpoints", logfields.WithDID(id),
+		logfields.WithResolutionEndpoints(endpoint.ResolutionEndpoints...))
 
 	anchorOriginResponse, err := d.remoteResolver.ResolveDocumentFromResolutionEndpoints(id, endpoint.ResolutionEndpoints)
 	if err != nil {
@@ -191,18 +192,18 @@ func (d *OperationDecorator) resolveDocumentFromAnchorOrigin(id, anchorOrigin st
 func getOperations(id string, metadata document.Metadata) ([]*operation.AnchoredOperation, []*operation.AnchoredOperation) {
 	unpublishedOps, err := util.GetUnpublishedOperationsFromMetadata(metadata)
 	if err != nil {
-		logger.Debug("Unable to get unpublished operations", log.WithDID(id), log.WithError(err))
+		logger.Debug("Unable to get unpublished operations", logfields.WithDID(id), log.WithError(err))
 	} else {
-		logger.Debug("Parsed unpublished operations from anchor origin", log.WithDID(id),
-			log.WithTotal(len(unpublishedOps)))
+		logger.Debug("Parsed unpublished operations from anchor origin", logfields.WithDID(id),
+			logfields.WithTotal(len(unpublishedOps)))
 	}
 
 	publishedOps, err := util.GetPublishedOperationsFromMetadata(metadata)
 	if err != nil {
-		logger.Debug("Unable to get published operations", log.WithDID(id), log.WithError(err))
+		logger.Debug("Unable to get published operations", logfields.WithDID(id), log.WithError(err))
 	} else {
-		logger.Debug("Parsed published operations from anchor origin", log.WithDID(id),
-			log.WithTotal(len(publishedOps)))
+		logger.Debug("Parsed published operations from anchor origin", logfields.WithDID(id),
+			logfields.WithTotal(len(publishedOps)))
 	}
 
 	return unpublishedOps, publishedOps

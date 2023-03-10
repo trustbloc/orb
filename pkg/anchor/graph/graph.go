@@ -12,9 +12,10 @@ import (
 	"net/url"
 
 	"github.com/piprate/json-gold/ld"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/linkset"
@@ -67,7 +68,7 @@ func (g *Graph) Add(anchorLinkset *linkset.Linkset) (string, error) { //nolint:i
 		return "", errors.NewTransient(fmt.Errorf("failed to add anchor to graph: %w", err))
 	}
 
-	logger.Debug("Added anchor", log.WithHashlink(hl), log.WithData(canonicalBytes))
+	logger.Debug("Added anchor", logfields.WithHashlink(hl), logfields.WithData(canonicalBytes))
 
 	return hl, nil
 }
@@ -79,7 +80,7 @@ func (g *Graph) Read(hl string) (*linkset.Linkset, error) {
 		return nil, err
 	}
 
-	logger.Debug("Read anchor Linkset", log.WithHashlink(hl), log.WithData(anchorLinksetBytes))
+	logger.Debug("Read anchor Linkset", logfields.WithHashlink(hl), logfields.WithData(anchorLinksetBytes))
 
 	anchorLinkset := &linkset.Linkset{}
 
@@ -105,7 +106,7 @@ func (g *Graph) GetDidAnchors(hl, suffix string) ([]Anchor, error) {
 	ok := true
 
 	for ok {
-		logger.Debug("Getting DID anchors", log.WithHashlink(cur), log.WithSuffix(suffix))
+		logger.Debug("Getting DID anchors", logfields.WithHashlink(cur), logfields.WithSuffix(suffix))
 
 		anchorLinkset, err := g.Read(cur)
 		if err != nil {

@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/logutil-go/pkg/log"
 )
 
 func TestCommonLogs(t *testing.T) {
@@ -19,9 +20,10 @@ func TestCommonLogs(t *testing.T) {
 	t.Run("InvalidParameterValue", func(t *testing.T) {
 		stdErr := newMockWriter()
 
-		logger := New(module,
-			WithStdErr(stdErr),
-			WithFields(WithServiceName("myservice")),
+		logger := log.New(module,
+			log.WithStdErr(stdErr),
+			log.WithFields(WithServiceName("myservice")),
+			log.WithEncoding(log.Console),
 		)
 
 		InvalidParameterValue(logger, "param1", errors.New("invalid integer"))
@@ -38,9 +40,10 @@ func TestCommonLogs(t *testing.T) {
 	t.Run("CloseIteratorError", func(t *testing.T) {
 		stdOut := newMockWriter()
 
-		logger := New(module,
-			WithStdOut(stdOut),
-			WithFields(WithServiceName("myservice")),
+		logger := log.New(module,
+			log.WithStdOut(stdOut),
+			log.WithFields(WithServiceName("myservice")),
+			log.WithEncoding(log.Console),
 		)
 
 		CloseIteratorError(logger, errors.New("iterator error"))
@@ -54,9 +57,10 @@ func TestCommonLogs(t *testing.T) {
 	t.Run("CloseResponseBodyError", func(t *testing.T) {
 		stdOut := newMockWriter()
 
-		logger := New(module,
-			WithStdOut(stdOut),
-			WithFields(WithServiceName("myservice")),
+		logger := log.New(module,
+			log.WithStdOut(stdOut),
+			log.WithFields(WithServiceName("myservice")),
+			log.WithEncoding(log.Console),
 		)
 
 		CloseResponseBodyError(logger, errors.New("response body error"))
@@ -70,9 +74,10 @@ func TestCommonLogs(t *testing.T) {
 	t.Run("WriteResponseBodyError", func(t *testing.T) {
 		stdErr := newMockWriter()
 
-		logger := New(module,
-			WithStdErr(stdErr),
-			WithFields(WithServiceName("myservice")),
+		logger := log.New(module,
+			log.WithStdErr(stdErr),
+			log.WithFields(WithServiceName("myservice")),
+			log.WithEncoding(log.Console),
 		)
 
 		WriteResponseBodyError(logger, errors.New("response body error"))
@@ -86,9 +91,10 @@ func TestCommonLogs(t *testing.T) {
 	t.Run("ReadRequestBodyError", func(t *testing.T) {
 		stdErr := newMockWriter()
 
-		logger := New(module,
-			WithStdErr(stdErr),
-			WithFields(WithServiceName("myservice")),
+		logger := log.New(module,
+			log.WithStdErr(stdErr),
+			log.WithFields(WithServiceName("myservice")),
+			log.WithEncoding(log.Console),
 		)
 
 		ReadRequestBodyError(logger, errors.New("request body error"))
@@ -100,13 +106,14 @@ func TestCommonLogs(t *testing.T) {
 	})
 
 	t.Run("WroteResponse", func(t *testing.T) {
-		SetLevel(module, DEBUG)
+		log.SetLevel(module, log.DEBUG)
 
 		stdOut := newMockWriter()
 
-		logger := New(module,
-			WithStdOut(stdOut),
-			WithFields(WithServiceName("myservice")),
+		logger := log.New(module,
+			log.WithStdOut(stdOut),
+			log.WithFields(WithServiceName("myservice")),
+			log.WithEncoding(log.Console),
 		)
 
 		WroteResponse(logger, []byte("some response"))

@@ -11,11 +11,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/didanchor"
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry"
 )
@@ -79,7 +80,7 @@ func (h *DidAnchorInfo) GetResourceInfo(did string) (registry.Metadata, error) {
 	info[registry.AnchorOriginProperty] = resolutionResult.AnchorOrigin
 	info[registry.CanonicalReferenceProperty] = resolutionResult.CanonicalReference
 
-	logger.Debug("Latest anchor metadata for suffix", log.WithSuffix(suffix), log.WithMetadata(info))
+	logger.Debug("Latest anchor metadata for suffix", logfields.WithSuffix(suffix), logfields.WithMetadata(info))
 
 	return info, nil
 }

@@ -12,7 +12,9 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/logutil-go/pkg/log"
+
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 )
@@ -42,7 +44,7 @@ func NewAuthHandler(cfg *Config, endpoint, method string, s store.Store, verifie
 	tm authTokenManager, authorizeActor authorizeActorFunc) *AuthHandler {
 	ep := fmt.Sprintf("%s%s", cfg.BasePath, endpoint)
 
-	logger := log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(ep)))
+	logger := log.New(loggerModule, log.WithFields(logfields.WithServiceEndpoint(ep)))
 
 	h := &AuthHandler{
 		Config:         cfg,
@@ -78,20 +80,20 @@ func NewAuthHandler(cfg *Config, endpoint, method string, s store.Store, verifie
 // provided, the HTTP signature.
 func (h *AuthHandler) Authorize(req *http.Request) (bool, *url.URL, error) {
 	if h.tokenVerifier.Verify(req) {
-		h.logger.Debug("Authorization succeeded using bearer token for request", log.WithRequestURL(req.URL))
+		h.logger.Debug("Authorization succeeded using bearer token for request", logfields.WithRequestURL(req.URL))
 
 		// The bearer of the token is assumed to be this service. If it isn't then validation
 		// should fail in subsequent checks.
 		return true, h.ObjectIRI, nil
 	}
 
-	h.logger.Debug("Authorization failed using bearer token for request", log.WithRequestURL(req.URL))
+	h.logger.Debug("Authorization failed using bearer token for request", logfields.WithRequestURL(req.URL))
 
 	if h.verifier == nil {
 		return false, nil, nil
 	}
 
-	h.logger.Debug("Checking HTTP signature for request ...", log.WithRequestURL(req.URL))
+	h.logger.Debug("Checking HTTP signature for request ...", logfields.WithRequestURL(req.URL))
 
 	// Check HTTP signature.
 	ok, actorIRI, err := h.verifier.VerifyRequest(req)
@@ -100,7 +102,7 @@ func (h *AuthHandler) Authorize(req *http.Request) (bool, *url.URL, error) {
 	}
 
 	if !ok {
-		h.logger.Debug("Authorization failed using HTTP signature for request.", log.WithRequestURL(req.URL))
+		h.logger.Debug("Authorization failed using HTTP signature for request.", logfields.WithRequestURL(req.URL))
 
 		return false, nil, nil
 	}
@@ -110,7 +112,7 @@ func (h *AuthHandler) Authorize(req *http.Request) (bool, *url.URL, error) {
 		return false, nil, fmt.Errorf("authorize actor [%s]: %w", actorIRI, err)
 	}
 
-	h.logger.Debug("Authorization succeeded using HTTP signature for request.", log.WithRequestURL(req.URL))
+	h.logger.Debug("Authorization succeeded using HTTP signature for request.", logfields.WithRequestURL(req.URL))
 
 	return ok, actorIRI, nil
 }
@@ -133,7 +135,7 @@ func (h *AuthHandler) ensureActorIsWitnessOrFollower(actorIRI *url.URL) (bool, e
 		}
 
 		if !isWitness {
-			h.logger.Info("Denying access since actor is neither a follower or a witness.", log.WithActorIRI(actorIRI))
+			h.logger.Info("Denying access since actor is neither a follower or a witness.", logfields.WithActorIRI(actorIRI))
 
 			return false, nil
 		}

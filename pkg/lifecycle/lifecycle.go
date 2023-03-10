@@ -10,7 +10,9 @@ import (
 	"errors"
 	"sync/atomic"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/logutil-go/pkg/log"
+
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
@@ -78,7 +80,7 @@ func New(name string, opts ...Opt) *Lifecycle {
 	return &Lifecycle{
 		options: options,
 		name:    name,
-		logger:  log.New(loggerModule, log.WithFields(log.WithServiceName(name))),
+		logger:  log.New(loggerModule, log.WithFields(logfields.WithServiceName(name))),
 	}
 }
 

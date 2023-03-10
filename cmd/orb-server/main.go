@@ -17,9 +17,9 @@ package main
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
 	"github.com/trustbloc/orb/cmd/orb-server/startcmd"
-	"github.com/trustbloc/orb/internal/pkg/log"
 )
 
 var logger = log.New("orb-server")

@@ -17,10 +17,10 @@ import (
 
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/orb"
 	"github.com/spf13/cobra"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	restcommon "github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
 	"github.com/trustbloc/orb/internal/pkg/cmdutil"
-	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/internal/pkg/tlsutil"
 	driverrest "github.com/trustbloc/orb/pkg/driver/restapi"
 	"github.com/trustbloc/orb/pkg/httpserver"

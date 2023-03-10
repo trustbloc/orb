@@ -11,8 +11,9 @@ import (
 	"fmt"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/didanchor"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
@@ -61,7 +62,7 @@ func (s *Store) PutBulk(suffixes []string, areNew []bool, cid string) error {
 		if errors.Is(err, storage.ErrDuplicateKey) {
 			logger.Warn("Failed to add CID to suffixes using the batch speed optimization. "+
 				"This can happen if this Orb server is in a recovery flow. Will retry without the "+
-				"optimization now (will be slower).", log.WithCID(cid), log.WithError(err))
+				"optimization now (will be slower).", logfields.WithCID(cid), log.WithError(err))
 
 			for i, suffix := range suffixes {
 				op := storage.Operation{
@@ -81,7 +82,7 @@ func (s *Store) PutBulk(suffixes []string, areNew []bool, cid string) error {
 		}
 	}
 
-	logger.Debug("Updated latest anchor for suffixes", log.WithCID(cid), log.WithSuffixes(suffixes...))
+	logger.Debug("Updated latest anchor for suffixes", logfields.WithCID(cid), logfields.WithSuffixes(suffixes...))
 
 	return nil
 }
@@ -103,8 +104,8 @@ func (s *Store) GetBulk(suffixes []string) ([]string, error) {
 		}
 	}
 
-	logger.Debug("Retrieved latest anchors for suffixes", log.WithSuffixes(suffixes...),
-		log.WithAnchorURIStrings(anchors...))
+	logger.Debug("Retrieved latest anchors for suffixes", logfields.WithSuffixes(suffixes...),
+		logfields.WithAnchorURIStrings(anchors...))
 
 	return anchors, nil
 }
@@ -122,7 +123,7 @@ func (s *Store) Get(suffix string) (string, error) {
 
 	anchor := string(anchorBytes)
 
-	logger.Debug("Retrieved latest anchor for suffix", log.WithAnchorURIString(anchor), log.WithSuffix(suffix))
+	logger.Debug("Retrieved latest anchor for suffix", logfields.WithAnchorURIString(anchor), logfields.WithSuffix(suffix))
 
 	return anchor, nil
 }

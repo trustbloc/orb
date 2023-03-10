@@ -13,7 +13,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill-amqp/v2/pkg/amqp"
 	"github.com/ThreeDotsLabs/watermill/message"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 )
 
 type publishFunc func(topic string, messages ...*message.Message) error
@@ -42,7 +42,7 @@ func newPublisherPool(connMgr connMgr, maxChannelsPerConn int, cfg *amqp.Config,
 		publish = func(topic string, messages ...*message.Message) error {
 			i := lb.nextIndex()
 
-			logger.Debug("Using publisher at index", log.WithIndex(i))
+			logger.Debug("Using publisher at index", logfields.WithIndex(i))
 
 			return publishers[i].Publish(topic, messages...)
 		}
@@ -107,8 +107,8 @@ func createPublishers(connMgr connMgr, maxChannelsPerConn int, cfg *amqp.Config,
 		publishers = append(publishers, pub)
 	}
 
-	logger.Info("Created publisher connections, each with a channel pool", log.WithTotal(len(publishers)),
-		log.WithAddress(extractEndpoint(newCfg.Connection.AmqpURI)), log.WithSize(newCfg.Publish.ChannelPoolSize))
+	logger.Info("Created publisher connections, each with a channel pool", logfields.WithTotal(len(publishers)),
+		logfields.WithAddress(extractEndpoint(newCfg.Connection.AmqpURI)), logfields.WithSize(newCfg.Publish.ChannelPoolSize))
 
 	return publishers, nil
 }
