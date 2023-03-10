@@ -10,9 +10,10 @@ import (
 	"fmt"
 	"net/url"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"go.uber.org/zap"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/hashlink"
 )
 
@@ -36,8 +37,8 @@ func New(store anchorLinkStore) *Handler {
 // AnchorEventAcknowledged handles a notification of a successful anchor event processed from an Orb server.
 // The given additional references are added to the anchor link store so that they are included in WebFinger responses.
 func (p *Handler) AnchorEventAcknowledged(actor, anchorRef *url.URL, additionalAnchorRefs []*url.URL) error {
-	logger.Info("Anchor event was acknowledged.", log.WithActorIRI(actor),
-		log.WithHashlink(hashlink.ToString(anchorRef)),
+	logger.Info("Anchor event was acknowledged.", logfields.WithActorIRI(actor),
+		logfields.WithHashlink(hashlink.ToString(anchorRef)),
 		zap.String("additional-anchors", hashlink.ToString(additionalAnchorRefs...)))
 
 	links, err := getLinks(anchorRef, additionalAnchorRefs)
@@ -56,8 +57,8 @@ func (p *Handler) AnchorEventAcknowledged(actor, anchorRef *url.URL, additionalA
 // event was undone. The given additional references are removed from the anchor link store so that they
 // are no longer included in WebFinger responses.
 func (p *Handler) UndoAnchorEventAcknowledgement(actor, anchorRef *url.URL, additionalAnchorRefs []*url.URL) error {
-	logger.Info("Anchor event acknowledgement was undone.", log.WithActorIRI(actor),
-		log.WithHashlink(hashlink.ToString(anchorRef)),
+	logger.Info("Anchor event acknowledgement was undone.", logfields.WithActorIRI(actor),
+		logfields.WithHashlink(hashlink.ToString(anchorRef)),
 		zap.String("additional-anchors", hashlink.ToString(additionalAnchorRefs...)))
 
 	links, err := getLinks(anchorRef, additionalAnchorRefs)
@@ -85,7 +86,7 @@ func getLinks(anchorRef *url.URL, additionalAnchorRefs []*url.URL) ([]*url.URL, 
 	for _, hl := range additionalAnchorRefs {
 		hlInfo, err := parser.ParseHashLink(hl.String())
 		if err != nil {
-			logger.Warn("Error parsing hashlink", log.WithHashlinkURI(hl), log.WithError(err))
+			logger.Warn("Error parsing hashlink", logfields.WithHashlinkURI(hl), log.WithError(err))
 
 			continue
 		}

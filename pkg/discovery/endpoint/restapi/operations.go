@@ -19,11 +19,12 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/jose/jwk/jwksupport"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/multiformats/go-multibase"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/document/util"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/hashlink"
@@ -432,7 +433,7 @@ func (o *Operation) writeResponseForResourceRequest(rw http.ResponseWriter, reso
 func (o *Operation) handleDIDOrbQuery(rw http.ResponseWriter, resource string) {
 	anchorInfo, err := o.GetAnchorInfo(resource)
 	if err != nil {
-		logger.Warn("Error getting anchor info", log.WithResource(resource), log.WithError(err))
+		logger.Warn("Error getting anchor info", logfields.WithResource(resource), log.WithError(err))
 
 		writeErrorResponse(rw, http.StatusInternalServerError,
 			fmt.Sprintf("failed to get info on %s: %s", resource, err.Error()))
@@ -509,7 +510,7 @@ func (o *Operation) handleDomainQuery(rw http.ResponseWriter, resource string) {
 			if errors.Is(err, model.ErrResourceNotFound) {
 				writeResponse(rw, resp)
 			} else {
-				logger.Warn("Error retrieving ledger type from VCT", log.WithHRef(logURL), log.WithError(err))
+				logger.Warn("Error retrieving ledger type from VCT", logfields.WithHRef(logURL), log.WithError(err))
 
 				writeErrorResponse(rw, http.StatusInternalServerError, "error retrieving ledger type from VCT")
 			}
@@ -540,11 +541,11 @@ func (o *Operation) handleWebCASQuery(rw http.ResponseWriter, resource string) {
 	_, err := o.cas.Read(cid)
 	if err != nil {
 		if errors.Is(err, orberrors.ErrContentNotFound) {
-			logger.Debug("CAS resource not found", log.WithCID(cid))
+			logger.Debug("CAS resource not found", logfields.WithCID(cid))
 
 			writeErrorResponse(rw, http.StatusNotFound, "resource not found")
 		} else {
-			logger.Warn("Error returning CAS resource", log.WithCID(cid), log.WithError(err))
+			logger.Warn("Error returning CAS resource", logfields.WithCID(cid), log.WithError(err))
 
 			writeErrorResponse(rw, http.StatusInternalServerError, "error retrieving resource")
 		}
@@ -631,14 +632,14 @@ func (o *Operation) appendAlternateDomains(domains []string, anchorURI string) [
 
 	anchorInfo, err := parser.ParseHashLink(anchorURI)
 	if err != nil {
-		logger.Info("Error parsing hashlink for anchor URI", log.WithAnchorURIString(anchorURI), log.WithError(err))
+		logger.Info("Error parsing hashlink for anchor URI", logfields.WithAnchorURIString(anchorURI), log.WithError(err))
 
 		return domains
 	}
 
 	alternates, err := o.anchorStore.GetLinks(anchorInfo.ResourceHash)
 	if err != nil {
-		logger.Info("Error getting alternate links for anchor URI", log.WithAnchorURIString(anchorURI), log.WithError(err))
+		logger.Info("Error getting alternate links for anchor URI", logfields.WithAnchorURIString(anchorURI), log.WithError(err))
 
 		return domains
 	}
@@ -657,13 +658,13 @@ func (o *Operation) appendAlternateAnchorRefs(refs []string, cidOrHash string) [
 	if e != nil {
 		hash = cidOrHash
 	} else if hash != cidOrHash {
-		logger.Debug("Converted CID to multihash", log.WithCID(cidOrHash), log.WithMultihash(hash))
+		logger.Debug("Converted CID to multihash", logfields.WithCID(cidOrHash), logfields.WithMultihash(hash))
 	}
 
 	alternates, err := o.anchorStore.GetLinks(hash)
 	if err != nil {
 		// Not fatal.
-		logger.Warn("Error retrieving additional links for resource", log.WithMultihash(hash), log.WithError(err))
+		logger.Warn("Error retrieving additional links for resource", logfields.WithMultihash(hash), log.WithError(err))
 
 		return refs
 	}
@@ -673,7 +674,7 @@ func (o *Operation) appendAlternateAnchorRefs(refs []string, cidOrHash string) [
 	for _, hl := range alternates {
 		hlInfo, err := parser.ParseHashLink(hl.String())
 		if err != nil {
-			logger.Warn("Error parsing hashlink", log.WithHashlinkURI(hl), log.WithError(err))
+			logger.Warn("Error parsing hashlink", logfields.WithHashlinkURI(hl), log.WithError(err))
 
 			continue
 		}
@@ -696,7 +697,7 @@ func getDomainsFromHashLinks(hashLinks []*url.URL) []string {
 	for _, hl := range hashLinks {
 		hlInfo, err := parser.ParseHashLink(hl.String())
 		if err != nil {
-			logger.Warn("Error parsing hashlink", log.WithHashlinkURI(hl), log.WithError(err))
+			logger.Warn("Error parsing hashlink", logfields.WithHashlinkURI(hl), log.WithError(err))
 
 			continue
 		}
@@ -705,7 +706,7 @@ func getDomainsFromHashLinks(hashLinks []*url.URL) []string {
 			link, err := url.Parse(l)
 			if err != nil {
 				logger.Warn("Error parsing additional anchor link for hash",
-					log.WithLink(l), log.WithHash(hlInfo.ResourceHash), log.WithError(err))
+					logfields.WithLink(l), logfields.WithHash(hlInfo.ResourceHash), log.WithError(err))
 
 				continue
 			}

@@ -10,9 +10,10 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 )
 
 var logger = log.New("protocol-client")
@@ -79,12 +80,12 @@ func (c *Client) Get(genesisTime uint64) (protocol.Version, error) {
 		pv := c.protocols[i]
 		p := pv.Protocol()
 
-		logger.Debug("Checking protocol for genesis time...", log.WithGenesisTime(genesisTime),
-			log.WithSidetreeProtocol(&p))
+		logger.Debug("Checking protocol for genesis time...", logfields.WithGenesisTime(genesisTime),
+			logfields.WithSidetreeProtocol(&p))
 
 		if genesisTime == p.GenesisTime {
-			logger.Debug("Found protocol for version genesis time", log.WithGenesisTime(genesisTime),
-				log.WithSidetreeProtocol(&p))
+			logger.Debug("Found protocol for version genesis time", logfields.WithGenesisTime(genesisTime),
+				logfields.WithSidetreeProtocol(&p))
 
 			return pv, nil
 		}

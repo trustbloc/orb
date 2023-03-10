@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/compression"
@@ -22,7 +23,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/operationparser"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/txnprovider"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/config"
 	ctxcommon "github.com/trustbloc/orb/pkg/context/common"
 	"github.com/trustbloc/orb/pkg/hashlink"
@@ -120,7 +121,7 @@ func formatWebCASURI(uri, serviceURI string) (string, error) {
 	hash, err := hashlink.GetResourceHashFromHashLink(uri)
 	if err != nil {
 		logger.Debug("CAS URI is not a hashlink. Assuming that it's a plain hash.",
-			log.WithURIString(uri), log.WithError(err))
+			logfields.WithURIString(uri), log.WithError(err))
 
 		hash = uri
 	}
@@ -134,7 +135,7 @@ func formatWebCASURI(uri, serviceURI string) (string, error) {
 	// The WebCAS URI will look like this: https:orb.domain1.com:<hash>.
 	casURI := fmt.Sprintf("%s:%s:%s", scheme, host, hash)
 
-	logger.Debug("Adding alternate CAS URI", log.WithURIString(casURI))
+	logger.Debug("Adding alternate CAS URI", logfields.WithURIString(casURI))
 
 	return casURI, nil
 }

@@ -13,9 +13,10 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 )
 
@@ -43,7 +44,7 @@ func NewAcceptListWriter(cfg *Config, mgr acceptListMgr) *AcceptListWriter {
 		endpoint: endpoint,
 		marshal:  json.Marshal,
 		readAll:  io.ReadAll,
-		logger:   log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
+		logger:   log.New(loggerModule, log.WithFields(logfields.WithServiceEndpoint(endpoint))),
 	}
 }
 
@@ -73,7 +74,7 @@ func (h *AcceptListWriter) handlePost(w http.ResponseWriter, req *http.Request) 
 		return
 	}
 
-	h.logger.Debug("Got request to update accept list", log.WithRequestBody(reqBytes))
+	h.logger.Debug("Got request to update accept list", logfields.WithRequestBody(reqBytes))
 
 	requests, err := unmarshalAndValidateRequest(reqBytes)
 	if err != nil {
@@ -113,7 +114,7 @@ func NewAcceptListReader(cfg *Config, mgr acceptListMgr) *AcceptListReader {
 	return &AcceptListReader{
 		mgr:      mgr,
 		endpoint: endpoint,
-		logger:   log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
+		logger:   log.New(loggerModule, log.WithFields(logfields.WithServiceEndpoint(endpoint))),
 		marshal:  json.Marshal,
 	}
 }

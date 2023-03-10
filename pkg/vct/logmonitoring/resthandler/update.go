@@ -13,9 +13,10 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/store/logmonitor"
 )
 
@@ -65,7 +66,7 @@ func (a *UpdateHandler) Handler() common.HTTPRequestHandler {
 func NewUpdateHandler(store logMonitorStore) *UpdateHandler {
 	h := &UpdateHandler{
 		logMonitorStore: store,
-		logger:          log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
+		logger:          log.New(loggerModule, log.WithFields(logfields.WithServiceEndpoint(endpoint))),
 		unmarshal:       json.Unmarshal,
 	}
 
@@ -82,7 +83,7 @@ func (a *UpdateHandler) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	a.logger.Debug("Got request to activate/deactivate log monitors", log.WithRequestBody(reqBytes))
+	a.logger.Debug("Got request to activate/deactivate log monitors", logfields.WithRequestBody(reqBytes))
 
 	request, err := a.unmarshalAndValidateRequest(reqBytes)
 	if err != nil {
@@ -96,7 +97,7 @@ func (a *UpdateHandler) handle(w http.ResponseWriter, req *http.Request) {
 	for _, logURL := range request.Activate {
 		err = a.logMonitorStore.Activate(logURL)
 		if err != nil {
-			a.logger.Error("Error activating log monitoring for log URL", log.WithLogURLString(logURL),
+			a.logger.Error("Error activating log monitoring for log URL", logfields.WithLogURLString(logURL),
 				log.WithError(err))
 
 			writeResponse(a.logger, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
@@ -108,7 +109,7 @@ func (a *UpdateHandler) handle(w http.ResponseWriter, req *http.Request) {
 	for _, logURL := range request.Deactivate {
 		err = a.logMonitorStore.Deactivate(logURL)
 		if err != nil {
-			a.logger.Error("Error de-activating log monitoring for log URL", log.WithLogURLString(logURL), log.WithError(err))
+			a.logger.Error("Error de-activating log monitoring for log URL", logfields.WithLogURLString(logURL), log.WithError(err))
 
 			writeResponse(a.logger, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 

@@ -11,7 +11,9 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/logutil-go/pkg/log"
+
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -116,8 +118,8 @@ func (h *Reference) handle(w http.ResponseWriter, req *http.Request) {
 func (h *Reference) handleReference(w http.ResponseWriter, id *url.URL) {
 	coll, err := h.getReference(id)
 	if err != nil {
-		h.logger.Error("Error retrieving references for object", log.WithReferenceType(string(h.refType)),
-			log.WithObjectIRI(h.ObjectIRI), log.WithError(err))
+		h.logger.Error("Error retrieving references for object", logfields.WithReferenceType(string(h.refType)),
+			logfields.WithObjectIRI(h.ObjectIRI), log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -126,8 +128,8 @@ func (h *Reference) handleReference(w http.ResponseWriter, id *url.URL) {
 
 	collBytes, err := h.marshal(coll)
 	if err != nil {
-		h.logger.Error("Unable to marshal collection for object", log.WithReferenceType(string(h.refType)),
-			log.WithObjectIRI(h.ObjectIRI), log.WithError(err))
+		h.logger.Error("Unable to marshal collection for object", logfields.WithReferenceType(string(h.refType)),
+			logfields.WithObjectIRI(h.ObjectIRI), log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -152,7 +154,7 @@ func (h *Reference) handleReferencePage(w http.ResponseWriter, req *http.Request
 	}
 
 	if err != nil {
-		h.logger.Error("Error retrieving page for object", log.WithObjectIRI(h.ObjectIRI), log.WithError(err))
+		h.logger.Error("Error retrieving page for object", logfields.WithObjectIRI(h.ObjectIRI), log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -161,7 +163,7 @@ func (h *Reference) handleReferencePage(w http.ResponseWriter, req *http.Request
 
 	pageBytes, err := h.marshal(page)
 	if err != nil {
-		h.logger.Error("Unable to marshal page for object", log.WithObjectIRI(h.ObjectIRI), log.WithError(err))
+		h.logger.Error("Unable to marshal page for object", logfields.WithObjectIRI(h.ObjectIRI), log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 

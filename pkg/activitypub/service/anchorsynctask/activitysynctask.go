@@ -14,7 +14,9 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/logutil-go/pkg/log"
+
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
@@ -87,8 +89,8 @@ func Register(cfg Config, taskMgr taskManager, apClient activityPubClient, apSto
 	}
 
 	logger.Info("Registering activity-sync task.",
-		log.WithServiceIRI(cfg.ServiceIRI), log.WithTaskMonitorInterval(interval),
-		log.WithMinAge(minActivityAge))
+		logfields.WithServiceIRI(cfg.ServiceIRI), logfields.WithTaskMonitorInterval(interval),
+		logfields.WithMinAge(minActivityAge))
 
 	taskMgr.RegisterTask(taskName, interval, t.run)
 
@@ -130,12 +132,12 @@ func (m *task) run() {
 			})
 			if err != nil {
 				logger.Warn("Error processing activities from inbox of service",
-					log.WithServiceIRI(serviceIRI), log.WithError(err))
+					logfields.WithServiceIRI(serviceIRI), log.WithError(err))
 			}
 		}
 
 		logger.Debug("Done synchronizing activities with services that are following me.",
-			log.WithTotal(len(followers)))
+			logfields.WithTotal(len(followers)))
 	}
 
 	following, err := m.getServices(store.Following)
@@ -152,11 +154,11 @@ func (m *task) run() {
 			})
 			if err != nil {
 				logger.Warn("Error processing activities from outbox of service",
-					log.WithServiceIRI(serviceIRI), log.WithError(err))
+					logfields.WithServiceIRI(serviceIRI), log.WithError(err))
 			}
 		}
 
-		logger.Debug("Done synchronizing activities with services that I'm following.", log.WithTotal(len(following)))
+		logger.Debug("Done synchronizing activities with services that I'm following.", logfields.WithTotal(len(following)))
 	}
 }
 
@@ -187,8 +189,8 @@ func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vo
 
 		if !shouldSync(a) {
 			logger.Debug("Ignoring activity.",
-				log.WithSource(string(src)), log.WithServiceIRI(serviceIRI), log.WithActivityID(a.ID()),
-				log.WithActivityType(a.Type().String()))
+				logfields.WithSource(string(src)), logfields.WithServiceIRI(serviceIRI), logfields.WithActivityID(a.ID()),
+				logfields.WithActivityType(a.Type().String()))
 
 			page, index = currentPage, it.NextIndex()-1
 
@@ -198,8 +200,8 @@ func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vo
 		if publishedTime := a.Published(); publishedTime != nil {
 			if activityAge := time.Since(*publishedTime); activityAge < m.minActivityAge {
 				logger.Debug("Not syncing activity since it was just added recently.",
-					log.WithSource(string(src)), log.WithServiceIRI(serviceIRI), log.WithActivityID(a.ID()),
-					log.WithActivityType(a.Type().String()), log.WithAge(activityAge), log.WithMinAge(m.minActivityAge))
+					logfields.WithSource(string(src)), logfields.WithServiceIRI(serviceIRI), logfields.WithActivityID(a.ID()),
+					logfields.WithActivityType(a.Type().String()), logfields.WithAge(activityAge), logfields.WithMinAge(m.minActivityAge))
 
 				break
 			}
@@ -220,12 +222,12 @@ func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vo
 	if page.String() != lastSyncedPage.String() || index != lastSyncedIndex {
 		if numProcessed > 0 {
 			logger.Info("Processed missing anchor events ending at page/index.",
-				log.WithSource(string(src)), log.WithServiceIRI(serviceIRI), log.WithTotal(numProcessed),
-				log.WithURL(page), log.WithIndex(index))
+				logfields.WithSource(string(src)), logfields.WithServiceIRI(serviceIRI), logfields.WithTotal(numProcessed),
+				logfields.WithURL(page), logfields.WithIndex(index))
 		}
 
-		logger.Info("Updating last synced page", log.WithSource(string(src)), log.WithServiceIRI(serviceIRI),
-			log.WithURL(page), log.WithIndex(index))
+		logger.Info("Updating last synced page", logfields.WithSource(string(src)), logfields.WithServiceIRI(serviceIRI),
+			logfields.WithURL(page), logfields.WithIndex(index))
 
 		err = m.store.PutLastSyncedPage(serviceIRI, src, page, index)
 		if err != nil {
@@ -233,15 +235,15 @@ func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vo
 		}
 	} else {
 		logger.Debug("Processed missing anchor events ending at page/index.",
-			log.WithSource(string(src)), log.WithServiceIRI(serviceIRI), log.WithTotal(numProcessed),
-			log.WithURL(page), log.WithIndex(index))
+			logfields.WithSource(string(src)), logfields.WithServiceIRI(serviceIRI), logfields.WithTotal(numProcessed),
+			logfields.WithURL(page), logfields.WithIndex(index))
 	}
 
 	return nil
 }
 
 func (m *task) syncActivity(serviceIRI, currentPage *url.URL, a *vocab.ActivityType) (int, error) {
-	logger.Debug("Syncing activity from current page", log.WithActivityID(a.ID()), log.WithURL(currentPage))
+	logger.Debug("Syncing activity from current page", logfields.WithActivityID(a.ID()), logfields.WithURL(currentPage))
 
 	processed, err := m.isProcessed(a)
 	if err != nil {
@@ -249,21 +251,21 @@ func (m *task) syncActivity(serviceIRI, currentPage *url.URL, a *vocab.ActivityT
 	}
 
 	if processed {
-		logger.Debug("Ignoring activity since it has already been processed.", log.WithActivityID(a.ID()),
-			log.WithActivityType(a.Type().String()), log.WithURL(currentPage))
+		logger.Debug("Ignoring activity since it has already been processed.", logfields.WithActivityID(a.ID()),
+			logfields.WithActivityType(a.Type().String()), logfields.WithURL(currentPage))
 
 		return 0, nil
 	}
 
-	logger.Debug("Processing activity.", log.WithActivityID(a.ID()), log.WithActivityType(a.Type().String()),
-		log.WithURL(currentPage))
+	logger.Debug("Processing activity.", logfields.WithActivityID(a.ID()), logfields.WithActivityType(a.Type().String()),
+		logfields.WithURL(currentPage))
 
 	numProcessed, e := m.process(serviceIRI, a)
 	if e != nil {
 		if errors.Is(e, spi.ErrDuplicateAnchorEvent) {
 			logger.Debug("Ignoring activity since it has already been processed.",
-				log.WithActivityID(a.ID()), log.WithActivityType(a.Type().String()),
-				log.WithURL(currentPage), log.WithError(e))
+				logfields.WithActivityID(a.ID()), logfields.WithActivityType(a.Type().String()),
+				logfields.WithURL(currentPage), log.WithError(e))
 
 			return 0, nil
 		}
@@ -277,7 +279,7 @@ func (m *task) syncActivity(serviceIRI, currentPage *url.URL, a *vocab.ActivityT
 func (m *task) process(source *url.URL, a *vocab.ActivityType) (numProcessed int, err error) {
 	switch {
 	case a.Type().Is(vocab.TypeCreate):
-		logger.Debug("Processing create activity", log.WithActivityID(a.ID()))
+		logger.Debug("Processing create activity", logfields.WithActivityID(a.ID()))
 
 		err = m.getHandler().HandleCreateActivity(source, a, false)
 		if err != nil {
@@ -287,7 +289,7 @@ func (m *task) process(source *url.URL, a *vocab.ActivityType) (numProcessed int
 		numProcessed = 1
 
 	case a.Type().Is(vocab.TypeAnnounce):
-		logger.Debug("Processing announce activity", log.WithActivityID(a.ID()))
+		logger.Debug("Processing announce activity", logfields.WithActivityID(a.ID()))
 
 		numProcessed, err = m.getHandler().HandleAnnounceActivity(source, a)
 		if err != nil {
@@ -364,7 +366,7 @@ func (m *task) getLastSyncedPage(serviceIRI *url.URL, src activitySource) (*url.
 	}
 
 	logger.Debug("Last synced page not found for service. Will start at the beginning.",
-		log.WithServiceIRI(serviceIRI), log.WithSource(string(src)))
+		logfields.WithServiceIRI(serviceIRI), logfields.WithSource(string(src)))
 
 	actor, err := m.apClient.GetActor(serviceIRI)
 	if err != nil {
@@ -390,7 +392,7 @@ func (l *progressLogger) Log(numProcessed int, page, currentPage fmt.Stringer) {
 	l.numProcessedInPage += numProcessed
 
 	if l.numProcessedInPage > 0 && page.String() != currentPage.String() {
-		logger.Info("Processed missing anchor events.", log.WithTotal(l.numProcessedInPage), log.WithURL(page))
+		logger.Info("Processed missing anchor events.", logfields.WithTotal(l.numProcessedInPage), logfields.WithURL(page))
 
 		l.numProcessedInPage = 0
 	}

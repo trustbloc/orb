@@ -15,8 +15,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
@@ -81,7 +82,7 @@ func (s *Store) Put(anchorID string, witnesses []*proof.Witness) error {
 			return fmt.Errorf("failed to marshal anchor witness: %w", err)
 		}
 
-		logger.Debug("Adding witness to storage batch", log.WithType(string(w.Type)), log.WithURI(w.URI))
+		logger.Debug("Adding witness to storage batch", logfields.WithType(string(w.Type)), logfields.WithURI(w.URI))
 
 		op := storage.Operation{
 			Key:   uuid.New().String(),
@@ -102,7 +103,7 @@ func (s *Store) Put(anchorID string, witnesses []*proof.Witness) error {
 		return orberrors.NewTransientf("failed to store witnesses for anchorID[%s]: %w", anchorID, err)
 	}
 
-	logger.Debug("Stored witnesses for anchor", log.WithTotal(len(witnesses)), log.WithAnchorURIString(anchorID))
+	logger.Debug("Stored witnesses for anchor", logfields.WithTotal(len(witnesses)), logfields.WithAnchorURIString(anchorID))
 
 	return nil
 }
@@ -130,7 +131,7 @@ func (s *Store) Delete(anchorID string) error {
 	}
 
 	if !ok {
-		logger.Debug("No witnesses to delete for anchor - nothing to do.", log.WithAnchorURIString(anchorID))
+		logger.Debug("No witnesses to delete for anchor - nothing to do.", logfields.WithAnchorURIString(anchorID))
 
 		return nil
 	}
@@ -165,7 +166,7 @@ func (s *Store) Delete(anchorID string) error {
 		return orberrors.NewTransientf("failed to delete witnesses for anchorID[%s]: %w", anchorID, err)
 	}
 
-	logger.Debug("Deleted witnesses for anchor.", log.WithTotal(len(witnessKeys)), log.WithAnchorURIString(anchorID))
+	logger.Debug("Deleted witnesses for anchor.", logfields.WithTotal(len(witnessKeys)), logfields.WithAnchorURIString(anchorID))
 
 	return nil
 }
@@ -232,7 +233,7 @@ func (s *Store) getWitnesses(anchorID string) ([]*proof.Witness, error) {
 		}
 	}
 
-	logger.Debug("Retrieved witnesses for anchor", log.WithTotal(len(witnesses)), log.WithAnchorURIString(anchorID))
+	logger.Debug("Retrieved witnesses for anchor", logfields.WithTotal(len(witnesses)), logfields.WithAnchorURIString(anchorID))
 
 	if len(witnesses) == 0 {
 		return nil, fmt.Errorf("anchorID[%s] not found in the store", anchorID)
@@ -287,7 +288,7 @@ func (s *Store) getProofs(anchorID string) (proofs, error) {
 		}
 	}
 
-	logger.Debug("Retrieved witness proofs for anchor", log.WithTotal(len(proofs)), log.WithAnchorURIString(anchorID))
+	logger.Debug("Retrieved witness proofs for anchor", logfields.WithTotal(len(proofs)), logfields.WithAnchorURIString(anchorID))
 
 	return proofs, nil
 }
@@ -313,7 +314,7 @@ func (s *Store) AddProof(anchorID string, witness *url.URL, p []byte) error {
 	}
 
 	logger.Debug("Successfully stored proof for anchor from witness",
-		log.WithAnchorURIString(anchorID), log.WithWitnessURI(witness), log.WithProof(p))
+		logfields.WithAnchorURIString(anchorID), logfields.WithWitnessURI(witness), logfields.WithProof(p))
 
 	return nil
 }
@@ -360,8 +361,8 @@ func (s *Store) UpdateWitnessSelection(anchorID string, witnesses []*url.URL, se
 
 			updatedNo++
 
-			logger.Debug("Updated witness proof for anchor/witness", log.WithAnchorURIString(anchorID),
-				log.WithWitnessURI(w.URI))
+			logger.Debug("Updated witness proof for anchor/witness", logfields.WithAnchorURIString(anchorID),
+				logfields.WithWitnessURI(w.URI))
 		}
 
 		ok, e = iter.Next()
@@ -429,7 +430,7 @@ func (s *Store) HandleExpiredKeys(keys ...string) error {
 	for _, key := range keys {
 		entryBytes, err := s.store.Get(key)
 		if err != nil {
-			logger.Error("Error getting tags for expired key", log.WithKeyID(key), log.WithError(err))
+			logger.Error("Error getting tags for expired key", logfields.WithKeyID(key), log.WithError(err))
 
 			return nil
 		}
@@ -438,14 +439,14 @@ func (s *Store) HandleExpiredKeys(keys ...string) error {
 
 		err = json.Unmarshal(entryBytes, entry)
 		if err != nil {
-			logger.Error("Failed to unmarshal expired entry for key", log.WithKey(key), log.WithError(err))
+			logger.Error("Failed to unmarshal expired entry for key", logfields.WithKey(key), log.WithError(err))
 
 			continue
 		}
 
 		anchor, err := base64.RawURLEncoding.DecodeString(entry.AnchorID)
 		if err != nil {
-			logger.Error("Failed to decode encoded anchor", log.WithAnchorURIString(entry.AnchorID), log.WithError(err))
+			logger.Error("Failed to decode encoded anchor", logfields.WithAnchorURIString(entry.AnchorID), log.WithError(err))
 
 			return nil
 		}
@@ -458,7 +459,7 @@ func (s *Store) HandleExpiredKeys(keys ...string) error {
 		anchors = append(anchors, a)
 	}
 
-	logger.Error("Failed to process anchors", log.WithAnchorURIStrings(anchors...))
+	logger.Error("Failed to process anchors", logfields.WithAnchorURIStrings(anchors...))
 
 	return nil
 }

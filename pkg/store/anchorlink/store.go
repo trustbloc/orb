@@ -12,8 +12,9 @@ import (
 	"fmt"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/linkset"
 	"github.com/trustbloc/orb/pkg/store"
@@ -55,7 +56,7 @@ func (s *Store) Put(anchorLink *linkset.Link) error {
 		return fmt.Errorf("failed to marshal anchor link: %w", err)
 	}
 
-	logger.Debug("Storing anchor link", log.WithAnchorLink(anchorLinkBytes))
+	logger.Debug("Storing anchor link", logfields.WithAnchorLink(anchorLinkBytes))
 
 	if e := s.store.Put(anchorLink.Anchor().String(), anchorLinkBytes); e != nil {
 		return orberrors.NewTransient(fmt.Errorf("failed to put anchor link: %w", e))
@@ -91,7 +92,7 @@ func (s *Store) Delete(id string) error {
 		return orberrors.NewTransient(fmt.Errorf("failed to delete anchor link id[%s]: %w", id, err))
 	}
 
-	logger.Debug("Deleted anchor link", log.WithAnchorURIString(id))
+	logger.Debug("Deleted anchor link", logfields.WithAnchorURIString(id))
 
 	return nil
 }

@@ -12,9 +12,10 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/store/logmonitor"
 )
@@ -45,7 +46,7 @@ func (r *RetrieveHandler) Handler() common.HTTPRequestHandler {
 func NewRetriever(store logMonitorStore) *RetrieveHandler {
 	return &RetrieveHandler{
 		logMonitorStore: store,
-		logger:          log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
+		logger:          log.New(loggerModule, log.WithFields(logfields.WithServiceEndpoint(endpoint))),
 		marshal:         json.Marshal,
 	}
 }
@@ -61,7 +62,7 @@ func (r *RetrieveHandler) handle(w http.ResponseWriter, req *http.Request) {
 	logs, err := r.getLogs(status)
 	if err != nil {
 		if errors.Is(err, orberrors.ErrContentNotFound) {
-			r.logger.Debug("No logs found for status.", log.WithStatus(status))
+			r.logger.Debug("No logs found for status.", logfields.WithStatus(status))
 
 			writeResponse(r.logger, w, http.StatusNotFound, []byte(notFoundResponse))
 
@@ -84,7 +85,7 @@ func (r *RetrieveHandler) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	r.logger.Debug("Retrieved logs for status.", log.WithStatus(status))
+	r.logger.Debug("Retrieved logs for status.", logfields.WithStatus(status))
 
 	writeResponse(r.logger, w, http.StatusOK, retBytes)
 }

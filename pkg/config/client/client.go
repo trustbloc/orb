@@ -14,8 +14,9 @@ import (
 
 	"github.com/bluele/gcache"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
@@ -52,8 +53,8 @@ func New(cfg storage.Store, opts ...Option) *Client {
 		opt(client)
 	}
 
-	logger.Debug("Creating config store cache", log.WithSize(client.cacheSize),
-		log.WithCacheExpiration(client.cacheExpiry))
+	logger.Debug("Creating config store cache", logfields.WithSize(client.cacheSize),
+		logfields.WithCacheExpiration(client.cacheExpiry))
 
 	client.configCache = gcache.New(client.cacheSize).ARC().
 		Expiration(client.cacheExpiry).
@@ -91,7 +92,7 @@ func (c *Client) get(key string) ([]byte, error) {
 		return nil, orberrors.NewTransientf("get config for key [%s]: %w", key, err)
 	}
 
-	logger.Debug("Loaded data from config store", log.WithKey(key))
+	logger.Debug("Loaded data from config store", logfields.WithKey(key))
 
 	return val, nil
 }

@@ -12,7 +12,9 @@ import (
 	"net/http"
 	"regexp"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/logutil-go/pkg/log"
+
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 )
 
 const loggerModule = "httpserver"
@@ -57,7 +59,7 @@ func NewTokenVerifier(tm tokenManager, endpoint, method string) *TokenVerifier {
 	return &TokenVerifier{
 		endpoint:   endpoint,
 		authTokens: authTokens,
-		logger:     log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
+		logger:     log.New(loggerModule, log.WithFields(logfields.WithServiceEndpoint(endpoint))),
 	}
 }
 
@@ -70,7 +72,7 @@ func (h *TokenVerifier) Verify(req *http.Request) bool {
 		return true
 	}
 
-	h.logger.Debug("Auth tokens required", log.WithAuthTokens(h.authTokens...))
+	h.logger.Debug("Auth tokens required", logfields.WithAuthTokens(h.authTokens...))
 
 	actHdr := req.Header.Get(authHeader)
 	if actHdr == "" {
@@ -81,10 +83,10 @@ func (h *TokenVerifier) Verify(req *http.Request) bool {
 
 	// Compare the header against all tokens. If any match then we allow the request.
 	for _, token := range h.authTokens {
-		h.logger.Debug("Checking token", log.WithAuthToken(token))
+		h.logger.Debug("Checking token", logfields.WithAuthToken(token))
 
 		if subtle.ConstantTimeCompare([]byte(actHdr), []byte(tokenPrefix+token)) == 1 {
-			h.logger.Debug("Found token", log.WithAuthToken(token))
+			h.logger.Debug("Found token", logfields.WithAuthToken(token))
 
 			return true
 		}
@@ -141,15 +143,15 @@ func (m *TokenManager) IsAuthRequired(endpoint, method string) (bool, error) {
 		switch method {
 		case http.MethodGet:
 			if len(def.readTokens) > 0 {
-				m.logger.Debug("Authorization token(s) required", log.WithServiceEndpoint(endpoint),
-					log.WithHTTPMethod(method), log.WithAuthTokens(def.readTokens...))
+				m.logger.Debug("Authorization token(s) required", logfields.WithServiceEndpoint(endpoint),
+					logfields.WithHTTPMethod(method), logfields.WithAuthTokens(def.readTokens...))
 
 				return true, nil
 			}
 		case http.MethodPost:
 			if len(def.writeTokens) > 0 {
-				m.logger.Debug("Authorization token(s) required", log.WithServiceEndpoint(endpoint),
-					log.WithHTTPMethod(method), log.WithAuthTokens(def.writeTokens...))
+				m.logger.Debug("Authorization token(s) required", logfields.WithServiceEndpoint(endpoint),
+					logfields.WithHTTPMethod(method), logfields.WithAuthTokens(def.writeTokens...))
 
 				return true, nil
 			}
@@ -158,7 +160,7 @@ func (m *TokenManager) IsAuthRequired(endpoint, method string) (bool, error) {
 		}
 	}
 
-	m.logger.Debug("Authorization not required", log.WithServiceEndpoint(endpoint), log.WithHTTPMethod(method))
+	m.logger.Debug("Authorization not required", logfields.WithServiceEndpoint(endpoint), logfields.WithHTTPMethod(method))
 
 	return false, nil
 }
@@ -196,8 +198,8 @@ func (m *TokenManager) RequiredAuthTokens(endpoint, method string) ([]string, er
 		break
 	}
 
-	m.logger.Debug("Authorization tokens required", log.WithServiceEndpoint(endpoint),
-		log.WithHTTPMethod(method), log.WithAuthTokens(authTokens...))
+	m.logger.Debug("Authorization tokens required", logfields.WithServiceEndpoint(endpoint),
+		logfields.WithHTTPMethod(method), logfields.WithAuthTokens(authTokens...))
 
 	return authTokens, nil
 }

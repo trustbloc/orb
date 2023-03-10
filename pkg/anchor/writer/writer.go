@@ -18,12 +18,13 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/piprate/json-gold/ld"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
@@ -262,7 +263,7 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 	c.metrics.WriteAnchorStoreTime(time.Since(storeStartTime))
 
 	logger.Debug("Signed and stored anchor object",
-		log.WithCoreIndex(payload.CoreIndex), log.WithAnchorURI(anchorLink.Anchor()))
+		logfields.WithCoreIndex(payload.CoreIndex), logfields.WithAnchorURI(anchorLink.Anchor()))
 
 	// send an offer activity to witnesses (request witnessing anchor credential from non-local witness logs)
 	err = c.postOfferActivity(anchorLink, vcBytes, batchWitnesses)
@@ -416,7 +417,7 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 		return nil, fmt.Errorf("failed to marshal anchor credential[%s] for local witness: %w", vc.ID, err)
 	}
 
-	logger.Debug("Sign credential with local witness", log.WithVerifiableCredential(vcBytes))
+	logger.Debug("Sign credential with local witness", logfields.WithVerifiableCredential(vcBytes))
 
 	witnessStartTime := time.Now()
 	// send anchor credential to local witness log
@@ -470,7 +471,7 @@ func (c *Writer) handle(anchorLinkset *linkset.Linkset) error {
 		return fmt.Errorf("anchor Linkset is empty")
 	}
 
-	logger.Debug("Handling witnessed anchor", log.WithAnchorURI(anchorLink.Anchor()))
+	logger.Debug("Handling witnessed anchor", logfields.WithAnchorURI(anchorLink.Anchor()))
 
 	startTime := time.Now()
 
@@ -488,8 +489,8 @@ func (c *Writer) handle(anchorLinkset *linkset.Linkset) error {
 		return fmt.Errorf("add witnessed anchor[%s] to anchor graph: %w", anchorLink.Anchor(), err)
 	}
 
-	logger.Debug("Publishing anchor", log.WithAnchorURI(anchorLink.Anchor()),
-		log.WithAnchorEventURIString(anchorLinksetHL))
+	logger.Debug("Publishing anchor", logfields.WithAnchorURI(anchorLink.Anchor()),
+		logfields.WithAnchorEventURIString(anchorLinksetHL))
 
 	err = c.anchorPublisher.PublishAnchor(&anchorinfo.AnchorInfo{Hashlink: anchorLinksetHL})
 	if err != nil {
@@ -499,11 +500,11 @@ func (c *Writer) handle(anchorLinkset *linkset.Linkset) error {
 	err = c.deleteTransientData(anchorLink)
 	if err != nil {
 		// this is a clean-up task so no harm if there was an error
-		logger.Warn("Error deleting transient data for anchor", log.WithAnchorURI(anchorLink.Anchor()), log.WithError(err))
+		logger.Warn("Error deleting transient data for anchor", logfields.WithAnchorURI(anchorLink.Anchor()), log.WithError(err))
 	}
 
-	logger.Debug("Posting anchor reference(s) to my followers.", log.WithAnchorURI(anchorLink.Anchor()),
-		log.WithAnchorEventURIString(anchorLinksetHL))
+	logger.Debug("Posting anchor reference(s) to my followers.", logfields.WithAnchorURI(anchorLink.Anchor()),
+		logfields.WithAnchorEventURIString(anchorLinksetHL))
 
 	// announce anchor credential activity to followers
 	err = c.postCreateActivity(anchorLinkset, anchorLinksetHL)
@@ -591,7 +592,7 @@ func (c *Writer) postCreateActivity(anchorLinkset *linkset.Linkset, hl string) e
 		return err
 	}
 
-	logger.Debug("Successfully posted 'Create' activity to my followers", log.WithActivityID(activityID))
+	logger.Debug("Successfully posted 'Create' activity to my followers", logfields.WithActivityID(activityID))
 
 	return nil
 }
@@ -603,7 +604,7 @@ func (c *Writer) postOfferActivity(anchorLink *linkset.Link, localProofBytes []b
 	defer c.metrics.WriteAnchorPostOfferActivityTime(time.Since(postOfferActivityStartTime))
 
 	logger.Debug("Sending anchor linkset to system and batch witnesses",
-		log.WithAnchorURI(anchorLink.Anchor()), log.WithWitnessURIStrings(batchWitnesses...))
+		logfields.WithAnchorURI(anchorLink.Anchor()), logfields.WithWitnessURIStrings(batchWitnesses...))
 
 	selectedWitnessesIRIs, allWitnesses, err := c.getWitnesses(batchWitnesses)
 	if err != nil {
@@ -638,15 +639,15 @@ func (c *Writer) postOfferActivity(anchorLink *linkset.Link, localProofBytes []b
 		return fmt.Errorf("store witnesses: %w", err)
 	}
 
-	logger.Debug("Created 'Offer' activity for anchor", log.WithAnchorURI(anchorLink.Anchor()),
-		log.WithActivityID(activityID))
+	logger.Debug("Created 'Offer' activity for anchor", logfields.WithAnchorURI(anchorLink.Anchor()),
+		logfields.WithActivityID(activityID))
 
 	if len(selectedWitnessesIRIs) == 1 {
 		// The Offer was posted only to the public IRI. This means that it will be persisted
 		// in the ActivityPub Outbox (to be viewed by anyone) but won't be sent to any service.
 		// In this case we can handle the anchor event immediately.
 		logger.Debug("According to witness policy, no witnesses are required for the anchor. "+
-			"Processing the anchor immediately.", log.WithAnchorURI(anchorLink.Anchor()))
+			"Processing the anchor immediately.", logfields.WithAnchorURI(anchorLink.Anchor()))
 
 		if len(localProofBytes) == 0 {
 			return fmt.Errorf("no local proof for anchor [%s]", anchorLink.Anchor())
@@ -712,7 +713,7 @@ func (c *Writer) resolveWitness(ref *operation.Reference) (string, error) {
 			}
 
 			logger.Debug("Resolved anchor origin for operation",
-				log.WithAnchorOrigin(result.AnchorOrigin), log.WithOperationType(string(ref.Type)))
+				logfields.WithAnchorOrigin(result.AnchorOrigin), logfields.WithOperationType(string(ref.Type)))
 
 			anchorOriginObj = result.AnchorOrigin
 		}
@@ -729,7 +730,7 @@ func (c *Writer) resolveWitness(ref *operation.Reference) (string, error) {
 	resolvedWitness := anchorOrigin
 
 	if !docutil.IsDID(anchorOrigin) {
-		logger.Debug("Resolving witness for anchor origin", log.WithAnchorOrigin(anchorOrigin))
+		logger.Debug("Resolving witness for anchor origin", logfields.WithAnchorOrigin(anchorOrigin))
 
 		resolveStartTime := time.Now()
 
@@ -744,7 +745,7 @@ func (c *Writer) resolveWitness(ref *operation.Reference) (string, error) {
 	}
 
 	logger.Debug("Successfully resolved witness for anchor origin",
-		log.WithWitnessURIString(resolvedWitness), log.WithAnchorOrigin(anchorOrigin))
+		logfields.WithWitnessURIString(resolvedWitness), logfields.WithAnchorOrigin(anchorOrigin))
 
 	return resolvedWitness, nil
 }
@@ -781,7 +782,7 @@ func (c *Writer) getWitnesses(batchOpsWitnesses []string) (selectedWitnessesIRI 
 
 	if len(selectedWitnesses) == 0 {
 		logger.Debug("No witnesses were configured. Adding self to witness list.",
-			log.WithWitnessURI(c.apServiceIRI))
+			logfields.WithWitnessURI(c.apServiceIRI))
 
 		hasLog, e := c.WFClient.HasSupportedLedgerType(c.apServiceIRI.String())
 		if e != nil {
@@ -799,8 +800,8 @@ func (c *Writer) getWitnesses(batchOpsWitnesses []string) (selectedWitnessesIRI 
 		_, selectedWitnessesMap = getUniqueWitnesses([]*proof.Witness{witness})
 	}
 
-	logger.Debug("Selected witnesses", log.WithTotal(len(selectedWitnessesIRI)),
-		log.WithWitnessURIs(selectedWitnessesIRI...))
+	logger.Debug("Selected witnesses", logfields.WithTotal(len(selectedWitnessesIRI)),
+		logfields.WithWitnessURIs(selectedWitnessesIRI...))
 
 	return selectedWitnessesIRI, updateWitnessSelectionFlag(witnesses, selectedWitnessesMap), nil
 }
@@ -867,7 +868,7 @@ func (c *Writer) getSystemWitnessesIRI() ([]*url.URL, error) {
 		return nil, fmt.Errorf("failed to read system witnesses from iterator: %w", err)
 	}
 
-	logger.Debug("Configured system witnesses", log.WithWitnessURIs(systemWitnessesIRI...))
+	logger.Debug("Configured system witnesses", logfields.WithWitnessURIs(systemWitnessesIRI...))
 
 	return systemWitnessesIRI, nil
 }
@@ -884,7 +885,7 @@ func (c *Writer) getSystemWitnesses() ([]*proof.Witness, error) {
 		hasLog, innerErr := c.WFClient.HasSupportedLedgerType(systemWitnessIRI.String())
 		if innerErr != nil {
 			logger.Warn("Skipping system witness since an error occurred while determining its ledger types",
-				log.WithWitnessURI(systemWitnessIRI), log.WithError(err))
+				logfields.WithWitnessURI(systemWitnessIRI), log.WithError(err))
 
 			continue
 		}
@@ -917,7 +918,7 @@ func (c *Writer) getBatchWitnesses(batchWitnesses []string) ([]*proof.Witness, e
 		hasLog, err := c.WFClient.HasSupportedLedgerType(batchWitness)
 		if err != nil {
 			logger.Warn("Skipping batch witness since an error occurred while determining its ledger types",
-				log.WithWitnessURIString(batchWitness), log.WithError(err))
+				logfields.WithWitnessURIString(batchWitness), log.WithError(err))
 
 			continue
 		}

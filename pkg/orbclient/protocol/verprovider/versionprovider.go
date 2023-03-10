@@ -10,9 +10,10 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 )
 
 var logger = log.New("client-version-provider")
@@ -75,18 +76,18 @@ func (c *ClientVersionProvider) Current() (protocol.Version, error) {
 
 // Get gets client version based on version time.
 func (c *ClientVersionProvider) Get(versionTime uint64) (protocol.Version, error) {
-	logger.Debug("Available client versions", log.WithTotal(len(c.versions)))
+	logger.Debug("Available client versions", logfields.WithTotal(len(c.versions)))
 
 	for i := len(c.versions) - 1; i >= 0; i-- {
 		cv := c.versions[i]
 		p := cv.Protocol()
 
 		logger.Debug("Checking client version for version genesis time",
-			log.WithGenesisTime(versionTime), log.WithSidetreeProtocol(p))
+			logfields.WithGenesisTime(versionTime), logfields.WithSidetreeProtocol(p))
 
 		if versionTime == p.GenesisTime {
 			logger.Debug("Found client version for version genesis time",
-				log.WithGenesisTime(versionTime), log.WithSidetreeProtocol(p))
+				logfields.WithGenesisTime(versionTime), logfields.WithSidetreeProtocol(p))
 
 			return cv, nil
 		}

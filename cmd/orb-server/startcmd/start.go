@@ -57,6 +57,7 @@ import (
 	jsonld "github.com/piprate/json-gold/ld"
 	"github.com/spf13/cobra"
 	awssvc "github.com/trustbloc/kms/pkg/aws"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/batch"
@@ -68,7 +69,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 
 	"github.com/trustbloc/orb/internal/pkg/ldcontext"
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/internal/pkg/tlsutil"
 	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
@@ -286,8 +287,6 @@ func createStartCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
-			logger.Debug("Running with startup parameters", log.WithParameters(parameters))
 
 			return startOrbServices(parameters)
 		},
@@ -1620,7 +1619,7 @@ func getOrInit(cfg storage.Store, keyID string, v interface{}, initFn func() (in
 		return fmt.Errorf("put config value for %q: %w", keyID, err)
 	}
 
-	logger.Debug("Stored KMS key", log.WithKeyID(keyID), log.WithValue(src))
+	logger.Debug("Stored KMS key", logfields.WithKeyID(keyID), logfields.WithValue(src))
 
 	return getOrInit(cfg, keyID, v, initFn, timeout)
 }
@@ -1795,12 +1794,12 @@ func monitorActivities(activityChan <-chan *vocab.ActivityType, l activityLogger
 		case activity.Type().IsAny(vocab.TypeReject):
 			// Log this as a warning since one of our activities was rejected by another server.
 			l.Warn("Received activity",
-				log.WithActivityID(activity.ID()), log.WithActivityType(activity.Type().String()),
-				log.WithActorIRI(activity.Actor()))
+				logfields.WithActivityID(activity.ID()), logfields.WithActivityType(activity.Type().String()),
+				logfields.WithActorIRI(activity.Actor()))
 		default:
 			l.Debug("Received activity",
-				log.WithActivityID(activity.ID()), log.WithActivityType(activity.Type().String()),
-				log.WithActorIRI(activity.Actor()))
+				logfields.WithActivityID(activity.ID()), logfields.WithActivityType(activity.Type().String()),
+				logfields.WithActorIRI(activity.Actor()))
 		}
 	}
 

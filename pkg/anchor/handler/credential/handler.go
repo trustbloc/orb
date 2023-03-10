@@ -14,9 +14,10 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/piprate/json-gold/ld"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
@@ -75,7 +76,7 @@ func New(anchorPublisher anchorPublisher, casResolver casResolver,
 //nolint:cyclop
 func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorRef, source *url.URL,
 	anchorEvent *vocab.AnchorEventType) error {
-	logger.Debug("Received request for anchor", log.WithActorIRI(actor), log.WithAnchorEventURI(anchorRef))
+	logger.Debug("Received request for anchor", logfields.WithActorIRI(actor), logfields.WithAnchorEventURI(anchorRef))
 
 	var anchorLinksetBytes []byte
 
@@ -121,7 +122,7 @@ func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorRef, source *url.URL
 		attributedTo = actor.String()
 	}
 
-	logger.Info("Processing anchor", log.WithAnchorEventURI(anchorRef))
+	logger.Info("Processing anchor", logfields.WithAnchorEventURI(anchorRef))
 
 	var alternateSources []string
 
@@ -187,11 +188,11 @@ func (h *AnchorEventHandler) ensureParentAnchorsAreProcessed(anchorRef *url.URL,
 		return fmt.Errorf("get unprocessed parent anchors for [%s]: %w", anchorRef, err)
 	}
 
-	logger.Debug("Processing parents of anchor", log.WithTotal(len(unprocessedParents)),
-		log.WithAnchorURI(anchorRef), log.WithParents(unprocessedParents.HashLinks()))
+	logger.Debug("Processing parents of anchor", logfields.WithTotal(len(unprocessedParents)),
+		logfields.WithAnchorURI(anchorRef), logfields.WithParents(unprocessedParents.HashLinks()))
 
 	for _, parentAnchorInfo := range unprocessedParents {
-		logger.Info("Processing parent", log.WithAnchorURI(anchorRef), log.WithParent(parentAnchorInfo.Hashlink))
+		logger.Info("Processing parent", logfields.WithAnchorURI(anchorRef), logfields.WithParent(parentAnchorInfo.Hashlink))
 
 		err = h.processAnchorEvent(parentAnchorInfo)
 		if err != nil {
@@ -207,7 +208,7 @@ func (h *AnchorEventHandler) ensureParentAnchorsAreProcessed(anchorRef *url.URL,
 //
 //nolint: cyclop,goimports
 func (h *AnchorEventHandler) getUnprocessedParentAnchors(hl string, anchorLink *linkset.Link) (anchorInfoSlice, error) {
-	logger.Debug("Getting unprocessed parents of anchor", log.WithAnchorURIString(hl))
+	logger.Debug("Getting unprocessed parents of anchor", logfields.WithAnchorURIString(hl))
 
 	if anchorLink.Related() == nil {
 		return nil, nil
@@ -233,7 +234,7 @@ func (h *AnchorEventHandler) getUnprocessedParentAnchors(hl string, anchorLink *
 	for _, parentHL := range relatedLink.Up() {
 		if containsAnchor(unprocessed, parentHL.String()) {
 			logger.Debug("Not adding parent of anchor to the unprocessed list since it has already been added",
-				log.WithAnchorURIString(hl), log.WithParentURI(parentHL))
+				logfields.WithAnchorURIString(hl), logfields.WithParentURI(parentHL))
 
 			continue
 		}
@@ -248,7 +249,7 @@ func (h *AnchorEventHandler) getUnprocessedParentAnchors(hl string, anchorLink *
 		}
 
 		logger.Debug("Adding parent of anchor event to the unprocessed list",
-			log.WithAnchorEventURIString(hl), log.WithParentURI(parentHL))
+			logfields.WithAnchorEventURIString(hl), logfields.WithParentURI(parentHL))
 
 		// Add the parent to the head of the list since it needs to be processed first.
 		unprocessed = append([]*anchorInfo{info}, unprocessed...)
@@ -266,7 +267,7 @@ func (h *AnchorEventHandler) getUnprocessedParentAnchors(hl string, anchorLink *
 
 func (h *AnchorEventHandler) getUnprocessedParentAnchor(hl string, parentHL *url.URL) (bool, *anchorInfo, error) {
 	logger.Debug("Checking parent of anchor to see if it has been processed",
-		log.WithAnchorURIString(hl), log.WithParentURI(parentHL))
+		logfields.WithAnchorURIString(hl), logfields.WithParentURI(parentHL))
 
 	isProcessed, err := h.isAnchorProcessed(parentHL)
 	if err != nil {
@@ -275,7 +276,7 @@ func (h *AnchorEventHandler) getUnprocessedParentAnchor(hl string, parentHL *url
 
 	if isProcessed {
 		logger.Debug("Parent of anchor was already processed",
-			log.WithAnchorURIString(hl), log.WithParentURI(parentHL))
+			logfields.WithAnchorURIString(hl), logfields.WithParentURI(parentHL))
 
 		return true, nil, nil
 	}

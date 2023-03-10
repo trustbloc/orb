@@ -14,13 +14,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
-
 	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
 	"github.com/trustbloc/orb/internal/pkg/cmdutil"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	aphandler "github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/context/opqueue"
 	"github.com/trustbloc/orb/pkg/datauri"
@@ -1608,7 +1607,7 @@ func getRequestTokens(cmd *cobra.Command) map[string]string {
 		case splitRequestTokenLength:
 			tokens[split[0]] = split[1]
 		default:
-			logger.Warn("Invalid token", log.WithAuthToken(token))
+			logger.Warn("Invalid token", logfields.WithAuthToken(token))
 		}
 	}
 
@@ -1664,7 +1663,7 @@ func getAuthTokenDefinitions(cmd *cobra.Command, flagName, envKey string, defaul
 		return defaultDefs, nil
 	}
 
-	logger.Debug("Auth tokens definition", log.WithAuthTokens(authTokenDefsStr...))
+	logger.Debug("Auth tokens definition", logfields.WithAuthTokens(authTokenDefsStr...))
 
 	var authTokenDefs []*auth.TokenDef
 
@@ -1692,10 +1691,10 @@ func getAuthTokenDefinitions(cmd *cobra.Command, flagName, envKey string, defaul
 		}
 
 		logger.Debug("Adding write token definition for endpoint",
-			log.WithServiceEndpoint(def.EndpointExpression), log.WithAuthTokens(def.WriteTokens...))
+			logfields.WithServiceEndpoint(def.EndpointExpression), logfields.WithAuthTokens(def.WriteTokens...))
 
 		logger.Debug("Adding read token definition for endpoint",
-			log.WithServiceEndpoint(def.EndpointExpression), log.WithAuthTokens(def.ReadTokens...))
+			logfields.WithServiceEndpoint(def.EndpointExpression), logfields.WithAuthTokens(def.ReadTokens...))
 
 		authTokenDefs = append(authTokenDefs, def)
 	}
@@ -1756,7 +1755,7 @@ func getAuthTokens(cmd *cobra.Command, flagName, envKey string, defaultTokens ma
 			return nil, fmt.Errorf("invalid auth token string [%s]: %w", authTokensStr, err)
 		}
 
-		logger.Debug("Adding token", log.WithKey(keyVal[0]), log.WithValue(keyVal[1]))
+		logger.Debug("Adding token", logfields.WithKey(keyVal[0]), logfields.WithValue(keyVal[1]))
 
 		authTokens[keyVal[0]] = keyVal[1]
 	}

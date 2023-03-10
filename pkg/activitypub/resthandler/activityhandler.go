@@ -12,7 +12,9 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/logutil-go/pkg/log"
+
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -144,7 +146,7 @@ func (h *Activities) handleActivities(rw http.ResponseWriter, _ *http.Request, o
 	activities, err := h.getActivities(objectIRI, id, refType)
 	if err != nil {
 		h.logger.Error("Error retrieving references of the given type",
-			log.WithReferenceType(string(h.refType)), log.WithObjectIRI(objectIRI), log.WithError(err))
+			logfields.WithReferenceType(string(h.refType)), logfields.WithObjectIRI(objectIRI), log.WithError(err))
 
 		h.writeResponse(rw, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -154,7 +156,7 @@ func (h *Activities) handleActivities(rw http.ResponseWriter, _ *http.Request, o
 	activitiesCollBytes, err := h.marshal(activities)
 	if err != nil {
 		h.logger.Error("Unable to marshal collection", log.WithError(err),
-			log.WithReferenceType(string(h.refType)), log.WithObjectIRI(objectIRI))
+			logfields.WithReferenceType(string(h.refType)), logfields.WithObjectIRI(objectIRI))
 
 		h.writeResponse(rw, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -186,7 +188,7 @@ func (h *Activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Requ
 
 	if err != nil {
 		h.logger.Error("Error retrieving page for object IRI",
-			log.WithObjectIRI(objectIRI), log.WithError(err))
+			logfields.WithObjectIRI(objectIRI), log.WithError(err))
 
 		h.writeResponse(rw, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -196,7 +198,7 @@ func (h *Activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Requ
 	pageBytes, err := h.marshal(page)
 	if err != nil {
 		h.logger.Error("Unable to marshal page for object IRI",
-			log.WithObjectIRI(objectIRI), log.WithError(err))
+			logfields.WithObjectIRI(objectIRI), log.WithError(err))
 
 		h.writeResponse(rw, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -340,14 +342,14 @@ func (h *Activity) handle(w http.ResponseWriter, req *http.Request) {
 	activity, err := h.activityStore.GetActivity(activityIRI)
 	if err != nil {
 		if errors.Is(err, spi.ErrNotFound) {
-			h.logger.Debug("Activity ID not found", log.WithActivityID(activityIRI))
+			h.logger.Debug("Activity ID not found", logfields.WithActivityID(activityIRI))
 
 			h.writeResponse(w, http.StatusNotFound, []byte(notFoundResponse))
 
 			return
 		}
 
-		h.logger.Error("Unable to retrieve activity", log.WithActivityID(activityIRI), log.WithError(err))
+		h.logger.Error("Unable to retrieve activity", logfields.WithActivityID(activityIRI), log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -356,7 +358,7 @@ func (h *Activity) handle(w http.ResponseWriter, req *http.Request) {
 
 	if !authorized {
 		if !activity.To().Contains(vocab.PublicIRI) {
-			h.logger.Debug("Unauthorized for activity", log.WithActivityID(activityIRI))
+			h.logger.Debug("Unauthorized for activity", logfields.WithActivityID(activityIRI))
 
 			h.writeResponse(w, http.StatusUnauthorized, []byte(unauthorizedResponse))
 
@@ -366,7 +368,7 @@ func (h *Activity) handle(w http.ResponseWriter, req *http.Request) {
 
 	activityBytes, err := h.marshal(activity)
 	if err != nil {
-		h.logger.Error("Unable to marshal activity", log.WithActivityID(activityIRI), log.WithError(err))
+		h.logger.Error("Unable to marshal activity", logfields.WithActivityID(activityIRI), log.WithError(err))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 

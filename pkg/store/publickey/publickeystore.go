@@ -15,8 +15,9 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/signature/verifier"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/store"
 )
 
@@ -63,7 +64,7 @@ func New(p storage.Provider, fetchPublicKey verifiable.PublicKeyFetcher) (*Store
 
 	pkStore.cache = pkCache
 
-	logger.Info("Created public key store", log.WithStoreName(storeName))
+	logger.Info("Created public key store", logfields.WithStoreName(storeName))
 
 	return pkStore, nil
 }
@@ -80,7 +81,7 @@ func (c *Store) GetPublicKey(issuerID, keyID string) (*verifier.PublicKey, error
 
 func (c *Store) get(issuerID, keyID string) (*verifier.PublicKey, error) {
 	logger.Info("Loading public key into cache for issuer",
-		log.WithIssuer(issuerID), log.WithKeyID(keyID))
+		logfields.WithIssuer(issuerID), logfields.WithKeyID(keyID))
 
 	pk, err := c.getFromDB(issuerID, keyID)
 	if err == nil {
@@ -92,7 +93,7 @@ func (c *Store) get(issuerID, keyID string) (*verifier.PublicKey, error) {
 	}
 
 	logger.Info("Public key not found in storage. Fetching public key from server for issuer.",
-		log.WithIssuer(issuerID), log.WithKeyID(keyID))
+		logfields.WithIssuer(issuerID), logfields.WithKeyID(keyID))
 
 	// Public key not found in storage. Retrieve it from the server.
 	pk, err = c.fetchPublicKey(issuerID, keyID)
@@ -105,7 +106,7 @@ func (c *Store) get(issuerID, keyID string) (*verifier.PublicKey, error) {
 	if err != nil {
 		// We couldn't store the public key but this shouldn't result in a client error. Just log a warning.
 		logger.Warn("Error storing public key for issuer",
-			log.WithIssuer(issuerID), log.WithKeyID(keyID), log.WithError(err))
+			logfields.WithIssuer(issuerID), logfields.WithKeyID(keyID), log.WithError(err))
 	}
 
 	return pk, nil
@@ -124,7 +125,7 @@ func (c *Store) getFromDB(issuerID, keyID string) (*verifier.PublicKey, error) {
 			issuerID, keyID, err)
 	}
 
-	logger.Info("Public key found in storage for issuer", log.WithIssuer(issuerID), log.WithKeyID(keyID))
+	logger.Info("Public key found in storage for issuer", logfields.WithIssuer(issuerID), logfields.WithKeyID(keyID))
 
 	pk := &verifier.PublicKey{}
 
@@ -146,7 +147,7 @@ func (c *Store) putToDB(issuerID, keyID string, pk *verifier.PublicKey) error {
 			issuerID, keyID, err)
 	}
 
-	logger.Info("Storing public key for issuer", log.WithIssuer(issuerID), log.WithKeyID(keyID))
+	logger.Info("Storing public key for issuer", logfields.WithIssuer(issuerID), logfields.WithKeyID(keyID))
 
 	err = c.store.Put(key, pkBytes)
 	if err != nil {

@@ -6,12 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 
 package startcmd
 
-import (
-	sidetreelog "github.com/trustbloc/sidetree-core-go/pkg/log"
-	vctlog "github.com/trustbloc/vct/pkg/log"
-
-	"github.com/trustbloc/orb/internal/pkg/log"
-)
+import "github.com/trustbloc/logutil-go/pkg/log"
 
 const (
 	// LogLevelFlagName is the flag name used for setting the default log level.
@@ -40,13 +35,5 @@ func setLogLevels(logger *log.Log, logSpec string) {
 		logger.Warn(logSpecErrorMsg, log.WithError(err))
 
 		log.SetDefaultLevel(log.INFO)
-	}
-
-	if err := sidetreelog.SetSpec(logSpec); err != nil {
-		logger.Warn(logSpecErrorMsg, log.WithError(err))
-	}
-
-	if err := vctlog.SetSpec(logSpec); err != nil {
-		logger.Warn(logSpecErrorMsg, log.WithError(err))
 	}
 }

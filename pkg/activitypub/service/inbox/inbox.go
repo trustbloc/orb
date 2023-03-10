@@ -17,9 +17,10 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/service/inbox/httpsubscriber"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
@@ -90,7 +91,7 @@ func New(cnfg *Config, s store.Store, pubSub pubSub, activityHandler service.Act
 		activityStore:   s,
 		jsonUnmarshal:   json.Unmarshal,
 		metrics:         metrics,
-		logger:          log.New(loggerModule, log.WithFields(log.WithServiceName(cfg.ServiceEndpoint))),
+		logger:          log.New(loggerModule, log.WithFields(logfields.WithServiceName(cfg.ServiceEndpoint))),
 	}
 
 	h.Lifecycle = lifecycle.New(cfg.ServiceEndpoint,
@@ -180,7 +181,7 @@ func (h *Inbox) listen() {
 	h.logger.Debug("Starting message listener")
 
 	for msg := range h.msgChannel {
-		h.logger.Debug("Got new message", log.WithMessageID(msg.UUID), log.WithData(msg.Payload))
+		h.logger.Debug("Got new message", logfields.WithMessageID(msg.UUID), logfields.WithData(msg.Payload))
 
 		h.handle(msg)
 	}
@@ -194,17 +195,17 @@ func (h *Inbox) handle(msg *message.Message) {
 	activity, err := h.handleActivityMsg(msg)
 	if err != nil {
 		if orberrors.IsTransient(err) {
-			h.logger.Warn("Transient error handling message", log.WithMessageID(msg.UUID), log.WithError(err))
+			h.logger.Warn("Transient error handling message", logfields.WithMessageID(msg.UUID), log.WithError(err))
 
 			msg.Nack()
 		} else {
-			h.logger.Warn("Persistent error handling message", log.WithMessageID(msg.UUID), log.WithError(err))
+			h.logger.Warn("Persistent error handling message", logfields.WithMessageID(msg.UUID), log.WithError(err))
 
 			// Ack the message to indicate that it should not be redelivered since this is a persistent error.
 			msg.Ack()
 		}
 	} else {
-		h.logger.Debug("Acking message", log.WithMessageID(msg.UUID), log.WithActivityID(activity.ID()))
+		h.logger.Debug("Acking message", logfields.WithMessageID(msg.UUID), logfields.WithActivityID(activity.ID()))
 
 		msg.Ack()
 
@@ -214,11 +215,11 @@ func (h *Inbox) handle(msg *message.Message) {
 
 func (h *Inbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, error) {
 	h.logger.Debug("Handling activities message",
-		log.WithMessageID(msg.UUID), log.WithData(msg.Payload))
+		logfields.WithMessageID(msg.UUID), logfields.WithData(msg.Payload))
 
 	activity, err := h.unmarshalAndValidateActivity(msg)
 	if err != nil {
-		h.logger.Error("Error validating activity", log.WithError(err), log.WithMessageID(msg.UUID))
+		h.logger.Error("Error validating activity", log.WithError(err), logfields.WithMessageID(msg.UUID))
 
 		return nil, err
 	}
@@ -227,12 +228,12 @@ func (h *Inbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, er
 	if err != nil {
 		if !errors.Is(err, store.ErrNotFound) {
 			h.logger.Error("Error retrieving activity", log.WithError(err),
-				log.WithActivityID(activity.ID()), log.WithMessageID(msg.UUID))
+				logfields.WithActivityID(activity.ID()), logfields.WithMessageID(msg.UUID))
 
 			return nil, err
 		}
 	} else {
-		h.logger.Info("Ignoring duplicate activity", log.WithActivityID(activity.ID()), log.WithMessageID(msg.UUID))
+		h.logger.Info("Ignoring duplicate activity", logfields.WithActivityID(activity.ID()), logfields.WithMessageID(msg.UUID))
 
 		return activity, nil
 	}
@@ -247,15 +248,15 @@ func (h *Inbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, er
 	}
 
 	h.logger.Debug("Handled message. Adding activity to inbox...",
-		log.WithMessageID(msg.UUID), log.WithActivityID(activity.ID()))
+		logfields.WithMessageID(msg.UUID), logfields.WithActivityID(activity.ID()))
 
 	// Don't return an error if we can't store the activity since we've already successfully processed the activity,
 	// and we don't want to reprocess the same message.
 	if e := h.activityStore.AddActivity(activity); e != nil {
-		h.logger.Error("Error storing activity", log.WithError(e), log.WithActivityID(activity.ID()))
+		h.logger.Error("Error storing activity", log.WithError(e), logfields.WithActivityID(activity.ID()))
 	} else if e := h.activityStore.AddReference(store.Inbox, h.ServiceIRI, activity.ID().URL(),
 		store.WithActivityType(activity.Type().Types()[0])); e != nil {
-		h.logger.Error("Error adding reference to activity", log.WithError(e), log.WithActivityID(activity.ID()))
+		h.logger.Error("Error adding reference to activity", log.WithError(e), logfields.WithActivityID(activity.ID()))
 	}
 
 	return activity, err

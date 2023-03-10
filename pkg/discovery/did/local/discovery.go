@@ -10,9 +10,10 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/client/models"
 	"github.com/trustbloc/orb/pkg/document/util"
 )
@@ -52,7 +53,7 @@ func (d *Discovery) RequestDiscovery(did string) error {
 
 	latestCID, err := d.discoverLatestCID(did)
 	if err != nil {
-		logger.Warn("Failed to discover latest CID for DID", log.WithDID(did), log.WithError(err))
+		logger.Warn("Failed to discover latest CID for DID", logfields.WithDID(did), log.WithError(err))
 
 		latestCID, err = d.getCID(did, suffix)
 		if err != nil {
@@ -88,7 +89,7 @@ func (d *Discovery) discoverLatestCID(did string) (string, error) {
 		return "", fmt.Errorf("failed to get endpoints: %w", err)
 	}
 
-	logger.Debug("Discovered latest CID for DID", log.WithDID(did), log.WithAnchorOriginEndpoint(endpoint))
+	logger.Debug("Discovered latest CID for DID", logfields.WithDID(did), logfields.WithAnchorOriginEndpoint(endpoint))
 
 	return endpoint.AnchorURI, nil
 }

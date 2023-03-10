@@ -13,8 +13,9 @@ import (
 	"net/url"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/hashlink"
 	"github.com/trustbloc/orb/pkg/store"
@@ -73,7 +74,7 @@ func (s *Store) PutLinks(links []*url.URL) error {
 			return fmt.Errorf("marshal anchor ref [%s]: %w", link, err)
 		}
 
-		logger.Debug("Storing anchor reference", log.WithAnchorHash(anchorHash), log.WithURI(link))
+		logger.Debug("Storing anchor reference", logfields.WithAnchorHash(anchorHash), logfields.WithURI(link))
 
 		operations[i] = storage.Operation{
 			Key:   getID(link),
@@ -100,7 +101,7 @@ func (s *Store) DeleteLinks(links []*url.URL) error {
 	operations := make([]storage.Operation, len(links))
 
 	for i, link := range links {
-		logger.Debug("Deleting anchor reference", log.WithURI(link))
+		logger.Debug("Deleting anchor reference", logfields.WithURI(link))
 
 		operations[i] = storage.Operation{
 			Key: getID(link),
@@ -117,7 +118,7 @@ func (s *Store) DeleteLinks(links []*url.URL) error {
 
 // GetLinks returns the links for the given anchor hash.
 func (s *Store) GetLinks(anchorHash string) ([]*url.URL, error) {
-	logger.Debug("Retrieving anchor link references for anchor hash", log.WithAnchorHash(anchorHash))
+	logger.Debug("Retrieving anchor link references for anchor hash", logfields.WithAnchorHash(anchorHash))
 
 	var err error
 
@@ -163,7 +164,7 @@ func (s *Store) GetLinks(anchorHash string) ([]*url.URL, error) {
 		}
 	}
 
-	logger.Debug("Returning anchor references for anchor hash", log.WithAnchorHash(anchorHash), log.WithURIs(links...))
+	logger.Debug("Returning anchor references for anchor hash", logfields.WithAnchorHash(anchorHash), logfields.WithURIs(links...))
 
 	return links, nil
 }

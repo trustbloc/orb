@@ -12,9 +12,10 @@ import (
 	"fmt"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/store"
 )
@@ -92,7 +93,7 @@ func (s *Store) Activate(logURL string) error {
 		return fmt.Errorf("failed to marshal log monitor record: %w", err)
 	}
 
-	logger.Debug("Storing log monitor record", log.WithLogMonitor(rec))
+	logger.Debug("Storing log monitor record", logfields.WithLogMonitor(rec))
 
 	indexTag := storage.Tag{
 		Name:  statusIndex,
@@ -128,7 +129,7 @@ func (s *Store) Deactivate(logURL string) error {
 		return fmt.Errorf("failed to deactivate log[%s] monitor: marshall error: %w", logURL, err)
 	}
 
-	logger.Debug("Deactivating log monitor", log.WithURIString(logURL))
+	logger.Debug("Deactivating log monitor", logfields.WithURIString(logURL))
 
 	indexTag := storage.Tag{
 		Name:  statusIndex,
@@ -174,7 +175,7 @@ func (s *Store) Update(logMonitor *LogMonitor) error {
 		return fmt.Errorf("failed to marshal log monitor record: %w", err)
 	}
 
-	logger.Debug("Updating log monitor record", log.WithLogMonitor(logMonitor))
+	logger.Debug("Updating log monitor record", logfields.WithLogMonitor(logMonitor))
 
 	indexTag := storage.Tag{
 		Name:  statusIndex,
@@ -194,7 +195,7 @@ func (s *Store) Delete(logURL string) error {
 		return fmt.Errorf("failed to delete log[%s] monitor: %w", logURL, err)
 	}
 
-	logger.Debug("Deleted log monitor", log.WithURIString(logURL))
+	logger.Debug("Deleted log monitor", logfields.WithURIString(logURL))
 
 	return nil
 }
@@ -249,8 +250,8 @@ func (s *Store) getLogs(status status) ([]*LogMonitor, error) {
 		}
 	}
 
-	logger.Debug("Returning log monitors with status", log.WithStatus(status),
-		log.WithLogMonitors(logMonitors))
+	logger.Debug("Returning log monitors with status", logfields.WithStatus(status),
+		logfields.WithLogMonitors(logMonitors))
 
 	return logMonitors, nil
 }

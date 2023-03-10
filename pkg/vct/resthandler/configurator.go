@@ -13,9 +13,10 @@ import (
 	"net/url"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 )
 
 const (
@@ -62,7 +63,7 @@ func New(cfgStore storage.Store, lmStore logMonitorStore) *LogConfigurator {
 	h := &LogConfigurator{
 		configStore:     cfgStore,
 		logMonitorStore: lmStore,
-		logger:          log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
+		logger:          log.New(loggerModule, log.WithFields(logfields.WithServiceEndpoint(endpoint))),
 		marshal:         json.Marshal,
 	}
 
@@ -114,12 +115,12 @@ func (c *LogConfigurator) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	c.logger.Debug("Stored log URL", log.WithLogURLString(logURLStr))
+	c.logger.Debug("Stored log URL", logfields.WithLogURLString(logURLStr))
 
 	if logURLStr != "" {
 		err = c.logMonitorStore.Activate(logURLStr)
 		if err != nil {
-			c.logger.Error("Error activating log monitoring for log URL", log.WithLogURLString(logURLStr),
+			c.logger.Error("Error activating log monitoring for log URL", logfields.WithLogURLString(logURLStr),
 				log.WithError(err))
 
 			writeResponse(c.logger, w, http.StatusInternalServerError, []byte(internalServerErrorResponse))

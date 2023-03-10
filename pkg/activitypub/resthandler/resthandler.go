@@ -17,7 +17,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
@@ -225,7 +225,7 @@ func (h *handler) paramAsInt(req *http.Request, param string) (int, bool) {
 
 	size, err := strconv.Atoi(values[0])
 	if err != nil {
-		log.InvalidParameterValue(h.logger, param, err)
+		logfields.InvalidParameterValue(h.logger, param, err)
 
 		return 0, false
 	}
@@ -243,7 +243,7 @@ func (h *handler) paramAsBool(req *http.Request, param string) bool {
 
 	b, err := strconv.ParseBool(values[0])
 	if err != nil {
-		log.InvalidParameterValue(h.logger, param, err)
+		logfields.InvalidParameterValue(h.logger, param, err)
 
 		return false
 	}

@@ -13,8 +13,9 @@ import (
 	"net/url"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
@@ -83,7 +84,7 @@ func (m *Manager) Update(acceptType string, additions, deletions []*url.URL) err
 	}
 
 	if len(operations) == 0 {
-		logger.Debug("No new additions or deletions for type.", log.WithAcceptListType(acceptType))
+		logger.Debug("No new additions or deletions for type.", logfields.WithAcceptListType(acceptType))
 
 		return nil
 	}
@@ -94,8 +95,8 @@ func (m *Manager) Update(acceptType string, additions, deletions []*url.URL) err
 	}
 
 	logger.Debug("Successfully updated the accept list",
-		log.WithAcceptListType(acceptType), log.WithURLAdditions(additions...),
-		log.WithURLDeletions(deletions...))
+		logfields.WithAcceptListType(acceptType), logfields.WithURLAdditions(additions...),
+		logfields.WithURLDeletions(deletions...))
 
 	return nil
 }
@@ -184,7 +185,7 @@ func (m *Manager) next(it storage.Iterator, acceptListMap map[string]*spi.Accept
 
 	uri, err := url.Parse(cfg.URI)
 	if err != nil {
-		logger.Warn("Invalid target URI. The item will be ignored.", log.WithTarget(cfg.URI), log.WithError(err))
+		logger.Warn("Invalid target URI. The item will be ignored.", logfields.WithTarget(cfg.URI), log.WithError(err))
 
 		return true, nil
 	}

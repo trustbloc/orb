@@ -11,10 +11,11 @@ import (
 	"sync"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/config"
 	ctxcommon "github.com/trustbloc/orb/pkg/context/common"
 	metricsProvider "github.com/trustbloc/orb/pkg/observability/metrics"
@@ -56,7 +57,7 @@ func (r *Registry) CreateProtocolVersion(version string, casClient cas.Client, c
 		return nil, err
 	}
 
-	logger.Info("Creating protocol version", log.WithVersion(version))
+	logger.Info("Creating protocol version", logfields.WithVersion(version))
 
 	return v.Create(version, casClient, casResolver, opStore, provider, sidetreeCfg, metrics)
 }
@@ -70,7 +71,7 @@ func (r *Registry) Register(version string, factory factory) {
 		panic(fmt.Errorf("protocol version factory [%s] already registered", version))
 	}
 
-	logger.Info("Registering protocol version factory", log.WithVersion(version))
+	logger.Info("Registering protocol version factory", logfields.WithVersion(version))
 
 	r.factories[version] = factory
 }

@@ -12,12 +12,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/context/common"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/client/models"
 	"github.com/trustbloc/orb/pkg/document/util"
@@ -158,7 +159,7 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(
 	if err != nil {
 		logger.Debug(
 			"Resolving locally since there was an error getting anchor origin from local response",
-			log.WithDID(id), log.WithError(err))
+			logfields.WithDID(id), log.WithError(err))
 
 		// this error should never happen - return local response
 		return localResponse
@@ -171,7 +172,7 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(
 		domain, err = r.endpointClient.ResolveDomainForDID(localAnchorOrigin)
 		if err != nil {
 			logger.Debug("Resolving locally since there was an error getting domain",
-				log.WithDID(id), log.WithError(err))
+				logfields.WithDID(id), log.WithError(err))
 
 			return localResponse
 		}
@@ -180,7 +181,7 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(
 
 		if err != nil {
 			logger.Debug("Resolving locally since there was an error getting domain from ipns",
-				log.WithDID(id), log.WithError(err))
+				logfields.WithDID(id), log.WithError(err))
 
 			return localResponse
 		}
@@ -188,11 +189,11 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(
 		domain = localAnchorOrigin
 	}
 
-	logger.Debug("Resolved domain", log.WithDID(id), log.WithDomain(domain))
+	logger.Debug("Resolved domain", logfields.WithDID(id), logfields.WithDomain(domain))
 
 	if domain == r.domain {
 		logger.Debug("Nothing to do since local anchor origin domain equals current domain",
-			log.WithAnchorOrigin(localAnchorOrigin), log.WithDID(id), log.WithDomain(r.domain))
+			logfields.WithAnchorOrigin(localAnchorOrigin), logfields.WithDID(id), logfields.WithDomain(r.domain))
 
 		// nothing to do since DID's anchor origin equals current domain - return local response
 		return localResponse
@@ -201,24 +202,24 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(
 	anchorOriginResponse, err := r.resolveDocumentFromAnchorOrigin(id, localAnchorOrigin)
 	if err != nil {
 		logger.Warn("Resolving locally since there was an error getting local anchor origin",
-			log.WithDID(id), log.WithError(err))
+			logfields.WithDID(id), log.WithError(err))
 
 		return localResponse
 	}
 
-	logger.Debug("Resolution response from anchor origin", log.WithDID(id),
-		log.WithResolutionResult(anchorOriginResponse))
+	logger.Debug("Resolution response from anchor origin", logfields.WithDID(id),
+		logfields.WithResolutionResult(anchorOriginResponse))
 
 	latestAnchorOrigin, err := util.GetAnchorOrigin(anchorOriginResponse.DocumentMetadata)
 	if err != nil {
 		logger.Warn("Resolving locally since there was an error getting remote anchor origin",
-			log.WithDID(id), log.WithError(err))
+			logfields.WithDID(id), log.WithError(err))
 
 		return localResponse
 	}
 
 	if localAnchorOrigin != latestAnchorOrigin {
-		logger.Debug("Resolving locally since local and remote anchor origins don't match", log.WithDID(id))
+		logger.Debug("Resolving locally since local and remote anchor origins don't match", logfields.WithDID(id))
 
 		return localResponse
 	}
@@ -235,7 +236,7 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(
 
 	if len(anchorOriginOps) == 0 {
 		logger.Debug("Resolving locally since anchor origin has no unpublished or additional published operations",
-			log.WithDID(id))
+			logfields.WithDID(id))
 
 		return localResponse
 	}
@@ -248,14 +249,14 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(
 	localResponseWithAnchorOriginOps, err := r.resolveDocumentLocally(id, opts...)
 	if err != nil {
 		logger.Debug("Resolving locally due to error in resolve doc locally with unpublished/additional published ops",
-			log.WithDID(id), log.WithError(err))
+			logfields.WithDID(id), log.WithError(err))
 
 		return localResponse
 	}
 
 	err = checkResponses(anchorOriginResponse, localResponseWithAnchorOriginOps)
 	if err != nil {
-		logger.Debug("Resolving locally due to matching error", log.WithDID(id), log.WithError(err))
+		logger.Debug("Resolving locally due to matching error", logfields.WithDID(id), log.WithError(err))
 
 		return localResponse
 	}
@@ -266,18 +267,18 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(
 func getOperations(id string, metadata document.Metadata) ([]*operation.AnchoredOperation, []*operation.AnchoredOperation) {
 	unpublishedOps, err := util.GetUnpublishedOperationsFromMetadata(metadata)
 	if err != nil {
-		logger.Debug("Unable to get unpublished operations", log.WithDID(id), log.WithError(err))
+		logger.Debug("Unable to get unpublished operations", logfields.WithDID(id), log.WithError(err))
 	} else {
 		logger.Debug("Parsed unpublished from anchor origin",
-			log.WithTotal(len(unpublishedOps)), log.WithDID(id))
+			logfields.WithTotal(len(unpublishedOps)), logfields.WithDID(id))
 	}
 
 	publishedOps, err := util.GetPublishedOperationsFromMetadata(metadata)
 	if err != nil {
-		logger.Debug("Unable to get published operations", log.WithDID(id), log.WithError(err))
+		logger.Debug("Unable to get published operations", logfields.WithDID(id), log.WithError(err))
 	} else {
 		logger.Debug("Parsed published operations from anchor origin",
-			log.WithTotal(len(publishedOps)), log.WithDID(id))
+			logfields.WithTotal(len(publishedOps)), logfields.WithDID(id))
 	}
 
 	return unpublishedOps, publishedOps
@@ -287,13 +288,13 @@ func getAdditionalPublishedOps(id string, localOps,
 	anchorOps []*operation.AnchoredOperation) []*operation.AnchoredOperation {
 	if len(anchorOps) == 0 {
 		logger.Debug("Nothing to check since anchor origin published operations are not provided.",
-			log.WithDID(id))
+			logfields.WithDID(id))
 
 		return nil
 	}
 
 	if len(localOps) == 0 {
-		logger.Debug("Nothing to check since local published operations are not provided.", log.WithDID(id))
+		logger.Debug("Nothing to check since local published operations are not provided.", logfields.WithDID(id))
 
 		return nil
 	}
@@ -402,8 +403,8 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOrigin(id, anchorOrigin string
 			id, endpoint.ResolutionEndpoints, err)
 	}
 
-	logger.Debug("... successfully resolved document from anchor origin", log.WithDID(id),
-		log.WithAnchorOrigin(anchorOrigin), log.WithResolutionResult(anchorOriginResponse))
+	logger.Debug("... successfully resolved document from anchor origin", logfields.WithDID(id),
+		logfields.WithAnchorOrigin(anchorOrigin), logfields.WithResolutionResult(anchorOriginResponse))
 
 	return anchorOriginResponse, nil
 }
@@ -455,7 +456,7 @@ func (r *ResolveHandler) resolveDocumentLocally(id string, opts ...document.Reso
 }
 
 func (r *ResolveHandler) requestDiscovery(did string) {
-	logger.Info("Requesting discovery for DID", log.WithDID(did))
+	logger.Info("Requesting discovery for DID", logfields.WithDID(did))
 
 	requestDiscoveryStartTime := time.Now()
 
@@ -465,7 +466,7 @@ func (r *ResolveHandler) requestDiscovery(did string) {
 
 	err := r.discoveryService.RequestDiscovery(did)
 	if err != nil {
-		logger.Warn("Error while requesting discovery for DID", log.WithDID(did), log.WithError(err))
+		logger.Warn("Error while requesting discovery for DID", logfields.WithDID(did), log.WithError(err))
 	}
 }
 
@@ -503,7 +504,7 @@ func (r *ResolveHandler) verifyCID(id string, rr *document.ResolutionResult) err
 	}
 
 	logger.Debug("Resolved CID doesn't match requested CID in DID - check anchor graph for requested CID",
-		log.WithResolvedCID(resolvedCID), log.WithCID(cidFromID), log.WithDID(id))
+		logfields.WithResolvedCID(resolvedCID), logfields.WithCID(cidFromID), logfields.WithDID(id))
 
 	return r.verifyCIDExistenceInAnchorGraph(cidFromID, resolvedCID, suffix)
 }
@@ -521,8 +522,8 @@ func (r *ResolveHandler) verifyCIDExistenceInAnchorGraph(cid, anchorCID, anchorS
 		}
 	}
 
-	logger.Debug("CID not found in anchor graph starting from cid[%s] and suffix", log.WithCID(cid),
-		log.WithAnchorCID(anchorCID), log.WithSuffix(anchorSuffix))
+	logger.Debug("CID not found in anchor graph starting from cid[%s] and suffix", logfields.WithCID(cid),
+		logfields.WithAnchorCID(anchorCID), logfields.WithSuffix(anchorSuffix))
 
 	// if there is a new CID that the resolver doesn’t know about we should return not found
 	return ErrDocumentNotFound
@@ -558,7 +559,7 @@ func (r *ResolveHandler) getCIDAndSuffix(id string) (string, string, error) {
 		cid = hlInfo.ResourceHash
 	}
 
-	logger.Debug("Returning CID and suffix for DID", log.WithCID(cid), log.WithSuffix(suffix), log.WithDID(id))
+	logger.Debug("Returning CID and suffix for DID", logfields.WithCID(cid), logfields.WithSuffix(suffix), logfields.WithDID(id))
 
 	return cid, suffix, nil
 }

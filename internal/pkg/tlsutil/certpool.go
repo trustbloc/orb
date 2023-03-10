@@ -10,7 +10,9 @@ import (
 	"sync"
 	"sync/atomic"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/logutil-go/pkg/log"
+
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 )
 
 var logger = log.New("tlsutil")
@@ -157,7 +159,7 @@ func loadSystemCertPool(useSystemCertPool bool) (*x509.CertPool, error) {
 		return nil, err
 	}
 
-	logger.Debug("Loaded system cert pool", log.WithSize(len(systemCertPool.Subjects()))) //nolint:staticcheck
+	logger.Debug("Loaded system cert pool", logfields.WithSize(len(systemCertPool.Subjects()))) //nolint:staticcheck
 
 	return systemCertPool, nil
 }

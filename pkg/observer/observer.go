@@ -17,11 +17,12 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/piprate/json-gold/ld"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/graph"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
@@ -218,8 +219,8 @@ func (o *Observer) Publisher() Publisher {
 }
 
 func (o *Observer) handleAnchor(anchor *anchorinfo.AnchorInfo) error {
-	logger.Debug("Observing anchor", log.WithAnchorEventURIString(anchor.Hashlink),
-		log.WithLocalHashlink(anchor.LocalHashlink), log.WithAttributedTo(anchor.AttributedTo))
+	logger.Debug("Observing anchor", logfields.WithAnchorEventURIString(anchor.Hashlink),
+		logfields.WithLocalHashlink(anchor.LocalHashlink), logfields.WithAttributedTo(anchor.AttributedTo))
 
 	startTime := time.Now()
 
@@ -230,16 +231,16 @@ func (o *Observer) handleAnchor(anchor *anchorinfo.AnchorInfo) error {
 	anchorLinkset, err := o.AnchorGraph.Read(anchor.Hashlink)
 	if err != nil {
 		logger.Warn("Failed to get anchor Linkset from anchor graph",
-			log.WithAnchorEventURIString(anchor.Hashlink), log.WithError(err))
+			logfields.WithAnchorEventURIString(anchor.Hashlink), log.WithError(err))
 
 		return err
 	}
 
-	logger.Debug("Successfully read anchor Linkset from anchor graph", log.WithAnchorEventURIString(anchor.Hashlink))
+	logger.Debug("Successfully read anchor Linkset from anchor graph", logfields.WithAnchorEventURIString(anchor.Hashlink))
 
 	for _, anchorLink := range anchorLinkset.Linkset {
 		if err := o.processAnchor(anchor, anchorLink); err != nil {
-			logger.Warn("Error processing anchor", log.WithAnchorEventURIString(anchor.Hashlink), log.WithError(err))
+			logger.Warn("Error processing anchor", logfields.WithAnchorEventURIString(anchor.Hashlink), log.WithError(err))
 
 			return err
 		}
@@ -249,7 +250,7 @@ func (o *Observer) handleAnchor(anchor *anchorinfo.AnchorInfo) error {
 }
 
 func (o *Observer) processDID(did string) error {
-	logger.Debug("Processing out-of-system DID", log.WithDID(did))
+	logger.Debug("Processing out-of-system DID", logfields.WithDID(did))
 
 	startTime := time.Now()
 
@@ -259,22 +260,22 @@ func (o *Observer) processDID(did string) error {
 
 	cidWithHint, suffix, err := getDidParts(did)
 	if err != nil {
-		logger.Warn("Process DID failed", log.WithDID(did), log.WithError(err))
+		logger.Warn("Process DID failed", logfields.WithDID(did), log.WithError(err))
 
 		return err
 	}
 
 	anchors, err := o.AnchorGraph.GetDidAnchors(cidWithHint, suffix)
 	if err != nil {
-		logger.Warn("Process DID failed", log.WithDID(did), log.WithError(err))
+		logger.Warn("Process DID failed", logfields.WithDID(did), log.WithError(err))
 
 		return err
 	}
 
-	logger.Debug("Got anchors for out-of-system DID", log.WithTotal(len(anchors)), log.WithDID(did))
+	logger.Debug("Got anchors for out-of-system DID", logfields.WithTotal(len(anchors)), logfields.WithDID(did))
 
 	for _, anchor := range anchors {
-		logger.Debug("Processing anchor for out-of-system DID", log.WithAnchorCID(anchor.CID), log.WithDID(did))
+		logger.Debug("Processing anchor for out-of-system DID", logfields.WithAnchorCID(anchor.CID), logfields.WithDID(did))
 
 		if err := o.processAnchor(
 			&anchorinfo.AnchorInfo{Hashlink: anchor.CID},
@@ -284,7 +285,7 @@ func (o *Observer) processDID(did string) error {
 				return fmt.Errorf("process out-of-system anchor [%s]: %w", anchor.CID, err)
 			}
 
-			logger.Warn("Ignoring anchor for DID", log.WithAnchorCID(anchor.CID), log.WithDID(did), log.WithError(err))
+			logger.Warn("Ignoring anchor for DID", logfields.WithAnchorCID(anchor.CID), logfields.WithDID(did), log.WithError(err))
 
 			continue
 		}
@@ -307,8 +308,8 @@ func getDidParts(did string) (cid, suffix string, err error) {
 //nolint:funlen,cyclop
 func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 	anchorLink *linkset.Link, suffixes ...string) error {
-	logger.Debug("Processing anchor", log.WithAnchorEventURIString(anchor.Hashlink),
-		log.WithAttributedTo(anchor.AttributedTo), log.WithSuffixes(suffixes...))
+	logger.Debug("Processing anchor", logfields.WithAnchorEventURIString(anchor.Hashlink),
+		logfields.WithAttributedTo(anchor.AttributedTo), logfields.WithSuffixes(suffixes...))
 
 	anchorPayload, err := o.AnchorLinksetBuilder.GetPayloadFromAnchorLink(anchorLink)
 	if err != nil {
@@ -360,8 +361,8 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 		AlternateSources:     anchor.AlternateSources,
 	}
 
-	logger.Debug("Processing anchor", log.WithAnchorEventURIString(anchor.Hashlink),
-		log.WithCoreIndex(anchorPayload.CoreIndex))
+	logger.Debug("Processing anchor", logfields.WithAnchorEventURIString(anchor.Hashlink),
+		logfields.WithCoreIndex(anchorPayload.CoreIndex))
 
 	numProcessed, err := v.TransactionProcessor().Process(sidetreeTxn, suffixes...)
 	if err != nil {
@@ -379,7 +380,7 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 
 		if processed {
 			logger.Info("Ignoring anchor event since it has already been processed",
-				log.WithAnchorEventURIString(anchor.Hashlink))
+				logfields.WithAnchorEventURIString(anchor.Hashlink))
 
 			return nil
 		}
@@ -388,7 +389,7 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 			"anchor were already processed from a duplicate anchor event) but the anchor event is missing "+
 			"from storage. The anchor event will be processed (again) which may result in some duplicate key warnings "+
 			"from the DB, but this shouldn't be a problem since those duplicates will be ignored.",
-			log.WithAnchorEventURIString(anchor.Hashlink))
+			logfields.WithAnchorEventURIString(anchor.Hashlink))
 	}
 
 	// update global did/anchor references
@@ -399,8 +400,8 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 		return fmt.Errorf("failed updating did anchor references for anchor credential[%s]: %w", anchor.Hashlink, err)
 	}
 
-	logger.Info("Successfully processed DIDs in anchor", log.WithTotal(int(anchorPayload.OperationCount)),
-		log.WithAnchorEventURIString(anchor.Hashlink), log.WithCoreIndex(anchorPayload.CoreIndex))
+	logger.Info("Successfully processed DIDs in anchor", logfields.WithTotal(int(anchorPayload.OperationCount)),
+		logfields.WithAnchorEventURIString(anchor.Hashlink), logfields.WithCoreIndex(anchorPayload.CoreIndex))
 
 	// Post a 'Like' activity to the originator of the anchor credential.
 	err = o.saveAnchorLinkAndPostLikeActivity(anchor)
@@ -426,7 +427,7 @@ func (o *Observer) setupProofMonitoring(vc *verifiable.Credential) {
 		createdTime, err := time.Parse(time.RFC3339, created)
 		if err != nil {
 			logger.Error("Failed to setup monitoring for anchor credential at proof domain.",
-				log.WithVerifiableCredentialID(vc.ID), log.WithDomain(domain), log.WithError(err))
+				logfields.WithVerifiableCredentialID(vc.ID), logfields.WithDomain(domain), log.WithError(err))
 
 			continue
 		}
@@ -437,10 +438,10 @@ func (o *Observer) setupProofMonitoring(vc *verifiable.Credential) {
 			// witness proofs and, if one of the witness domains is down, it should not prevent the
 			// anchor from being processed.
 			logger.Error("Failed to setup monitoring for anchor credential at proof domain",
-				log.WithVerifiableCredentialID(vc.ID), log.WithDomain(domain), log.WithError(err))
+				logfields.WithVerifiableCredentialID(vc.ID), logfields.WithDomain(domain), log.WithError(err))
 		} else {
 			logger.Debug("Successfully setup monitoring for anchor credential at proof domain",
-				log.WithVerifiableCredentialID(vc.ID), log.WithDomain(domain))
+				logfields.WithVerifiableCredentialID(vc.ID), logfields.WithDomain(domain))
 		}
 	}
 }
@@ -455,12 +456,12 @@ func (o *Observer) saveAnchorLinkAndPostLikeActivity(anchor *anchorinfo.AnchorIn
 	err = o.saveAnchorHashlink(refURL)
 	if err != nil {
 		// Not fatal.
-		logger.Warn("Error saving anchor link", log.WithAnchorEventURI(refURL), log.WithError(err))
+		logger.Warn("Error saving anchor link", logfields.WithAnchorEventURI(refURL), log.WithError(err))
 	}
 
 	if anchor.AttributedTo == "" {
 		logger.Debug("Not posting 'Like' activity since no attributedTo ID was specified for anchor",
-			log.WithAnchorEventURI(refURL))
+			logfields.WithAnchorEventURI(refURL))
 
 		return nil
 	}
@@ -485,8 +486,8 @@ func (o *Observer) saveAnchorLinkAndPostLikeActivity(anchor *anchorinfo.AnchorIn
 		}
 
 		logger.Debug("Also posting a 'Like' to the origin of this activity",
-			log.WithOriginActorID(originActorIRI), log.WithTargetIRI(originServiceEndpoint),
-			log.WithAttributedTo(anchor.AttributedTo))
+			logfields.WithOriginActorID(originActorIRI), logfields.WithTargetIRI(originServiceEndpoint),
+			logfields.WithAttributedTo(anchor.AttributedTo))
 
 		to = append(to, originServiceEndpoint)
 	}
@@ -520,8 +521,8 @@ func (o *Observer) doPostLikeActivity(to []*url.URL, refURL *url.URL, result *vo
 		return fmt.Errorf("post like: %w", err)
 	}
 
-	logger.Debug("Posted a 'Like' activity for anchor event", log.WithTargetIRIs(to...),
-		log.WithAnchorEventURI(refURL))
+	logger.Debug("Posted a 'Like' activity for anchor event", logfields.WithTargetIRIs(to...),
+		logfields.WithAnchorEventURI(refURL))
 
 	return nil
 }
@@ -532,8 +533,8 @@ func (o *Observer) resolveActorFromHashlink(anchorRef string) (actorID string, e
 		return "", fmt.Errorf("resolve anchor: %w", err)
 	}
 
-	logger.Debug("Retrieved anchor", log.WithAnchorEventURIString(anchorRef),
-		log.WithAnchorLinkset(anchorLinksetBytes))
+	logger.Debug("Retrieved anchor", logfields.WithAnchorEventURIString(anchorRef),
+		logfields.WithAnchorLinkset(anchorLinksetBytes))
 
 	anchorLinkset := &linkset.Linkset{}
 
@@ -572,7 +573,7 @@ func (o *Observer) saveAnchorHashlink(ref *url.URL) error {
 		return fmt.Errorf("put anchor link [%s]: %w", ref, err)
 	}
 
-	logger.Debug("Saved anchor link", log.WithAnchorEventURI(ref))
+	logger.Debug("Saved anchor link", logfields.WithAnchorEventURI(ref))
 
 	return nil
 }

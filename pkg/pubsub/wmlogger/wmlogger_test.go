@@ -13,8 +13,8 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/pubsub/wmlogger/mocks"
 )
 

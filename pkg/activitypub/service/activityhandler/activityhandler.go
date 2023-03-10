@@ -13,7 +13,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/logutil-go/pkg/log"
+
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/client"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
@@ -87,7 +89,7 @@ func newHandler(cfg *Config, s store.Store, activityPubClient activityPubClient,
 		undoFollow:        undoFollow,
 		undoInviteWitness: undoInviteWitness,
 		undoLike:          undoLike,
-		logger:            log.New(loggerModule, log.WithFields(log.WithServiceName(cfg.ServiceName))),
+		logger:            log.New(loggerModule, log.WithFields(logfields.WithServiceName(cfg.ServiceName))),
 	}
 
 	h.Lifecycle = lifecycle.New(cfg.ServiceName, lifecycle.WithStop(h.stop))
@@ -120,7 +122,7 @@ func (h *handler) Subscribe() <-chan *vocab.ActivityType {
 }
 
 func (h *handler) handleUndoActivity(undo *vocab.ActivityType) error {
-	h.logger.Debug("Handling 'Undo' activity", log.WithActivityID(undo.ID()))
+	h.logger.Debug("Handling 'Undo' activity", logfields.WithActivityID(undo.ID()))
 
 	if undo.Actor() == nil {
 		return orberrors.NewBadRequest(fmt.Errorf("no actor specified in 'Undo' activity"))

@@ -13,9 +13,10 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
@@ -68,7 +69,7 @@ func (h *Outbox) Handler() common.HTTPRequestHandler {
 func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 	ok, _, err := h.Authorize(req)
 	if err != nil {
-		h.logger.Error("Error authorizing request", log.WithError(err), log.WithRequestURL(req.URL))
+		h.logger.Error("Error authorizing request", log.WithError(err), logfields.WithRequestURL(req.URL))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
@@ -76,7 +77,7 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if !ok {
-		h.logger.Info("Unauthorized", log.WithRequestURL(req.URL))
+		h.logger.Info("Unauthorized", logfields.WithRequestURL(req.URL))
 
 		h.writeResponse(w, http.StatusUnauthorized, []byte(unauthorizedResponse))
 
@@ -85,14 +86,14 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 
 	activityBytes, err := io.ReadAll(req.Body)
 	if err != nil {
-		h.logger.Error("Error reading request body", log.WithError(err), log.WithRequestURL(req.URL))
+		h.logger.Error("Error reading request body", log.WithError(err), logfields.WithRequestURL(req.URL))
 
 		h.writeResponse(w, http.StatusInternalServerError, []byte(internalServerErrorResponse))
 
 		return
 	}
 
-	h.logger.Debug("Posting activity", log.WithData(activityBytes))
+	h.logger.Debug("Posting activity", logfields.WithData(activityBytes))
 
 	activity, err := h.unmarshalAndValidateActivity(activityBytes)
 	if err != nil {
@@ -157,7 +158,7 @@ func (h *Outbox) authorizeActor(actorIRI *url.URL) (bool, error) {
 
 	// Ensure that the actor is the local service.
 	if actorIRI.String() != h.ObjectIRI.String() {
-		h.logger.Info("Denying access to actor to post to the outbox", log.WithActorIRI(actorIRI))
+		h.logger.Info("Denying access to actor to post to the outbox", logfields.WithActorIRI(actorIRI))
 
 		return false, nil
 	}

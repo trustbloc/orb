@@ -10,9 +10,10 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 )
@@ -39,7 +40,7 @@ type authTokenManager interface {
 // NewHandlerWrapper returns a new 'authenticated' handler. It verifies both tokens and signatures before proceeding.
 func NewHandlerWrapper(handler common.HTTPHandler, authCfg *resthandler.Config, s spi.Store,
 	verifier signatureVerifier, tm authTokenManager) *HandlerWrapper {
-	logger := log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(handler.Path())))
+	logger := log.New(loggerModule, log.WithFields(logfields.WithServiceEndpoint(handler.Path())))
 
 	ah := &HandlerWrapper{
 		resolver:      handler,
@@ -49,7 +50,7 @@ func NewHandlerWrapper(handler common.HTTPHandler, authCfg *resthandler.Config, 
 
 	ah.AuthHandler = resthandler.NewAuthHandler(authCfg, handler.Path(), handler.Method(), s, verifier, tm,
 		func(actorIRI *url.URL) (bool, error) {
-			logger.Debug("Authorized actor", log.WithActorIRI(actorIRI))
+			logger.Debug("Authorized actor", logfields.WithActorIRI(actorIRI))
 
 			return true, nil
 		})
@@ -75,7 +76,7 @@ func (o *HandlerWrapper) Handler() common.HTTPRequestHandler {
 func (o *HandlerWrapper) handler(rw http.ResponseWriter, req *http.Request) {
 	ok, _, err := o.Authorize(req)
 	if err != nil {
-		o.logger.Error("Error authorizing request", log.WithRequestURL(req.URL), log.WithError(err))
+		o.logger.Error("Error authorizing request", logfields.WithRequestURL(req.URL), log.WithError(err))
 
 		rw.WriteHeader(http.StatusInternalServerError)
 
@@ -87,7 +88,7 @@ func (o *HandlerWrapper) handler(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if !ok {
-		o.logger.Info("Request is unauthorized", log.WithRequestURL(req.URL))
+		o.logger.Info("Request is unauthorized", logfields.WithRequestURL(req.URL))
 
 		rw.WriteHeader(http.StatusUnauthorized)
 
@@ -98,7 +99,7 @@ func (o *HandlerWrapper) handler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	o.logger.Debug("Request is authorized", log.WithRequestURL(req.URL))
+	o.logger.Debug("Request is authorized", logfields.WithRequestURL(req.URL))
 
 	o.handleRequest(rw, req)
 }

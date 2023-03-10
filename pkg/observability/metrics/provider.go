@@ -9,7 +9,7 @@ package metrics
 import (
 	"time"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/logutil-go/pkg/log"
 )
 
 // Logger used by different metrics provider.

@@ -13,8 +13,9 @@ import (
 	"strings"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/builder"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
@@ -160,7 +161,7 @@ func (g *Generator) CreateContentObject(payload *subject.Payload) (vocab.Documen
 }
 
 func newItem(value *subject.SuffixAnchor) (*linkset.Item, error) {
-	logger.Debug("Creating new linkset item", log.WithSuffix(value.Suffix), log.WithAnchorURIString(value.Anchor))
+	logger.Debug("Creating new linkset item", logfields.WithSuffix(value.Suffix), logfields.WithAnchorURIString(value.Anchor))
 
 	if value.Anchor == "" {
 		hrefURI, e := url.Parse(fmt.Sprintf("%s:%s:%s", multihashPrefix, unpublishedLabel, value.Suffix))
@@ -285,7 +286,7 @@ func (g *Generator) ValidateAnchorCredential(vc *verifiable.Credential, contentB
 			s.Anchor, anchorLink.Anchor())
 	}
 
-	logger.Debug("Anchor credential subject is valid", log.WithVerifiableCredentialID(vc.ID))
+	logger.Debug("Anchor credential subject is valid", logfields.WithVerifiableCredentialID(vc.ID))
 
 	return nil
 }
@@ -320,7 +321,7 @@ func getPreviousAnchorForResource(suffix, res string, previous []*url.URL) (*sub
 			continue
 		}
 
-		logger.Debug("Found previous anchor for suffix", log.WithAnchorURI(prev), log.WithSuffix(suffix))
+		logger.Debug("Found previous anchor for suffix", logfields.WithAnchorURI(prev), logfields.WithSuffix(suffix))
 
 		return &subject.SuffixAnchor{Suffix: suffix, Anchor: prev.String()}, nil
 	}

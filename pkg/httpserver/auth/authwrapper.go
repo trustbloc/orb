@@ -9,9 +9,10 @@ package auth
 import (
 	"net/http"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 )
 
 const unauthorizedResponse = "Unauthorized.\n"
@@ -31,7 +32,7 @@ type HandlerWrapper struct {
 // NewHandlerWrapper returns a handler that first performs bearer token authorization and, if authorized,
 // invokes the wrapped handler.
 func NewHandlerWrapper(handler common.HTTPHandler, tm tokenManager) *HandlerWrapper {
-	logger := log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(handler.Path())))
+	logger := log.New(loggerModule, log.WithFields(logfields.WithServiceEndpoint(handler.Path())))
 
 	return &HandlerWrapper{
 		verifier:      NewTokenVerifier(tm, handler.Path(), handler.Method()),

@@ -16,7 +16,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/logutil-go/pkg/log"
+
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
@@ -100,8 +102,8 @@ func (h *Resolver) Resolve(_ *url.URL, hashWithPossibleHint string, data []byte)
 		return data, localHL, nil
 	}
 
-	logger.Debug("Resolving...", log.WithKey(hashWithPossibleHint), log.WithHash(resourceHash),
-		log.WithDomain(domain), log.WithLinks(links...))
+	logger.Debug("Resolving...", logfields.WithKey(hashWithPossibleHint), logfields.WithHash(resourceHash),
+		logfields.WithDomain(domain), logfields.WithLinks(links...))
 
 	casLinks, ipfsLinks := separateLinks(links)
 
@@ -207,7 +209,7 @@ func separateLinks(links []string) ([]string, []string) {
 		case strings.HasPrefix(link, ipfsPrefix):
 			ipfsLinks = append(ipfsLinks, link)
 		default:
-			logger.Debug("Ignoring metadata link during CAS resolution", log.WithLink(link))
+			logger.Debug("Ignoring metadata link during CAS resolution", logfields.WithLink(link))
 		}
 	}
 
@@ -227,7 +229,7 @@ func (h *Resolver) getAndStoreDataFromDomain(domain, resourceHash string) ([]byt
 	}
 
 	logger.Debug("Successfully retrieved data for resource hash from HTTP(S) domain",
-		log.WithHash(resourceHash), log.WithDomain(domain))
+		logfields.WithHash(resourceHash), logfields.WithDomain(domain))
 
 	return dataFromRemote, localHL, nil
 }
@@ -307,7 +309,7 @@ func (h *Resolver) storeLocallyAndVerifyHash(data []byte, resourceHash string) (
 	}
 
 	logger.Debug("Successfully stored data into CAS",
-		log.WithHash(resourceHash), log.WithHashlink(newHLFromLocalCAS), log.WithCASData(data))
+		logfields.WithHash(resourceHash), logfields.WithHashlink(newHLFromLocalCAS), logfields.WithCASData(data))
 
 	newResourceHash, err := hashlink.GetResourceHashFromHashLink(newHLFromLocalCAS)
 	if err != nil {
@@ -354,8 +356,8 @@ func (w *WebCASResolver) Resolve(domain, cid string) ([]byte, error) {
 			"WebCAS endpoint: %w", err)
 	}
 
-	logger.Debug("Successfully retrieved data for rom WebCAS", log.WithCID(cid),
-		log.WithDomain(domain), log.WithRequestURL(webCASURL))
+	logger.Debug("Successfully retrieved data for rom WebCAS", logfields.WithCID(cid),
+		logfields.WithDomain(domain), logfields.WithRequestURL(webCASURL))
 
 	return data, nil
 }

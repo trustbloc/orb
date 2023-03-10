@@ -11,7 +11,9 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/logutil-go/pkg/log"
+
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
@@ -92,7 +94,7 @@ func (c *Inspector) CheckPolicy(anchorID string) error {
 // postOfferActivity creates and posts offer activity (requests witnessing of anchor credential).
 func (c *Inspector) postOfferActivity(anchorLink *linkset.Link, witnessesIRI []*url.URL) error {
 	logger.Debug("Sending anchor to additional witnesses",
-		log.WithAnchorURI(anchorLink.Anchor()), log.WithWitnessURIs(witnessesIRI...))
+		logfields.WithAnchorURI(anchorLink.Anchor()), logfields.WithWitnessURIs(witnessesIRI...))
 
 	anchorLinksetDoc, err := vocab.MarshalToDoc(linkset.New(anchorLink))
 	if err != nil {
@@ -117,8 +119,8 @@ func (c *Inspector) postOfferActivity(anchorLink *linkset.Link, witnessesIRI []*
 		return fmt.Errorf("failed to post additional offer for anchor[%s]: %w", anchorLink.Anchor(), err)
 	}
 
-	logger.Info("Created additional 'Offer' activity for anchor", log.WithAnchorURI(anchorLink.Anchor()),
-		log.WithActivityID(activityID), log.WithWitnessURIs(witnessesIRI...))
+	logger.Info("Created additional 'Offer' activity for anchor", logfields.WithAnchorURI(anchorLink.Anchor()),
+		logfields.WithActivityID(activityID), logfields.WithWitnessURIs(witnessesIRI...))
 
 	return nil
 }
@@ -144,7 +146,7 @@ func (c *Inspector) getAdditionalWitnesses(anchorID string) ([]*url.URL, error) 
 				// something went wrong with this selected witness - no proof provided
 				logger.Info("Witness did not return proof for anchor within the 'in-process' grace period. "+
 					"This witness will be ignored during re-selection of witnesses.",
-					log.WithWitnessURI(w.URI), log.WithAnchorURIString(anchorID))
+					logfields.WithWitnessURI(w.URI), logfields.WithAnchorURIString(anchorID))
 
 				excludeWitness := &proof.Witness{
 					Type:     w.Type,
@@ -188,8 +190,8 @@ func (c *Inspector) getAdditionalWitnesses(anchorID string) ([]*url.URL, error) 
 		return nil, fmt.Errorf("update witness selection flag for anchorID[%s]: %w", anchorID, err)
 	}
 
-	logger.Debug("Selected witnesses for anchor", log.WithTotal(len(newlySelectedWitnessesIRI)),
-		log.WithAnchorURIString(anchorID), log.WithWitnessURIs(newlySelectedWitnessesIRI...))
+	logger.Debug("Selected witnesses for anchor", logfields.WithTotal(len(newlySelectedWitnessesIRI)),
+		logfields.WithAnchorURIString(anchorID), logfields.WithWitnessURIs(newlySelectedWitnessesIRI...))
 
 	return additionalWitnessesIRI, nil
 }

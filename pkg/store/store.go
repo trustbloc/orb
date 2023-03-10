@@ -14,12 +14,13 @@ import (
 
 	"github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	mongoopts "go.mongodb.org/mongo-driver/mongo/options"
 	"go.uber.org/zap"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 )
 
 var logger = log.New("store")
@@ -68,7 +69,7 @@ func newVendorStore(provider storage.Provider, store storage.Store,
 		return nil, false, nil
 	}
 
-	logger.Info("Using MongoDB optimized interface", log.WithStoreName(namespace))
+	logger.Info("Using MongoDB optimized interface", logfields.WithStoreName(namespace))
 
 	ms := newMongoDBWrapper(namespace, mongoDBProvider, store)
 
@@ -123,8 +124,8 @@ func (s *mongoDBWrapper) createIndexes(tags []TagGroup) error {
 	}
 
 	for _, tagGroup := range tags {
-		logger.Info("Creating MongoDB indexes", log.WithStoreName(s.namespace),
-			zap.Inline(log.NewObjectMarshaller("tags", tagGroup)))
+		logger.Info("Creating MongoDB indexes", logfields.WithStoreName(s.namespace),
+			zap.Inline(logfields.NewObjectMarshaller("tags", tagGroup)))
 
 		keys := make(bson.D, len(tagGroup))
 

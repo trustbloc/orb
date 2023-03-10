@@ -12,8 +12,9 @@ import (
 	"time"
 
 	httpsig "github.com/igor-pavlenko/httpsignatures-go"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 )
 
 var logger = log.New("activitypub_httpsig")
@@ -82,14 +83,14 @@ func NewSigner(cfg SignerConfig, cr crypto, km keyManager, keyID string) *Signer
 func (s *Signer) SignRequest(pubKeyID string, req *http.Request) error {
 	req.Header.Add(dateHeader, date())
 
-	logger.Debug("Signing request for %s. Public key ID [%s]. Headers: %s", log.WithRequestURLString(req.RequestURI),
-		log.WithKeyID(pubKeyID), log.WithRequestHeaders(req.Header))
+	logger.Debug("Signing request for %s. Public key ID [%s]. Headers: %s", logfields.WithRequestURLString(req.RequestURI),
+		logfields.WithKeyID(pubKeyID), logfields.WithRequestHeaders(req.Header))
 
 	if err := s.signer().Sign(pubKeyID, req); err != nil {
 		return fmt.Errorf("sign request with public key ID [%s]: %w", pubKeyID, err)
 	}
 
-	logger.Debug("Signed request.", log.WithRequestHeaders(req.Header))
+	logger.Debug("Signed request.", logfields.WithRequestHeaders(req.Header))
 
 	return nil
 }

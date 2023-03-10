@@ -14,8 +14,9 @@ import (
 
 	"github.com/bluele/gcache"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/anchor/witness/policy/config"
 	"github.com/trustbloc/orb/pkg/anchor/witness/policy/selector/random"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
@@ -75,7 +76,7 @@ func New(retriever policyRetriever, policyCacheExpiry time.Duration) (*WitnessPo
 	}
 
 	logger.Debug("Created new witness policy evaluator with cache",
-		log.WithWitnessPolicy(policy.(string)), log.WithCacheExpiration(policyCacheExpiry)) //nolint:forcetypeassert
+		logfields.WithWitnessPolicy(policy.(string)), logfields.WithCacheExpiration(policyCacheExpiry)) //nolint:forcetypeassert
 
 	return wp, nil
 }
@@ -131,7 +132,7 @@ func (wp *WitnessPolicy) loadWitnessPolicy(interface{}) (interface{}, *time.Dura
 		return nil, nil, err
 	}
 
-	logger.Debug("Loaded witness policy from store", log.WithWitnessPolicy(policy))
+	logger.Debug("Loaded witness policy from store", logfields.WithWitnessPolicy(policy))
 
 	return policy, &wp.cacheExpiry, nil
 }
@@ -258,7 +259,7 @@ func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witnes
 		}
 	}
 
-	logger.Debug("Selected batch witnesses", log.WithTotal(len(selectedBatchWitnesses)),
+	logger.Debug("Selected batch witnesses", logfields.WithTotal(len(selectedBatchWitnesses)),
 		withBatchWitnessesField(selectedBatchWitnesses))
 
 	selectedSystemWitnesses, err := wp.selectMinWitnesses(eligibleSystemWitnesses, cfg.MinNumberSystem,
@@ -268,7 +269,7 @@ func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witnes
 			witnesses, eligibleSystemWitnesses, commonWitnesses, totalSystemWitnesses, cfg, err)
 	}
 
-	logger.Debug("Selected system witnesses", log.WithTotal(len(selectedSystemWitnesses)),
+	logger.Debug("Selected system witnesses", logfields.WithTotal(len(selectedSystemWitnesses)),
 		withSystemWitnessesField(selectedSystemWitnesses))
 
 	return selectedBatchWitnesses, selectedSystemWitnesses, nil
@@ -297,7 +298,7 @@ func (wp *WitnessPolicy) selectMinWitnesses(eligible []*proof.Witness,
 		minSelection = int(math.Ceil(float64(minPercent)/maxPercent*float64(totalWitnesses))) - len(preferred)
 	}
 
-	logger.Debug("Selecting witnesses from eligible and preferred", log.WithMinimum(minSelection),
+	logger.Debug("Selecting witnesses from eligible and preferred", logfields.WithMinimum(minSelection),
 		withEligibleWitnessesField(eligible), withPreferredWitnessesField(preferred))
 
 	selection, err := wp.selector.Select(difference(eligible, preferred), minSelection)

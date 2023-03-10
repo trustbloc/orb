@@ -13,8 +13,9 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/observability/metrics"
 )
 
@@ -366,7 +367,7 @@ func (pm *PromMetrics) InboxHandlerTime(activityType string, value time.Duration
 		c.Observe(value.Seconds())
 	}
 
-	logger.Debug("InboxHandler time for activity", log.WithActivityType(activityType), log.WithDuration(value))
+	logger.Debug("InboxHandler time for activity", logfields.WithActivityType(activityType), log.WithDuration(value))
 }
 
 // OutboxIncrementActivityCount increments the number of activities of the given type posted to the outbox.
@@ -512,7 +513,7 @@ func (pm *PromMetrics) BatchRollbackTime(value time.Duration) {
 func (pm *PromMetrics) BatchSize(value float64) {
 	pm.opqueueBatchSize.Set(value)
 
-	logger.Info("BatchSize", log.WithSizeUint64(uint64(value)))
+	logger.Info("BatchSize", logfields.WithSizeUint64(uint64(value)))
 }
 
 // ProcessAnchorTime records the time it takes for the Observer to process an anchor credential.
@@ -872,10 +873,10 @@ func (pm *PromMetrics) CASWriteSize(modelType string, size int) {
 		c.Set(float64(size))
 	} else {
 		logger.Warn("Metric for CAS model type not registered. Reason: Unsupported model type.",
-			log.WithType(modelType))
+			logfields.WithType(modelType))
 	}
 
-	logger.Debug("CAS write size for model type", log.WithType(modelType), log.WithSize(size))
+	logger.Debug("CAS write size for model type", logfields.WithType(modelType), logfields.WithSize(size))
 }
 
 // SignerSign records sign.

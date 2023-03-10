@@ -13,8 +13,9 @@ import (
 
 	"github.com/bluele/gcache"
 	ariesstorage "github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
 	"github.com/trustbloc/orb/pkg/cas/ipfs"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
@@ -75,7 +76,7 @@ func New(provider ariesstorage.Provider, casLink string, ipfsClient *ipfs.Client
 				return nil, err
 			}
 
-			logger.Debug("Content was cached", log.WithKey(key.(string))) //nolint:forcetypeassert
+			logger.Debug("Content was cached", logfields.WithKey(key.(string))) //nolint:forcetypeassert
 
 			return cid, nil
 		},
@@ -107,7 +108,7 @@ func (p *CAS) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CIDFo
 	}
 
 	logger.Debug("Writing to CAS store. Content (base64-encoded)",
-		log.WithHash(resourceHash), log.WithCASData(content))
+		logfields.WithHash(resourceHash), logfields.WithCASData(content))
 
 	err = p.cas.Put(resourceHash, content)
 	if err != nil {
@@ -130,9 +131,9 @@ func (p *CAS) WriteWithCIDFormat(content []byte, opts ...extendedcasclient.CIDFo
 
 	if err = p.cache.Set(resourceHash, content); err != nil {
 		// This shouldn't be possible.
-		logger.Warn("Error caching content for resource hash", log.WithHash(resourceHash), log.WithError(err))
+		logger.Warn("Error caching content for resource hash", logfields.WithHash(resourceHash), log.WithError(err))
 	} else {
-		logger.Debug("Cached content for resource hash", log.WithHash(resourceHash))
+		logger.Debug("Cached content for resource hash", logfields.WithHash(resourceHash))
 	}
 
 	metadata, err := p.hl.CreateMetadataFromLinks(links)

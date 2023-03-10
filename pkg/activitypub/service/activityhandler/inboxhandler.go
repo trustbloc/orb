@@ -13,9 +13,10 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"go.uber.org/zap"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
@@ -107,7 +108,7 @@ func (h *Inbox) HandleActivity(source *url.URL, activity *vocab.ActivityType) er
 
 // HandleCreateActivity handles a 'Create' ActivityPub activity.
 func (h *Inbox) HandleCreateActivity(source *url.URL, create *vocab.ActivityType, announce bool) error {
-	h.logger.Debug("Handling 'Create' activity", log.WithActivityID(create.ID()))
+	h.logger.Debug("Handling 'Create' activity", logfields.WithActivityID(create.ID()))
 
 	if !create.Object().Type().Is(vocab.TypeAnchorEvent) {
 		return fmt.Errorf("unsupported object type in 'Create' activity [%s]: %s", create.Object().Type(), create.ID())
@@ -148,7 +149,7 @@ func (h *Inbox) handleEmbeddedAnchorEvent(source *url.URL, create *vocab.Activit
 	if announce {
 		if err := h.announceAnchorEvent(create); err != nil {
 			h.logger.Warn("Unable to announce 'Create' activity to our followers: %s",
-				log.WithActivityID(create.ID()), log.WithError(err))
+				logfields.WithActivityID(create.ID()), log.WithError(err))
 		}
 	}
 
@@ -164,7 +165,7 @@ func (h *Inbox) handleAnchorEventRef(source *url.URL, create *vocab.ActivityType
 	if announce {
 		if err := h.announceAnchorEventRef(create); err != nil {
 			h.logger.Warn("Unable to announce 'Create' activity to our followers",
-				log.WithActivityID(create.ID()), log.WithError(err))
+				logfields.WithActivityID(create.ID()), log.WithError(err))
 		}
 	}
 
@@ -173,7 +174,7 @@ func (h *Inbox) handleAnchorEventRef(source *url.URL, create *vocab.ActivityType
 
 func (h *Inbox) handleReferenceActivity(activity *vocab.ActivityType, refType store.ReferenceType,
 	auth service.ActorAuth, getTargetIRI func() *url.URL) error {
-	h.logger.Debug("Handling activity", log.WithActivityType(activity.Type().String()), log.WithActivityID(activity.ID()))
+	h.logger.Debug("Handling activity", logfields.WithActivityType(activity.Type().String()), logfields.WithActivityID(activity.ID()))
 
 	err := h.validateActivity(activity, getTargetIRI)
 	if err != nil {
@@ -189,8 +190,8 @@ func (h *Inbox) handleReferenceActivity(activity *vocab.ActivityType, refType st
 
 	if hasRef {
 		h.logger.Debug("Reference already exists. Replying with 'Accept' activity.",
-			log.WithActorIRI(actorIRI), log.WithServiceIRI(h.ServiceIRI),
-			log.WithReferenceType(string(refType)), log.WithActivityID(activity.ID()))
+			logfields.WithActorIRI(actorIRI), logfields.WithServiceIRI(h.ServiceIRI),
+			logfields.WithReferenceType(string(refType)), logfields.WithActivityID(activity.ID()))
 
 		return h.postAccept(activity, actorIRI)
 	}
@@ -207,15 +208,15 @@ func (h *Inbox) handleReferenceActivity(activity *vocab.ActivityType, refType st
 
 	if accept {
 		h.logger.Debug("Request has been accepted. Adding reference to actor and replying with 'Accept' activity.",
-			log.WithActorIRI(actorIRI), log.WithServiceIRI(h.ServiceIRI),
-			log.WithReferenceType(string(refType)), log.WithActivityID(activity.ID()))
+			logfields.WithActorIRI(actorIRI), logfields.WithServiceIRI(h.ServiceIRI),
+			logfields.WithReferenceType(string(refType)), logfields.WithActivityID(activity.ID()))
 
 		return h.acceptActor(activity, actor, refType)
 	}
 
 	h.logger.Debug("Request has been rejected. Replying with 'Reject' activity.",
-		log.WithActorIRI(actorIRI), log.WithServiceIRI(h.ServiceIRI),
-		log.WithReferenceType(string(refType)), log.WithActivityID(activity.ID()))
+		logfields.WithActorIRI(actorIRI), logfields.WithServiceIRI(h.ServiceIRI),
+		logfields.WithReferenceType(string(refType)), logfields.WithActivityID(activity.ID()))
 
 	return h.postReject(activity, actorIRI)
 }
@@ -273,7 +274,7 @@ func (h *Inbox) acceptActor(activity *vocab.ActivityType, actor *vocab.ActorType
 }
 
 func (h *Inbox) handleAcceptActivity(accept *vocab.ActivityType) error {
-	h.logger.Debug("Handling 'Accept' activity", log.WithActivityID(accept.ID()))
+	h.logger.Debug("Handling 'Accept' activity", logfields.WithActivityID(accept.ID()))
 
 	if err := h.validateAcceptRejectActivity(accept); err != nil {
 		return err
@@ -342,7 +343,7 @@ func (h *Inbox) handleAccept(accept *vocab.ActivityType, refType store.Reference
 }
 
 func (h *Inbox) handleRejectActivity(reject *vocab.ActivityType) error {
-	h.logger.Debug("Handling 'Reject' activity", log.WithActivityID(reject.ID()))
+	h.logger.Debug("Handling 'Reject' activity", logfields.WithActivityID(reject.ID()))
 
 	if err := h.validateAcceptRejectActivity(reject); err != nil {
 		return err
@@ -354,7 +355,7 @@ func (h *Inbox) handleRejectActivity(reject *vocab.ActivityType) error {
 }
 
 func (h *Inbox) validateAcceptRejectActivity(a *vocab.ActivityType) error {
-	h.logger.Debug("Handling accept/reject activity", log.WithActivityType(a.Type().String()), log.WithActivityID(a.ID()))
+	h.logger.Debug("Handling accept/reject activity", logfields.WithActivityType(a.Type().String()), logfields.WithActivityID(a.ID()))
 
 	if a.Actor() == nil {
 		return fmt.Errorf("no actor specified in '%s' activity", a.Type())
@@ -410,7 +411,7 @@ func (h *Inbox) postAccept(activity *vocab.ActivityType, toIRI *url.URL) error {
 
 	h.notify(activity)
 
-	h.logger.Debug("Publishing 'Accept' activity", log.WithTargetIRI(toIRI))
+	h.logger.Debug("Publishing 'Accept' activity", logfields.WithTargetIRI(toIRI))
 
 	if _, err := h.outbox.Post(acceptActivity); err != nil {
 		return orberrors.NewTransient(fmt.Errorf("unable to reply with 'Accept' to %s: %w", toIRI, err))
@@ -425,7 +426,7 @@ func (h *Inbox) postReject(activity *vocab.ActivityType, toIRI *url.URL) error {
 		vocab.WithTo(toIRI),
 	)
 
-	h.logger.Debug("Publishing 'Reject' activity", log.WithTargetIRI(toIRI))
+	h.logger.Debug("Publishing 'Reject' activity", logfields.WithTargetIRI(toIRI))
 
 	if _, err := h.outbox.Post(reject); err != nil {
 		return orberrors.NewTransient(fmt.Errorf("unable to reply with 'Accept' to %s: %w", toIRI, err))
@@ -466,7 +467,7 @@ func (h *Inbox) hasReference(objectIRI, refIRI *url.URL, refType store.Reference
 
 // HandleAnnounceActivity handles an 'Announce' ActivityPub activity.
 func (h *Inbox) HandleAnnounceActivity(source *url.URL, announce *vocab.ActivityType) (numProcessed int, err error) {
-	h.logger.Debug("Handling 'Announce' activity", log.WithActivityID(announce.ID()))
+	h.logger.Debug("Handling 'Announce' activity", logfields.WithActivityID(announce.ID()))
 
 	obj := announce.Object()
 
@@ -495,7 +496,7 @@ func (h *Inbox) HandleAnnounceActivity(source *url.URL, announce *vocab.Activity
 }
 
 func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
-	h.logger.Debug("Handling 'Offer' activity", log.WithActivityID(offer.ID()))
+	h.logger.Debug("Handling 'Offer' activity", logfields.WithActivityID(offer.ID()))
 
 	anchorLink, err := h.validateAndUnmarshalOfferActivity(offer)
 	if err != nil {
@@ -552,7 +553,7 @@ func (h *Inbox) handleOfferActivity(offer *vocab.ActivityType) error {
 }
 
 func (h *Inbox) handleAcceptOfferActivity(accept, offer *vocab.ActivityType) error {
-	h.logger.Debug("Handling 'Accept' offer activity", log.WithActivityID(accept.ID()))
+	h.logger.Debug("Handling 'Accept' offer activity", logfields.WithActivityID(accept.ID()))
 
 	err := h.validateAcceptOfferActivity(accept)
 	if err != nil {
@@ -618,7 +619,7 @@ func (h *Inbox) handleAnchorEvent(actor, source *url.URL, anchorEvent *vocab.Anc
 		return fmt.Errorf("handle anchor event: %w", err)
 	}
 
-	h.logger.Debug("Storing anchor reference", log.WithAnchorEventURI(anchorRef))
+	h.logger.Debug("Storing anchor reference", logfields.WithAnchorEventURI(anchorRef))
 
 	err = h.store.AddReference(store.AnchorLinkset, anchorRef, h.ServiceIRI)
 	if err != nil {
@@ -644,7 +645,7 @@ func (h *Inbox) handleAnchorEventReference(actor, anchorRef, source *url.URL) er
 		return fmt.Errorf("handle anchor event: %w", err)
 	}
 
-	h.logger.Debug("Storing anchor event reference", log.WithAnchorEventURI(anchorRef))
+	h.logger.Debug("Storing anchor event reference", logfields.WithAnchorEventURI(anchorRef))
 
 	err = h.store.AddReference(store.AnchorLinkset, anchorRef, h.ServiceIRI)
 	if err != nil {
@@ -668,7 +669,7 @@ func (h *Inbox) handleAnnounceCollection(source *url.URL, announce *vocab.Activi
 
 		if err := anchorEvent.Validate(); err != nil {
 			// Continue processing other anchor events on invalid anchor event.
-			h.logger.Info("Ignoring invalid anchor event", zap.String(log.FieldAnchorEventURI, anchorEvent.URL().String()))
+			h.logger.Info("Ignoring invalid anchor event", zap.String(logfields.FieldAnchorEventURI, anchorEvent.URL().String()))
 
 			continue
 		}
@@ -680,7 +681,7 @@ func (h *Inbox) handleAnnounceCollection(source *url.URL, announce *vocab.Activi
 					return 0, err
 				}
 
-				h.logger.Debug("Ignoring duplicate anchor event", log.WithAnchorEventURI(anchorEvent.URL()[0]))
+				h.logger.Debug("Ignoring duplicate anchor event", logfields.WithAnchorEventURI(anchorEvent.URL()[0]))
 			} else {
 				anchorURIs = append(anchorURIs, anchorEvent.URL()[0])
 			}
@@ -691,7 +692,7 @@ func (h *Inbox) handleAnnounceCollection(source *url.URL, announce *vocab.Activi
 					return 0, err
 				}
 
-				h.logger.Debug("Ignoring duplicate anchor event", log.WithAnchorEventURI(anchorEvent.URL()[0]))
+				h.logger.Debug("Ignoring duplicate anchor event", logfields.WithAnchorEventURI(anchorEvent.URL()[0]))
 			} else {
 				anchorURIs = append(anchorURIs, anchorEvent.URL()[0])
 			}
@@ -700,13 +701,13 @@ func (h *Inbox) handleAnnounceCollection(source *url.URL, announce *vocab.Activi
 
 	for _, anchorURI := range anchorURIs {
 		h.logger.Debug("Adding 'Announce' activity to shares of anchor event",
-			log.WithActivityID(announce.ID()), log.WithAnchorEventURI(anchorURI))
+			logfields.WithActivityID(announce.ID()), logfields.WithAnchorEventURI(anchorURI))
 
 		err := h.store.AddReference(store.Share, anchorURI, announce.ID().URL())
 		if err != nil {
 			// This isn't a fatal error so just log a warning.
 			h.logger.Warn("Error adding 'Announce' activity to 'shares' of anchor event",
-				log.WithActivityID(announce.ID()), log.WithAnchorEventURI(anchorURI), log.WithError(err))
+				logfields.WithActivityID(announce.ID()), logfields.WithAnchorEventURI(anchorURI), log.WithError(err))
 		}
 	}
 
@@ -714,7 +715,7 @@ func (h *Inbox) handleAnnounceCollection(source *url.URL, announce *vocab.Activi
 }
 
 func (h *Inbox) handleLikeActivity(like *vocab.ActivityType) error {
-	h.logger.Debug("Handling 'Like' activity", log.WithActivityID(like.ID()))
+	h.logger.Debug("Handling 'Like' activity", logfields.WithActivityID(like.ID()))
 
 	if err := h.validateLikeActivity(like); err != nil {
 		return fmt.Errorf("invalid 'Like' activity [%s]: %w", like.ID(), err)
@@ -733,7 +734,7 @@ func (h *Inbox) handleLikeActivity(like *vocab.ActivityType) error {
 		return fmt.Errorf("error creating result for 'Like' activity [%s]: %w", like.ID(), err)
 	}
 
-	h.logger.Debug("Adding anchor event to the 'Likes' collection", log.WithAnchorEventURI(refURL))
+	h.logger.Debug("Adding anchor event to the 'Likes' collection", logfields.WithAnchorEventURI(refURL))
 
 	if err := h.store.AddReference(store.Like, refURL, like.ID().URL()); err != nil {
 		return orberrors.NewTransient(fmt.Errorf("add activity to 'Likes' collection: %w", err))
@@ -804,12 +805,12 @@ func (h *Inbox) announceAnchorEventRef(create *vocab.ActivityType) error {
 	}
 
 	h.logger.Debug("Adding 'Announce' activity to the shares of anchor event",
-		log.WithActivityID(announce.ID()), log.WithAnchorEventURI(anchorEventURL))
+		logfields.WithActivityID(announce.ID()), logfields.WithAnchorEventURI(anchorEventURL))
 
 	err = h.store.AddReference(store.Share, anchorEventURL, activityID)
 	if err != nil {
 		h.logger.Warn("Error adding 'Announce' activity to 'shares' of anchor event",
-			log.WithActivityID(announce.ID()), log.WithAnchorEventURI(anchorEventURL))
+			logfields.WithActivityID(announce.ID()), logfields.WithAnchorEventURI(anchorEventURL))
 	}
 
 	return nil
@@ -972,8 +973,8 @@ func (h *Inbox) undoAddReference(activity *vocab.ActivityType, refType store.Ref
 			actorIRI, h.ServiceIRI, refType))
 	}
 
-	h.logger.Debug("Reference was successfully deleted", log.WithActorIRI(actorIRI),
-		log.WithServiceIRI(h.ServiceIRI), log.WithReferenceType(string(refType)))
+	h.logger.Debug("Reference was successfully deleted", logfields.WithActorIRI(actorIRI),
+		logfields.WithServiceIRI(h.ServiceIRI), logfields.WithReferenceType(string(refType)))
 
 	return nil
 }
@@ -994,7 +995,7 @@ func (h *Inbox) inboxUndoLike(like *vocab.ActivityType) error {
 	}
 
 	h.logger.Debug("Anchor event was successfully deleted from the 'Likes' collection",
-		log.WithActivityID(like.ID()), log.WithAnchorEventURI(u))
+		logfields.WithActivityID(like.ID()), logfields.WithAnchorEventURI(u))
 
 	// TODO: Will there always be only one URL?
 	refURL := like.Object().AnchorEvent().URL()[0]
@@ -1094,7 +1095,7 @@ type noOpAnchorAcknowledgementHandler struct{}
 func (p *noOpAnchorAcknowledgementHandler) AnchorEventAcknowledged(actor, anchorRef *url.URL,
 	additionalAnchorRefs []*url.URL) error {
 	logger.Debug("Anchor event was acknowledged by actor",
-		log.WithActorIRI(actor), zap.String("anchor-event-uri", hashlink.ToString(anchorRef)),
+		logfields.WithActorIRI(actor), zap.String("anchor-event-uri", hashlink.ToString(anchorRef)),
 		zap.String("additional-anchors", hashlink.ToString(additionalAnchorRefs...)))
 
 	return nil
@@ -1103,7 +1104,7 @@ func (p *noOpAnchorAcknowledgementHandler) AnchorEventAcknowledged(actor, anchor
 func (p *noOpAnchorAcknowledgementHandler) UndoAnchorEventAcknowledgement(actor, anchorRef *url.URL,
 	additionalAnchorRefs []*url.URL) error {
 	logger.Debug("Anchor event was undone by actor",
-		log.WithActorIRI(actor), zap.String("anchor-event-uri", hashlink.ToString(anchorRef)),
+		logfields.WithActorIRI(actor), zap.String("anchor-event-uri", hashlink.ToString(anchorRef)),
 		zap.String("additional-anchors", hashlink.ToString(additionalAnchorRefs...)))
 
 	return nil

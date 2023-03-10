@@ -18,9 +18,10 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 	"github.com/trustbloc/orb/pkg/store"
@@ -138,7 +139,7 @@ type Queue struct {
 
 // New returns a new operation queue.
 func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager, metrics metricsProvider) (*Queue, error) {
-	logger := log.New(loggerModule, log.WithFields(log.WithTaskMgrInstanceID(taskMgr.InstanceID())))
+	logger := log.New(loggerModule, log.WithFields(logfields.WithTaskMgrInstanceID(taskMgr.InstanceID())))
 
 	msgChan, err := pubSub.SubscribeWithOpts(context.Background(), topic, spi.WithPool(cfg.PoolSize))
 	if err != nil {
@@ -155,8 +156,8 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager, met
 	cfg = resolveConfig(cfg)
 
 	logger.Info("Creating operation queue.",
-		log.WithTopic(topic), log.WithMaxRetries(cfg.MaxRetries), log.WithSubscriberPoolSize(cfg.PoolSize),
-		log.WithTaskMonitorInterval(cfg.TaskMonitorInterval), log.WithTaskExpiration(cfg.TaskExpiration))
+		log.WithTopic(topic), logfields.WithMaxRetries(cfg.MaxRetries), logfields.WithSubscriberPoolSize(cfg.PoolSize),
+		logfields.WithTaskMonitorInterval(cfg.TaskMonitorInterval), logfields.WithTaskExpiration(cfg.TaskExpiration))
 
 	q := &Queue{
 		pubSub:                    pubSub,
@@ -226,9 +227,9 @@ func (q *Queue) publish(op *OperationMessage) (uint, error) {
 
 	delay := q.getDeliveryDelay(op.Retries)
 
-	q.logger.Debug("Publishing operation message to queue", log.WithTopic(topic), log.WithMessageID(msg.UUID),
-		log.WithOperationID(op.ID), log.WithRetries(op.Retries), log.WithDeliveryDelay(delay),
-		log.WithSuffix(op.Operation.UniqueSuffix))
+	q.logger.Debug("Publishing operation message to queue", log.WithTopic(topic), logfields.WithMessageID(msg.UUID),
+		logfields.WithOperationID(op.ID), logfields.WithRetries(op.Retries), logfields.WithDeliveryDelay(delay),
+		logfields.WithSuffix(op.Operation.UniqueSuffix))
 
 	err = q.pubSub.PublishWithOpts(topic, msg, spi.WithDeliveryDelay(delay))
 	if err != nil {
@@ -254,7 +255,7 @@ func (q *Queue) Peek(num uint) (operation.QueuedOperationsAtTime, error) {
 
 	items := q.pending[0:n]
 
-	q.logger.Debug("Peeked operations.", log.WithTotal(len(items)))
+	q.logger.Debug("Peeked operations.", logfields.WithTotal(len(items)))
 
 	return q.asQueuedOperations(items), nil
 }
@@ -283,7 +284,7 @@ func (q *Queue) Remove(num uint) (ops operation.QueuedOperationsAtTime, ack func
 	items := q.pending[0:n]
 	q.pending = q.pending[n:]
 
-	q.logger.Debug("Removed operations.", log.WithTotal(len(items)))
+	q.logger.Debug("Removed operations.", logfields.WithTotal(len(items)))
 
 	return q.asQueuedOperations(items), q.newAckFunc(items), q.newNackFunc(items), nil
 }
@@ -334,14 +335,14 @@ func (q *Queue) listen() {
 }
 
 func (q *Queue) handleMessage(msg *message.Message) {
-	q.logger.Debug("Handling operation message", log.WithMessageID(msg.UUID))
+	q.logger.Debug("Handling operation message", logfields.WithMessageID(msg.UUID))
 
 	op := &OperationMessage{}
 
 	err := q.unmarshal(msg.Payload, op)
 	if err != nil {
 		q.logger.Error("Error unmarshalling operation message payload.",
-			log.WithMessageID(msg.UUID), log.WithError(err))
+			logfields.WithMessageID(msg.UUID), log.WithError(err))
 
 		// Send an Ack so that the message is not retried.
 		msg.Ack()
@@ -358,7 +359,7 @@ func (q *Queue) handleMessage(msg *message.Message) {
 
 	opBytes, err := json.Marshal(pop)
 	if err != nil {
-		q.logger.Error("Error marshalling operation.", log.WithMessageID(msg.UUID), log.WithError(err))
+		q.logger.Error("Error marshalling operation.", logfields.WithMessageID(msg.UUID), log.WithError(err))
 
 		// Send an Ack so that the message is not retried.
 		msg.Ack()
@@ -371,7 +372,7 @@ func (q *Queue) handleMessage(msg *message.Message) {
 	)
 	if err != nil {
 		q.logger.Warn("Error storing operation info. Message will be nacked and retried.",
-			log.WithOperationID(op.ID), log.WithMessageID(msg.UUID), log.WithError(err))
+			logfields.WithOperationID(op.ID), logfields.WithMessageID(msg.UUID), log.WithError(err))
 
 		msg.Nack()
 
@@ -381,8 +382,8 @@ func (q *Queue) handleMessage(msg *message.Message) {
 	q.mutex.Lock()
 	defer q.mutex.Unlock()
 
-	q.logger.Debug("Adding operation to pending queue", log.WithOperationID(op.ID),
-		log.WithSuffix(op.Operation.UniqueSuffix), log.WithRetries(op.Retries))
+	q.logger.Debug("Adding operation to pending queue", logfields.WithOperationID(op.ID),
+		logfields.WithSuffix(op.Operation.UniqueSuffix), logfields.WithRetries(op.Retries))
 
 	q.pending = append(q.pending, &queuedOperation{
 		OperationMessage: op,
@@ -396,9 +397,9 @@ func (q *Queue) handleMessage(msg *message.Message) {
 func (q *Queue) newAckFunc(items []*queuedOperation) func() uint {
 	return func() uint {
 		if err := q.deleteOperations(items); err != nil {
-			q.logger.Error("Error deleting pending operations.", log.WithTotal(len(items)), log.WithError(err))
+			q.logger.Error("Error deleting pending operations.", logfields.WithTotal(len(items)), log.WithError(err))
 		} else {
-			q.logger.Debug("Deleted operations.", log.WithTotal(len(items)))
+			q.logger.Debug("Deleted operations.", logfields.WithTotal(len(items)))
 		}
 
 		// Batch cut time is the time since the first operation was added (which is the oldest operation in the batch).
@@ -415,14 +416,14 @@ func (q *Queue) newAckFunc(items []*queuedOperation) func() uint {
 
 func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 	return func() {
-		q.logger.Info("Operations were rolled back. Re-posting...", log.WithTotal(len(items)))
+		q.logger.Info("Operations were rolled back. Re-posting...", logfields.WithTotal(len(items)))
 
 		var operationsToDelete []*queuedOperation
 
 		for _, op := range items {
 			if op.Retries >= q.maxRetries {
 				q.logger.Warn("... not re-posting operation since the retry count has reached the limit.",
-					log.WithOperationID(op.ID), log.WithSuffix(op.Operation.UniqueSuffix), log.WithRetries(op.Retries))
+					logfields.WithOperationID(op.ID), logfields.WithSuffix(op.Operation.UniqueSuffix), logfields.WithRetries(op.Retries))
 
 				operationsToDelete = append(operationsToDelete, op)
 
@@ -431,19 +432,19 @@ func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 
 			op.Retries++
 
-			q.logger.Info("... re-posting operation ...", log.WithOperationID(op.ID),
-				log.WithSuffix(op.Operation.UniqueSuffix), log.WithRetries(op.Retries))
+			q.logger.Info("... re-posting operation ...", logfields.WithOperationID(op.ID),
+				logfields.WithSuffix(op.Operation.UniqueSuffix), logfields.WithRetries(op.Retries))
 
 			if _, err := q.publish(op.OperationMessage); err != nil {
 				q.logger.Error("Error re-posting operation. Operation will be detached from this server instance",
-					log.WithOperationID(op.ID), log.WithError(err))
+					logfields.WithOperationID(op.ID), log.WithError(err))
 
 				if e := q.detachOperation(op); e != nil {
 					q.logger.Error("Failed to detach operation from this server instance",
-						log.WithOperationID(op.ID), log.WithError(e))
+						logfields.WithOperationID(op.ID), log.WithError(e))
 				} else {
 					q.logger.Info("Operation was detached from this server instance since it could not be "+
-						"published to the queue. It will be retried at a later time.", log.WithOperationID(op.ID))
+						"published to the queue. It will be retried at a later time.", logfields.WithOperationID(op.ID))
 				}
 			} else {
 				operationsToDelete = append(operationsToDelete, op)
@@ -505,7 +506,7 @@ func (q *Queue) repostOperationsForTask(task *opQueueTask) {
 		// Operations associated with the "detached" server ID are in error, most likely because the message
 		// queue service is unavailable and the operations could not be re-published. Try to repost the operations.
 		if err := q.repostOperations(task.TaskID); err != nil {
-			q.logger.Warn("Error reposting operations", log.WithPermitHolder(task.TaskID), log.WithError(err))
+			q.logger.Warn("Error reposting operations", logfields.WithPermitHolder(task.TaskID), log.WithError(err))
 		}
 
 		return
@@ -520,12 +521,12 @@ func (q *Queue) repostOperationsForTask(task *opQueueTask) {
 
 	q.logger.Warn("Operation queue task was last updated a while ago (longer than the expiry). "+
 		"Assuming the server is dead and re-posting any outstanding operations to the queue.",
-		log.WithPermitHolder(task.TaskID), log.WithTimeSinceLastUpdate(timeSinceLastUpdate),
-		log.WithTaskExpiration(q.taskExpiration))
+		logfields.WithPermitHolder(task.TaskID), logfields.WithTimeSinceLastUpdate(timeSinceLastUpdate),
+		logfields.WithTaskExpiration(q.taskExpiration))
 
 	if err := q.repostOperations(task.TaskID); err != nil {
 		q.logger.Warn("Error reposting operations for other server instance",
-			log.WithPermitHolder(task.TaskID), log.WithError(err))
+			logfields.WithPermitHolder(task.TaskID), log.WithError(err))
 	}
 }
 
@@ -548,11 +549,11 @@ func (q *Queue) deleteOperations(items []*queuedOperation) error {
 func (q *Queue) asQueuedOperations(opMsgs []*queuedOperation) []*operation.QueuedOperationAtTime {
 	ops := make([]*operation.QueuedOperationAtTime, len(opMsgs))
 
-	q.logger.Debug("Returning queued operations", log.WithTotal(len(opMsgs)))
+	q.logger.Debug("Returning queued operations", logfields.WithTotal(len(opMsgs)))
 
 	for i, opMsg := range opMsgs {
-		q.logger.Debug("Adding operation.", log.WithMessageID(opMsg.ID),
-			log.WithSuffix(opMsg.Operation.UniqueSuffix))
+		q.logger.Debug("Adding operation.", logfields.WithMessageID(opMsg.ID),
+			logfields.WithSuffix(opMsg.Operation.UniqueSuffix))
 
 		ops[i] = opMsg.Operation
 	}
@@ -611,15 +612,15 @@ func (q *Queue) repostOperations(serverID string) error { //nolint:cyclop
 
 		if op.Retries >= q.maxRetries {
 			q.logger.Warn("Not re-posting operation since the retry count has reached the limit.",
-				log.WithOperationID(op.ID), log.WithSuffix(op.Operation.UniqueSuffix), log.WithRetries(op.Retries))
+				logfields.WithOperationID(op.ID), logfields.WithSuffix(op.Operation.UniqueSuffix), logfields.WithRetries(op.Retries))
 
 			continue
 		}
 
 		op.Retries++
 
-		q.logger.Info("Re-posting operation.", log.WithOperationID(op.ID),
-			log.WithSuffix(op.Operation.UniqueSuffix))
+		q.logger.Info("Re-posting operation.", logfields.WithOperationID(op.ID),
+			logfields.WithSuffix(op.Operation.UniqueSuffix))
 
 		if _, e = q.publish(op); e != nil {
 			return fmt.Errorf("publish operation [%s]: %w", op.ID, e)
@@ -629,8 +630,8 @@ func (q *Queue) repostOperations(serverID string) error { //nolint:cyclop
 	}
 
 	if len(batchOperations) > 0 {
-		q.logger.Info("Deleting operations for queue task.", log.WithTotal(len(batchOperations)),
-			log.WithPermitHolder(serverID))
+		q.logger.Info("Deleting operations for queue task.", logfields.WithTotal(len(batchOperations)),
+			logfields.WithPermitHolder(serverID))
 
 		err = q.store.Batch(batchOperations)
 		if err != nil {
@@ -639,7 +640,7 @@ func (q *Queue) repostOperations(serverID string) error { //nolint:cyclop
 	}
 
 	if serverID != detachedServerID {
-		q.logger.Info("Deleting operation queue task.", log.WithPermitHolder(serverID))
+		q.logger.Info("Deleting operation queue task.", logfields.WithPermitHolder(serverID))
 
 		err = q.store.Delete(serverID)
 		if err != nil {

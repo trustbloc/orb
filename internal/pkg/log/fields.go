@@ -43,8 +43,6 @@ const (
 	FieldCacheExpiration        = "cacheExpiration"
 	FieldTarget                 = "target"
 	FieldTargets                = "targets"
-	FieldTopic                  = "topic"
-	FieldHTTPStatus             = "httpStatus"
 	FieldHTTPMethod             = "httpMethod"
 	FieldParameter              = "parameter"
 	FieldParameters             = "parameters"
@@ -149,11 +147,6 @@ const (
 	FieldDuration               = "duration"
 )
 
-// WithError sets the error field.
-func WithError(err error) zap.Field {
-	return zap.Error(err)
-}
-
 // WithMessageID sets the message-id field.
 func WithMessageID(value string) zap.Field {
 	return zap.String(FieldMessageID, value)
@@ -187,11 +180,6 @@ func WithRequestHeaders(value http.Header) zap.Field {
 // WithRequestBody sets the request-body field.
 func WithRequestBody(value []byte) zap.Field {
 	return zap.String(FieldRequestBody, string(value))
-}
-
-// WithResponse sets the response field.
-func WithResponse(value []byte) zap.Field {
-	return zap.String(FieldResponse, string(value))
 }
 
 // WithServiceName sets the service field.
@@ -278,16 +266,6 @@ func WithTargetIRI(value fmt.Stringer) zap.Field {
 // WithTargetIRIs sets the targets field.
 func WithTargetIRIs(value ...*url.URL) zap.Field {
 	return zap.Array(FieldTargets, NewURLArrayMarshaller(value))
-}
-
-// WithTopic sets the topic field.
-func WithTopic(value string) zap.Field {
-	return zap.String(FieldTopic, value)
-}
-
-// WithHTTPStatus sets the http-status field.
-func WithHTTPStatus(value int) zap.Field {
-	return zap.Int(FieldHTTPStatus, value)
 }
 
 // WithHTTPMethod sets the http-method field.

@@ -15,9 +15,10 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/store"
 )
@@ -157,7 +158,7 @@ func (s *Store) StoreLogEntries(logURL string, start, end uint64, entries []comm
 		return orberrors.NewTransient(fmt.Errorf("failed to add entries for log: %w", err))
 	}
 
-	logger.Debug("Added entries for log", log.WithTotal(len(entries)), log.WithLogURLString(logURL))
+	logger.Debug("Added entries for log", logfields.WithTotal(len(entries)), logfields.WithLogURLString(logURL))
 
 	return nil
 }
@@ -248,7 +249,7 @@ func (s *Store) FailLogEntriesFrom(logURL string, start uint64) error { //nolint
 		return orberrors.NewTransient(fmt.Errorf("failed to update %d entries to failed for log: %w", len(operations), e))
 	}
 
-	logger.Debug("Updated entries to 'failed' for log", log.WithTotal(len(operations)), log.WithLogURLString(logURL))
+	logger.Debug("Updated entries to 'failed' for log", logfields.WithTotal(len(operations)), logfields.WithLogURLString(logURL))
 
 	return nil
 }

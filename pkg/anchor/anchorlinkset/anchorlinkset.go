@@ -11,9 +11,10 @@ import (
 	"net/url"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
@@ -191,7 +192,7 @@ func resolveParents(previousAnchors []*subject.SuffixAnchor) []*url.URL {
 	for i, p := range previous {
 		parent, err := url.Parse(p)
 		if err != nil {
-			logger.Warn("Invalid parent URI", log.WithURIString(p), log.WithError(err))
+			logger.Warn("Invalid parent URI", logfields.WithURIString(p), log.WithError(err))
 		}
 
 		parents[i] = parent

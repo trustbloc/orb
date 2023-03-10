@@ -13,10 +13,11 @@ import (
 	"net/url"
 
 	"github.com/gorilla/mux"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
@@ -67,7 +68,7 @@ func New(authCfg *resthandler.Config, s spi.Store, verifier signatureVerifier,
 		casClient: casClient,
 	}
 
-	h.logger = log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(h.Path())))
+	h.logger = log.New(loggerModule, log.WithFields(logfields.WithServiceEndpoint(h.Path())))
 
 	h.AuthHandler = resthandler.NewAuthHandler(authCfg, "/cas/{%s}", http.MethodGet, s, verifier, tm,
 		func(actorIRI *url.URL) (bool, error) {
@@ -76,7 +77,7 @@ func New(authCfg *resthandler.Config, s spi.Store, verifier signatureVerifier,
 			// an offer is sent to a non-system witness).
 			// So, for now, let all actors through.
 
-			h.logger.Debug("Authorized actor", log.WithActorIRI(actorIRI))
+			h.logger.Debug("Authorized actor", logfields.WithActorIRI(actorIRI))
 
 			return true, nil
 		})
@@ -87,7 +88,7 @@ func New(authCfg *resthandler.Config, s spi.Store, verifier signatureVerifier,
 func (w *WebCAS) handler(rw http.ResponseWriter, req *http.Request) {
 	ok, _, err := w.Authorize(req)
 	if err != nil {
-		w.logger.Error("Error authorizing request", log.WithRequestURL(req.URL), log.WithError(err))
+		w.logger.Error("Error authorizing request", logfields.WithRequestURL(req.URL), log.WithError(err))
 
 		rw.WriteHeader(http.StatusInternalServerError)
 
@@ -99,7 +100,7 @@ func (w *WebCAS) handler(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	if !ok {
-		w.logger.Info("Request is unauthorized", log.WithRequestURL(req.URL))
+		w.logger.Info("Request is unauthorized", logfields.WithRequestURL(req.URL))
 
 		rw.WriteHeader(http.StatusUnauthorized)
 
@@ -110,7 +111,7 @@ func (w *WebCAS) handler(rw http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	w.logger.Debug("Request is authorized", log.WithRequestURL(req.URL))
+	w.logger.Debug("Request is authorized", logfields.WithRequestURL(req.URL))
 
 	cid := mux.Vars(req)[cidPathVariable]
 

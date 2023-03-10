@@ -12,9 +12,10 @@ import (
 	"net/http"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 )
 
 // LogRetriever retrieves the current log URL.
@@ -43,7 +44,7 @@ func (lr *LogRetriever) Handler() common.HTTPRequestHandler {
 func NewRetriever(cfgStore storage.Store) *LogRetriever {
 	return &LogRetriever{
 		configStore: cfgStore,
-		logger:      log.New(loggerModule, log.WithFields(log.WithServiceEndpoint(endpoint))),
+		logger:      log.New(loggerModule, log.WithFields(logfields.WithServiceEndpoint(endpoint))),
 		unmarshal:   json.Unmarshal,
 	}
 }
@@ -77,7 +78,7 @@ func (lr *LogRetriever) handle(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	lr.logger.Debug("Retrieved log URL", log.WithLogURLString(logConfig.URL))
+	lr.logger.Debug("Retrieved log URL", logfields.WithLogURLString(logConfig.URL))
 
 	writeResponse(lr.logger, w, http.StatusOK, []byte(logConfig.URL))
 }

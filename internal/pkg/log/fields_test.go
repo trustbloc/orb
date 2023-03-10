@@ -7,15 +7,16 @@ SPDX-License-Identifier: Apache-2.0
 package log
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/url"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
+	"github.com/trustbloc/logutil-go/pkg/log"
 )
 
 //nolint:maintidx
@@ -27,43 +28,10 @@ func TestStandardFields(t *testing.T) {
 	u3 := parseURL(t, "https://example3.com")
 	hl := parseURL(t, "hl:1234")
 
-	t.Run("console error", func(t *testing.T) {
-		stdErr := newMockWriter()
-
-		logger := New(module,
-			WithStdErr(stdErr),
-			WithFields(WithServiceName("myservice")),
-		)
-
-		logger.Error("Sample error", WithError(errors.New("some error")))
-
-		require.Contains(t, stdErr.Buffer.String(), `Sample error	{"service": "myservice", "error": "some error"}`)
-	})
-
-	t.Run("json error", func(t *testing.T) {
-		stdErr := newMockWriter()
-
-		logger := New(module,
-			WithStdErr(stdErr), WithEncoding(JSON),
-			WithFields(WithServiceName("myservice")),
-		)
-
-		logger.Error("Sample error", WithError(errors.New("some error")))
-
-		l := unmarshalLogData(t, stdErr.Bytes())
-
-		require.Equal(t, "myservice", l.Service)
-		require.Equal(t, "test_module", l.Logger)
-		require.Equal(t, "Sample error", l.Msg)
-		require.Contains(t, l.Caller, "log/fields_test.go")
-		require.Equal(t, "some error", l.Error)
-		require.Equal(t, "error", l.Level)
-	})
-
 	t.Run("json fields 1", func(t *testing.T) {
 		stdOut := newMockWriter()
 
-		logger := New(module, WithStdOut(stdOut), WithEncoding(JSON))
+		logger := log.New(module, log.WithStdOut(stdOut), log.WithEncoding(log.JSON))
 
 		now := time.Now()
 
@@ -75,14 +43,13 @@ func TestStandardFields(t *testing.T) {
 			WithServiceIRI(parseURL(t, u2.String())), WithServiceName("service1"),
 			WithServiceEndpoint("/services/service1"),
 			WithSize(1234), WithCacheExpiration(12*time.Second),
-			WithTargetIRI(u1), WithTopic("queue1"),
-			WithHTTPStatus(http.StatusNotFound), WithParameter("param1"),
+			WithTargetIRI(u1), WithParameter("param1"),
 			WithReferenceType("followers"), WithURI(u2), WithURIs(u1, u2),
 			WithSenderURL(u1), WithAnchorURI(u3), WithAnchorEventURI(u3),
 			WithAcceptListType("follow"),
 			WithURLAdditions(u1, u3),
 			WithURLDeletions(u1),
-			WithRequestURL(u1), WithRequestBody([]byte(`request body`)), WithResponse([]byte(`response body`)),
+			WithRequestURL(u1), WithRequestBody([]byte(`request body`)),
 			WithRequestHeaders(map[string][]string{"key1": {"v1", "v2"}, "key2": {"v3"}}),
 			WithObjectIRI(u1), WithReferenceIRI(u2),
 			WithKeyIRI(u1), WithKeyOwnerIRI(u2), WithKeyType("ed25519"),
@@ -112,8 +79,6 @@ func TestStandardFields(t *testing.T) {
 		require.Equal(t, 1234, l.Size)
 		require.Equal(t, `12s`, l.CacheExpiration)
 		require.Equal(t, u1.String(), l.Target)
-		require.Equal(t, `queue1`, l.Topic)
-		require.Equal(t, 404, l.HTTPStatus)
 		require.Equal(t, `param1`, l.Parameter)
 		require.Equal(t, `followers`, l.ReferenceType)
 		require.Equal(t, u2.String(), l.URI)
@@ -125,7 +90,6 @@ func TestStandardFields(t *testing.T) {
 		require.Equal(t, []string{u1.String()}, l.Deletions)
 		require.Equal(t, u1.String(), l.RequestURL)
 		require.Equal(t, `request body`, l.RequestBody)
-		require.Equal(t, `response body`, l.Response)
 		require.Equal(t, map[string][]string{"key1": {"v1", "v2"}, "key2": {"v3"}}, l.RequestHeaders)
 		require.Equal(t, u1.String(), l.ObjectIRI)
 		require.Equal(t, u2.String(), l.Reference)
@@ -158,7 +122,7 @@ func TestStandardFields(t *testing.T) {
 	t.Run("json fields 2", func(t *testing.T) {
 		stdOut := newMockWriter()
 
-		logger := New(module, WithStdOut(stdOut), WithEncoding(JSON))
+		logger := log.New(module, log.WithStdOut(stdOut), log.WithEncoding(log.JSON))
 
 		cfg := &mockObject{Field1: "value1", Field2: 1234}
 		aoep := &mockObject{Field1: "value11", Field2: 999}
@@ -243,7 +207,7 @@ func TestStandardFields(t *testing.T) {
 	t.Run("json fields 3", func(t *testing.T) {
 		stdOut := newMockWriter()
 
-		logger := New(module, WithStdOut(stdOut), WithEncoding(JSON))
+		logger := log.New(module, log.WithStdOut(stdOut), log.WithEncoding(log.JSON))
 
 		metadata := &mockObject{Field1: "meta1", Field2: 7676}
 		protocol := &mockObject{Field1: "proto1", Field2: 2314}
@@ -321,7 +285,7 @@ func TestStandardFields(t *testing.T) {
 	t.Run("json fields 4", func(t *testing.T) {
 		stdOut := newMockWriter()
 
-		logger := New(module, WithStdOut(stdOut), WithEncoding(JSON))
+		logger := log.New(module, log.WithStdOut(stdOut), log.WithEncoding(log.JSON))
 
 		logger.Info("Some message",
 			WithMaxSizeUInt64(30), WithURLString(u1.String()), WithLogURLString(u3.String()), WithIndexUint64(7),
@@ -360,8 +324,6 @@ type logData struct {
 	Size                   int                 `json:"size"`
 	CacheExpiration        string              `json:"cacheExpiration"`
 	Target                 string              `json:"target"`
-	Topic                  string              `json:"topic"`
-	HTTPStatus             int                 `json:"httpStatus"`
 	Parameter              string              `json:"parameter"`
 	ReferenceType          string              `json:"referenceType"`
 	URI                    string              `json:"uri"`
@@ -376,7 +338,6 @@ type logData struct {
 	RequestURL             string              `json:"requestUrl"`
 	RequestHeaders         map[string][]string `json:"requestHeaders"`
 	RequestBody            string              `json:"requestBody"`
-	Response               string              `json:"response"`
 	ObjectIRI              string              `json:"objectIri"`
 	Reference              string              `json:"reference"`
 	KeyID                  string              `json:"keyId"`
@@ -495,4 +456,16 @@ func parseURL(t *testing.T, raw string) *url.URL {
 	require.NoError(t, err)
 
 	return u
+}
+
+type mockWriter struct {
+	*bytes.Buffer
+}
+
+func (m *mockWriter) Sync() error {
+	return nil
+}
+
+func newMockWriter() *mockWriter {
+	return &mockWriter{Buffer: bytes.NewBuffer(nil)}
 }

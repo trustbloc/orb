@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/logutil-go/pkg/log"
+
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 )
 
@@ -51,13 +53,13 @@ func (h *AcceptListAuthHandler) AuthorizeActor(actor *vocab.ActorType) (bool, er
 
 	if contains(allowList, actor.ID().URL()) {
 		logger.Debug("Actor is in the accept list for the given type",
-			log.WithActorID(actor.ID().String()), log.WithAcceptListType(h.allowType))
+			logfields.WithActorID(actor.ID().String()), logfields.WithAcceptListType(h.allowType))
 
 		return true, nil
 	}
 
 	logger.Debug("Actor is NOT in the accept-list for the given type",
-		log.WithActorID(actor.ID().String()), log.WithAcceptListType(h.allowType))
+		logfields.WithActorID(actor.ID().String()), logfields.WithAcceptListType(h.allowType))
 
 	return false, nil
 }

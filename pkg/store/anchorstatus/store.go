@@ -15,8 +15,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
+	"github.com/trustbloc/logutil-go/pkg/log"
 
-	"github.com/trustbloc/orb/internal/pkg/log"
+	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/store"
@@ -133,7 +134,7 @@ func (s *Store) AddStatus(anchorID string, status proof.AnchorIndexStatus) error
 		}
 	}
 
-	logger.Debug("Stored status for anchor", log.WithAnchorURIString(anchorID), log.WithStatus(string(status)))
+	logger.Debug("Stored status for anchor", logfields.WithAnchorURIString(anchorID), logfields.WithStatus(string(status)))
 
 	return nil
 }
@@ -247,7 +248,7 @@ func (s *Store) deleteInProcessStatus(anchorID string) error { //nolint:cyclop
 		}
 
 		logger.Debug("Successfully deleted in-process status data for anchor.",
-			log.WithTotal(len(operations)), log.WithAnchorURIString(anchorID))
+			logfields.WithTotal(len(operations)), logfields.WithAnchorURIString(anchorID))
 	}
 
 	return nil
@@ -304,7 +305,7 @@ func (s *Store) GetStatus(anchorID string) (proof.AnchorIndexStatus, error) {
 		}
 	}
 
-	logger.Debug("Status for anchor", log.WithAnchorEventURIString(anchorID), log.WithStatus(string(status)))
+	logger.Debug("Status for anchor", logfields.WithAnchorEventURIString(anchorID), logfields.WithStatus(string(status)))
 
 	return status, nil
 }
@@ -372,7 +373,7 @@ func (s *Store) processIndex(encodedAnchorID string) error {
 
 	anchorID := string(anchorIDBytes)
 
-	logger.Debug("Processing anchor", log.WithAnchorURIString(anchorID))
+	logger.Debug("Processing anchor", logfields.WithAnchorURIString(anchorID))
 
 	status, err := s.GetStatus(anchorID)
 	if err != nil {
@@ -389,7 +390,7 @@ func (s *Store) processIndex(encodedAnchorID string) error {
 		return fmt.Errorf("failed to re-evaluate policy for anchorID[%s]: %w", anchorID, err)
 	}
 
-	logger.Debug("Successfully re-evaluated policy for anchor", log.WithAnchorURIString(anchorID))
+	logger.Debug("Successfully re-evaluated policy for anchor", logfields.WithAnchorURIString(anchorID))
 
 	return nil
 }
