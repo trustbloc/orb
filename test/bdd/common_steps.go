@@ -475,12 +475,29 @@ func (d *CommonSteps) valueOfJSONStringResponseSavedToVar(varName string) error 
 }
 
 func (d *CommonSteps) responseEquals(value string) error {
+	if err := d.state.resolveVarsInExpression(&value); err != nil {
+		return err
+	}
+
 	if strings.TrimSuffix(d.state.getResponse(), "\n") == value {
 		logger.Infof("Response equals expected value [%s]", value)
 		return nil
 	}
 
 	return fmt.Errorf("Response [%s] does not equal expected value [%s]", d.state.getResponse(), value)
+}
+
+func (d *CommonSteps) responseContains(value string) error {
+	if err := d.state.resolveVarsInExpression(&value); err != nil {
+		return err
+	}
+
+	if strings.Contains(d.state.getResponse(), value) {
+		logger.Infof("Response contains value [%s]", value)
+		return nil
+	}
+
+	return fmt.Errorf("Response [%s] does not contain value [%s]", d.state.getResponse(), value)
 }
 
 func (d *CommonSteps) httpGetWithExpectedCode(url string, expectingCode int) error {
@@ -624,12 +641,9 @@ func (d *CommonSteps) httpPostFileWithSignatureAndExpectedCode(url, path, pubKey
 func (d *CommonSteps) httpPost(url, data, contentType string) error {
 	d.state.clearResponse()
 
-	resolved, err := d.state.resolveVars(data)
-	if err != nil {
+	if err := d.state.resolveVarsInExpression(&data); err != nil {
 		return err
 	}
-
-	data = resolved.(string)
 
 	resp, err := d.doHTTPPost(url, []byte(data), contentType)
 	if err != nil {
@@ -1071,6 +1085,7 @@ func (d *CommonSteps) RegisterSteps(s *godog.Suite) {
 	s.Step(`^we wait (\d+) seconds$`, d.wait)
 	s.Step(`^the response is saved to variable "([^"]*)"$`, d.setVariableFromResponse)
 	s.Step(`^the response equals "([^"]*)"$`, d.responseEquals)
+	s.Step(`^the response contains "([^"]*)"$`, d.responseContains)
 	s.Step(`^the value "([^"]*)" equals "([^"]*)"$`, d.valuesEqual)
 	s.Step(`^the value "([^"]*)" does not equal "([^"]*)"$`, d.valuesNotEqual)
 	s.Step(`^variable "([^"]*)" is assigned the value "([^"]*)"$`, d.setVariable)

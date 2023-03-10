@@ -1319,6 +1319,8 @@ func startOrbServices(parameters *orbParameters) error {
 		auth.NewHandlerWrapper(vcresthandler.New(vcStore), authTokenManager),
 		auth.NewHandlerWrapper(allowedoriginsrest.NewWriter(allowedOriginsStore), authTokenManager),
 		auth.NewHandlerWrapper(allowedoriginsrest.NewReader(allowedOriginsStore), authTokenManager),
+		auth.NewHandlerWrapper(newLogSpecWriter(), authTokenManager),
+		auth.NewHandlerWrapper(newLogSpecReader(), authTokenManager),
 	)
 
 	handlers = append(handlers,
