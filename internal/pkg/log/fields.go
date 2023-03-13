@@ -144,7 +144,7 @@ const (
 	FieldSource                 = "source"
 	FieldAge                    = "age"
 	FieldMinAge                 = "minAge"
-	FieldDuration               = "duration"
+	FieldLogSpec                = "logSpec"
 )
 
 // WithMessageID sets the message-id field.
@@ -854,9 +854,8 @@ func WithMinAge(value time.Duration) zap.Field {
 	return zap.Duration(FieldMinAge, value)
 }
 
-// WithDuration sets the duration field.
-func WithDuration(value time.Duration) zap.Field {
-	return zap.Duration(FieldDuration, value)
+func WithLogSpec(value string) zap.Field {
+	return zap.String(FieldLogSpec, value)
 }
 
 type jsonMarshaller struct {

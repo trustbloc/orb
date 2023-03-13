@@ -283,12 +283,15 @@ func TestStandardFields(t *testing.T) {
 	})
 
 	t.Run("json fields 4", func(t *testing.T) {
+		const logSpec = "module1=DEBUG:INFO"
+
 		stdOut := newMockWriter()
 
 		logger := log.New(module, log.WithStdOut(stdOut), log.WithEncoding(log.JSON))
 
 		logger.Info("Some message",
 			WithMaxSizeUInt64(30), WithURLString(u1.String()), WithLogURLString(u3.String()), WithIndexUint64(7),
+			WithLogSpec(logSpec),
 		)
 
 		l := unmarshalLogData(t, stdOut.Bytes())
@@ -297,6 +300,7 @@ func TestStandardFields(t *testing.T) {
 		require.Equal(t, u1.String(), l.URL)
 		require.Equal(t, u3.String(), l.LogURL)
 		require.Equal(t, 7, l.Index)
+		require.Equal(t, logSpec, l.LogSpec)
 	})
 }
 
@@ -437,6 +441,7 @@ type logData struct {
 	Source                 string              `json:"source"`
 	Age                    string              `json:"age"`
 	MinAge                 string              `json:"minAge"`
+	LogSpec                string              `json:"logSpec"`
 }
 
 func unmarshalLogData(t *testing.T, b []byte) *logData {
