@@ -126,6 +126,7 @@ import (
 	"github.com/trustbloc/orb/pkg/httpserver/auth/signature"
 	"github.com/trustbloc/orb/pkg/httpserver/maintenance"
 	"github.com/trustbloc/orb/pkg/nodeinfo"
+	"github.com/trustbloc/orb/pkg/observability/loglevels"
 	metricsProvider "github.com/trustbloc/orb/pkg/observability/metrics"
 	noopmetrics "github.com/trustbloc/orb/pkg/observability/metrics/noop"
 	"github.com/trustbloc/orb/pkg/observability/metrics/prometheus"
@@ -1319,8 +1320,8 @@ func startOrbServices(parameters *orbParameters) error {
 		auth.NewHandlerWrapper(vcresthandler.New(vcStore), authTokenManager),
 		auth.NewHandlerWrapper(allowedoriginsrest.NewWriter(allowedOriginsStore), authTokenManager),
 		auth.NewHandlerWrapper(allowedoriginsrest.NewReader(allowedOriginsStore), authTokenManager),
-		auth.NewHandlerWrapper(newLogSpecWriter(), authTokenManager),
-		auth.NewHandlerWrapper(newLogSpecReader(), authTokenManager),
+		auth.NewHandlerWrapper(loglevels.NewWriteHandler(), authTokenManager),
+		auth.NewHandlerWrapper(loglevels.NewReadHandler(), authTokenManager),
 	)
 
 	handlers = append(handlers,
