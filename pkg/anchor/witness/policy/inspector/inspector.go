@@ -13,12 +13,14 @@ import (
 	"time"
 
 	"github.com/trustbloc/logutil-go/pkg/log"
+	"go.opentelemetry.io/otel/trace"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/linkset"
+	"github.com/trustbloc/orb/pkg/observability/tracing"
 )
 
 var logger = log.New("policy-inspector")
@@ -28,13 +30,14 @@ type Inspector struct {
 	*Providers
 
 	maxWitnessDelay time.Duration
+	tracer          trace.Tracer
 }
 
 type anchorLinkStore interface {
 	Get(id string) (*linkset.Link, error)
 }
 
-// Providers contains all of the providers required by the client.
+// Providers contains the providers required by the client.
 type Providers struct {
 	AnchorLinkStore anchorLinkStore
 	Outbox          outboxProvider
@@ -63,6 +66,7 @@ func New(providers *Providers, maxWitnessDelay time.Duration) (*Inspector, error
 	w := &Inspector{
 		Providers:       providers,
 		maxWitnessDelay: maxWitnessDelay,
+		tracer:          tracing.Tracer(tracing.SubsystemAnchor),
 	}
 
 	return w, nil
@@ -82,8 +86,11 @@ func (c *Inspector) CheckPolicy(anchorID string) error {
 
 	witnessesIRI = append(witnessesIRI, vocab.PublicIRI)
 
+	ctx, span := c.tracer.Start(context.Background(), "inspect witness policy")
+	defer span.End()
+
 	// send an offer activity to additional witnesses
-	err = c.postOfferActivity(context.Background(), anchorLink, witnessesIRI)
+	err = c.postOfferActivity(ctx, anchorLink, witnessesIRI)
 	if err != nil {
 		return fmt.Errorf("failed to post new offer activity to additional witnesses for anchor %s: %w",
 			anchorLink.Anchor(), err)

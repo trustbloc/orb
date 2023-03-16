@@ -19,6 +19,7 @@ import (
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
 	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/pubsub"
 )
 
 const (
@@ -119,15 +120,17 @@ func (s *Subscriber) Handler() common.HTTPRequestHandler {
 }
 
 func (s *Subscriber) handleMessage(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
 	var actorIRI *url.URL
 
 	if !s.tokenVerifier.Verify(r) {
-		s.logger.Debug("Request was not verified using authorization bearer tokens. Verifying request via HTTP signature",
+		s.logger.Debugc(ctx, "Request was not verified using authorization bearer tokens. Verifying request via HTTP signature",
 			logfields.WithSenderURL(r.URL))
 
 		verified, actor, err := s.verifier.VerifyRequest(r)
 		if err != nil {
-			s.logger.Error("Error verifying HTTP signature", log.WithError(err), logfields.WithSenderURL(r.URL))
+			s.logger.Errorc(ctx, "Error verifying HTTP signature", log.WithError(err), logfields.WithSenderURL(r.URL))
 
 			w.WriteHeader(http.StatusInternalServerError)
 
@@ -135,7 +138,7 @@ func (s *Subscriber) handleMessage(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !verified {
-			s.logger.Info("Invalid HTTP signature", logfields.WithSenderURL(r.URL))
+			s.logger.Infoc(ctx, "Invalid HTTP signature", logfields.WithSenderURL(r.URL))
 
 			w.WriteHeader(http.StatusUnauthorized)
 
@@ -144,12 +147,12 @@ func (s *Subscriber) handleMessage(w http.ResponseWriter, r *http.Request) {
 
 		actorIRI = actor
 	} else {
-		s.logger.Debug("Request was verified with a bearer token or no authorization was required.", logfields.WithSenderURL(r.URL))
+		s.logger.Debugc(ctx, "Request was verified with a bearer token or no authorization was required.", logfields.WithSenderURL(r.URL))
 	}
 
 	msg, err := s.unmarshalMessage("", r)
 	if err != nil {
-		s.logger.Warn("Error reading message", log.WithError(err), logfields.WithSenderURL(r.URL))
+		s.logger.Warnc(ctx, "Error reading message", log.WithError(err), logfields.WithSenderURL(r.URL))
 
 		w.WriteHeader(http.StatusBadRequest)
 
@@ -160,11 +163,14 @@ func (s *Subscriber) handleMessage(w http.ResponseWriter, r *http.Request) {
 		msg.Metadata[ActorIRIKey] = actorIRI.String()
 	}
 
-	s.logger.Debug("Handling message", logfields.WithMessageID(msg.UUID), logfields.WithActorIRI(actorIRI), logfields.WithSenderURL(r.URL))
+	s.logger.Debugc(ctx, "Handling message", logfields.WithMessageID(msg.UUID),
+		logfields.WithActorIRI(actorIRI), logfields.WithSenderURL(r.URL))
+
+	pubsub.InjectContext(ctx, msg)
 
 	err = s.publish(msg)
 	if err != nil {
-		s.logger.Info("Message wasn't sent", logfields.WithMessageID(msg.UUID), log.WithError(err), logfields.WithSenderURL(r.URL))
+		s.logger.Infoc(ctx, "Message wasn't sent", logfields.WithMessageID(msg.UUID), log.WithError(err), logfields.WithSenderURL(r.URL))
 
 		w.WriteHeader(http.StatusServiceUnavailable)
 

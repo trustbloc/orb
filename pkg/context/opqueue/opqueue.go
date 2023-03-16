@@ -14,15 +14,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
+	"go.opentelemetry.io/otel/trace"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/observability/tracing"
+	"github.com/trustbloc/orb/pkg/pubsub"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 	"github.com/trustbloc/orb/pkg/store"
 )
@@ -135,6 +137,7 @@ type Queue struct {
 	maxRedeliveryInterval     time.Duration
 	redeliveryMultiplier      float64
 	logger                    *log.Log
+	tracer                    trace.Tracer
 }
 
 // New returns a new operation queue.
@@ -175,6 +178,7 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager, met
 		redeliveryMultiplier:      cfg.RetriesMultiplier,
 		maxRedeliveryInterval:     cfg.RetriesMaxDelay,
 		logger:                    logger,
+		tracer:                    tracing.Tracer(tracing.SubsystemOperationQueue),
 	}
 
 	q.Lifecycle = lifecycle.New("operation-queue", lifecycle.WithStart(q.start))
@@ -196,8 +200,13 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager, met
 
 // Add publishes the given operation.
 func (q *Queue) Add(op *operation.QueuedOperation, protocolVersion uint64) (uint, error) {
+	ctx, span := q.tracer.Start(context.Background(), "add operation",
+		trace.WithAttributes(tracing.DIDSuffixAttribute(op.UniqueSuffix)),
+	)
+	defer span.End()
+
 	return q.publish(
-		context.Background(),
+		ctx,
 		&OperationMessage{
 			ID: uuid.New().String(),
 			Operation: &operation.QueuedOperationAtTime{
@@ -208,7 +217,7 @@ func (q *Queue) Add(op *operation.QueuedOperation, protocolVersion uint64) (uint
 	)
 }
 
-func (q *Queue) publish(_ context.Context, op *OperationMessage) (uint, error) {
+func (q *Queue) publish(ctx context.Context, op *OperationMessage) (uint, error) {
 	if q.State() != lifecycle.StateStarted {
 		return 0, lifecycle.ErrNotStarted
 	}
@@ -224,11 +233,11 @@ func (q *Queue) publish(_ context.Context, op *OperationMessage) (uint, error) {
 		return 0, fmt.Errorf("marshal queued operation: %w", err)
 	}
 
-	msg := message.NewMessage(watermill.NewUUID(), b)
+	msg := pubsub.NewMessage(ctx, b)
 
 	delay := q.getDeliveryDelay(op.Retries)
 
-	q.logger.Debug("Publishing operation message to queue", log.WithTopic(topic), logfields.WithMessageID(msg.UUID),
+	q.logger.Debugc(ctx, "Publishing operation message to queue", log.WithTopic(topic), logfields.WithMessageID(msg.UUID),
 		logfields.WithOperationID(op.ID), logfields.WithRetries(op.Retries), logfields.WithDeliveryDelay(delay),
 		logfields.WithSuffix(op.Operation.UniqueSuffix))
 
@@ -417,13 +426,16 @@ func (q *Queue) newAckFunc(items []*queuedOperation) func() uint {
 
 func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 	return func() {
-		q.logger.Info("Operations were rolled back. Re-posting...", logfields.WithTotal(len(items)))
+		ctx, span := q.tracer.Start(context.Background(), "nack")
+		defer span.End()
+
+		q.logger.Infoc(ctx, "Operations were rolled back. Re-posting...", logfields.WithTotal(len(items)))
 
 		var operationsToDelete []*queuedOperation
 
 		for _, op := range items {
 			if op.Retries >= q.maxRetries {
-				q.logger.Warn("... not re-posting operation since the retry count has reached the limit.",
+				q.logger.Warnc(ctx, "... not re-posting operation since the retry count has reached the limit.",
 					logfields.WithOperationID(op.ID), logfields.WithSuffix(op.Operation.UniqueSuffix), logfields.WithRetries(op.Retries))
 
 				operationsToDelete = append(operationsToDelete, op)
@@ -433,18 +445,18 @@ func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 
 			op.Retries++
 
-			q.logger.Info("... re-posting operation ...", logfields.WithOperationID(op.ID),
+			q.logger.Infoc(ctx, "... re-posting operation ...", logfields.WithOperationID(op.ID),
 				logfields.WithSuffix(op.Operation.UniqueSuffix), logfields.WithRetries(op.Retries))
 
-			if _, err := q.publish(context.Background(), op.OperationMessage); err != nil {
-				q.logger.Error("Error re-posting operation. Operation will be detached from this server instance",
+			if _, err := q.publish(ctx, op.OperationMessage); err != nil {
+				q.logger.Errorc(ctx, "Error re-posting operation. Operation will be detached from this server instance",
 					logfields.WithOperationID(op.ID), log.WithError(err))
 
 				if e := q.detachOperation(op); e != nil {
-					q.logger.Error("Failed to detach operation from this server instance",
+					q.logger.Errorc(ctx, "Failed to detach operation from this server instance",
 						logfields.WithOperationID(op.ID), log.WithError(e))
 				} else {
-					q.logger.Info("Operation was detached from this server instance since it could not be "+
+					q.logger.Infoc(ctx, "Operation was detached from this server instance since it could not be "+
 						"published to the queue. It will be retried at a later time.", logfields.WithOperationID(op.ID))
 				}
 			} else {
@@ -454,7 +466,7 @@ func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 
 		if len(operationsToDelete) > 0 {
 			if err := q.deleteOperations(operationsToDelete); err != nil {
-				q.logger.Error("Error deleting operations. Some (or all) of the operations "+
+				q.logger.Errorc(ctx, "Error deleting operations. Some (or all) of the operations "+
 					"will be left in the database and potentially reprocessed (which should be harmless). "+
 					"The operations should be deleted (at some point) by the data expiry service.", log.WithError(err))
 			}
@@ -599,6 +611,9 @@ func (q *Queue) repostOperations(serverID string) error { //nolint:cyclop
 		}
 	}()
 
+	span := tracing.NewSpan(q.tracer, context.Background())
+	defer span.End()
+
 	var batchOperations []storage.Operation
 
 	for {
@@ -623,7 +638,7 @@ func (q *Queue) repostOperations(serverID string) error { //nolint:cyclop
 		q.logger.Info("Re-posting operation.", logfields.WithOperationID(op.ID),
 			logfields.WithSuffix(op.Operation.UniqueSuffix))
 
-		if _, e = q.publish(context.Background(), op); e != nil {
+		if _, e = q.publish(span.Start("re-post operations"), op); e != nil {
 			return fmt.Errorf("publish operation [%s]: %w", op.ID, e)
 		}
 

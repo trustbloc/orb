@@ -137,7 +137,7 @@ func TestOutbox_Post(t *testing.T) {
 		mutex.Unlock()
 	}
 
-	httpServer := httpserver.New(":8003", "", "", time.Second, time.Second,
+	httpServer := httpserver.New(":8003", httpserver.WithHandlers(
 		newTestHandler("/services/service2", http.MethodGet, mockServiceRequestHandler(t, service2URL)),
 		newTestHandler("/services/service3", http.MethodGet, mockServiceRequestHandler(t, service3URL)),
 		newTestHandler("/services/service4", http.MethodGet, mockServiceRequestHandler(t, service4URL)),
@@ -173,7 +173,7 @@ func TestOutbox_Post(t *testing.T) {
 				receivedActivity(activity, activitiesReceived5)
 			}),
 		),
-	)
+	))
 
 	require.NoError(t, httpServer.Start())
 

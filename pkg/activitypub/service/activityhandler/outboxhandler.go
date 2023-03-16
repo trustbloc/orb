@@ -12,21 +12,28 @@ import (
 	"fmt"
 	"net/url"
 
+	"go.opentelemetry.io/otel/trace"
+
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/linkset"
+	"github.com/trustbloc/orb/pkg/observability/tracing"
 )
 
 // Outbox handles activities posted to the outbox.
 type Outbox struct {
 	*handler
+
+	tracer trace.Tracer
 }
 
 // NewOutbox returns a new ActivityPub outbox activity handler.
 func NewOutbox(cfg *Config, s store.Store, activityPubClient activityPubClient) *Outbox {
-	h := &Outbox{}
+	h := &Outbox{
+		tracer: tracing.Tracer(tracing.SubsystemActivityPub),
+	}
 
 	h.handler = newHandler(cfg, s, activityPubClient,
 		func(activity *vocab.ActivityType) error {
@@ -53,21 +60,28 @@ func NewOutbox(cfg *Config, s store.Store, activityPubClient activityPubClient) 
 func (h *Outbox) HandleActivity(ctx context.Context, source *url.URL, activity *vocab.ActivityType) error {
 	typeProp := activity.Type()
 
+	spanCtx, span := h.tracer.Start(ctx, fmt.Sprintf("outbox handle %s activity", typeProp),
+		trace.WithAttributes(
+			tracing.ActivityIDAttribute(activity.ID().String()),
+			tracing.ActivityTypeAttribute(typeProp.String()),
+		))
+	defer span.End()
+
 	switch {
 	case typeProp.Is(vocab.TypeCreate):
-		return h.handleCreateActivity(ctx, activity)
+		return h.handleCreateActivity(spanCtx, activity)
 	case typeProp.Is(vocab.TypeUndo):
-		return h.handleUndoActivity(ctx, activity)
+		return h.handleUndoActivity(spanCtx, activity)
 	case typeProp.Is(vocab.TypeLike):
-		return h.handleLikeActivity(ctx, activity)
+		return h.handleLikeActivity(spanCtx, activity)
 	default:
 		// Nothing to do for activity.
 		return nil
 	}
 }
 
-func (h *handler) handleCreateActivity(_ context.Context, create *vocab.ActivityType) error {
-	h.logger.Debug("Handling 'Create' activity", logfields.WithActivityID(create.ID()))
+func (h *handler) handleCreateActivity(ctx context.Context, create *vocab.ActivityType) error {
+	h.logger.Debugc(ctx, "Handling 'Create' activity", logfields.WithActivityID(create.ID()))
 
 	obj := create.Object()
 
@@ -99,7 +113,7 @@ func (h *handler) handleCreateActivity(_ context.Context, create *vocab.Activity
 		return fmt.Errorf("invalid anchor link: %w", err)
 	}
 
-	h.logger.Debug("Storing anchor reference", logfields.WithAnchorURI(anchorLink.Anchor()))
+	h.logger.Debugc(ctx, "Storing anchor reference", logfields.WithAnchorURI(anchorLink.Anchor()))
 
 	if err := h.store.AddReference(store.AnchorLinkset, anchorEvent.URL()[0], h.ServiceIRI); err != nil {
 		return orberrors.NewTransient(fmt.Errorf("store anchor reference: %w", err))

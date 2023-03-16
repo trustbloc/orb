@@ -19,6 +19,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/logutil-go/pkg/log"
+
+	"github.com/trustbloc/orb/pkg/observability/tracing"
 )
 
 func TestStartCmdContents(t *testing.T) {
@@ -1693,6 +1695,61 @@ func TestGetActivityPubIRICacheParameters(t *testing.T) {
 			require.Error(t, err)
 			require.Contains(t, err.Error(), "invalid value for parameter [apiri-cache-Expiration]")
 		})
+	})
+}
+
+func TestTracingParameters(t *testing.T) {
+	t.Run("Default (not enabled)", func(t *testing.T) {
+		cmd := getTestCmd(t)
+
+		params, err := getTracingParams(cmd)
+		require.NoError(t, err)
+		require.False(t, params.enabled)
+	})
+
+	t.Run("Jaeger provider, no URL -> error", func(t *testing.T) {
+		restoreEnv := setEnv(t, tracingProviderEnvKey, tracing.ProviderJaeger)
+		defer restoreEnv()
+
+		cmd := getTestCmd(t)
+
+		_, err := getTracingParams(cmd)
+		require.EqualError(t, err, "Neither tracing-collector-url (command line flag) nor OUTBOX_TRACING_COLLECTOR_URL (environment variable) have been set.")
+	})
+
+	t.Run("Unsupported provider -> error", func(t *testing.T) {
+		restoreEnv := setEnv(t, tracingProviderEnvKey, "some-other-provider")
+		defer restoreEnv()
+
+		cmd := getTestCmd(t)
+
+		_, err := getTracingParams(cmd)
+		require.EqualError(t, err, "unsupported tracing provider: some-other-provider")
+	})
+
+	t.Run("Jaeger provider -> success", func(t *testing.T) {
+		const (
+			url     = "https://localhost:9000/jaeger"
+			service = "service1"
+		)
+
+		restoreProviderEnv := setEnv(t, tracingProviderEnvKey, tracing.ProviderJaeger)
+		restoreURLEnv := setEnv(t, tracingCollectorURLEnvKey, url)
+		restoreServiceEnv := setEnv(t, tracingServiceNameEnvKey, service)
+
+		defer func() {
+			restoreProviderEnv()
+			restoreURLEnv()
+			restoreServiceEnv()
+		}()
+
+		cmd := getTestCmd(t)
+
+		params, err := getTracingParams(cmd)
+		require.NoError(t, err)
+		require.Equal(t, tracing.ProviderJaeger, params.provider)
+		require.Equal(t, url, params.collectorURL)
+		require.Equal(t, service, params.serviceName)
 	})
 }
 

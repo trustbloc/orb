@@ -13,12 +13,10 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	"github.com/hyperledger/aries-framework-go-ext/component/vdr/orb"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/logutil-go/pkg/log"
-	restcommon "github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
 
 	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 	"github.com/trustbloc/orb/internal/pkg/tlsutil"
@@ -246,18 +244,11 @@ func startDriver(parameters *parameters) error {
 		OrbVDR: orbVDR,
 	})
 
-	handlers := make([]restcommon.HTTPHandler, 0)
-
-	handlers = append(handlers,
-		endpointDiscoveryOp.GetRESTHandlers()...)
-
 	httpServer := httpserver.New(
 		parameters.hostURL,
-		parameters.tlsCertificate,
-		parameters.tlsKey,
-		20*time.Second, //nolint: gomnd
-		20*time.Second, //nolint: gomnd
-		handlers...,
+		httpserver.WithCertFile(parameters.tlsCertificate),
+		httpserver.WithKeyFile(parameters.tlsKey),
+		httpserver.WithHandlers(endpointDiscoveryOp.GetRESTHandlers()...),
 	)
 
 	srv := &HTTPServer{}

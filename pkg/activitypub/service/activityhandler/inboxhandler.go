@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/trustbloc/logutil-go/pkg/log"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
@@ -26,6 +27,7 @@ import (
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/hashlink"
 	"github.com/trustbloc/orb/pkg/linkset"
+	"github.com/trustbloc/orb/pkg/observability/tracing"
 )
 
 // Inbox handles activities posted to the inbox.
@@ -35,6 +37,7 @@ type Inbox struct {
 
 	outbox       service.Outbox
 	followersIRI *url.URL
+	tracer       trace.Tracer
 }
 
 // NewInbox returns a new ActivityPub inbox activity handler.
@@ -56,6 +59,7 @@ func NewInbox(cfg *Config, s store.Store, outbox service.Outbox,
 		outbox:       outbox,
 		Handlers:     options,
 		followersIRI: followersIRI,
+		tracer:       tracing.Tracer(tracing.SubsystemActivityPub),
 	}
 
 	h.handler = newHandler(cfg, s, activityPubClient,
@@ -81,27 +85,34 @@ func NewInbox(cfg *Config, s store.Store, outbox service.Outbox,
 func (h *Inbox) HandleActivity(ctx context.Context, source *url.URL, activity *vocab.ActivityType) error {
 	typeProp := activity.Type()
 
+	spanCtx, span := h.tracer.Start(ctx, fmt.Sprintf("inbox handle %s activity", typeProp),
+		trace.WithAttributes(
+			tracing.ActivityIDAttribute(activity.ID().String()),
+			tracing.ActivityTypeAttribute(typeProp.String()),
+		))
+	defer span.End()
+
 	switch {
 	case typeProp.Is(vocab.TypeCreate):
-		return h.HandleCreateActivity(ctx, source, activity, true)
+		return h.HandleCreateActivity(spanCtx, source, activity, true)
 	case typeProp.Is(vocab.TypeFollow):
-		return h.handleFollowActivity(ctx, activity)
+		return h.handleFollowActivity(spanCtx, activity)
 	case typeProp.Is(vocab.TypeInvite):
-		return h.handleInviteActivity(ctx, activity)
+		return h.handleInviteActivity(spanCtx, activity)
 	case typeProp.Is(vocab.TypeAccept):
-		return h.handleAcceptActivity(ctx, activity)
+		return h.handleAcceptActivity(spanCtx, activity)
 	case typeProp.Is(vocab.TypeReject):
 		return h.handleRejectActivity(activity)
 	case typeProp.Is(vocab.TypeAnnounce):
-		_, err := h.HandleAnnounceActivity(ctx, source, activity)
+		_, err := h.HandleAnnounceActivity(spanCtx, source, activity)
 
 		return err
 	case typeProp.Is(vocab.TypeOffer):
-		return h.handleOfferActivity(ctx, activity)
+		return h.handleOfferActivity(spanCtx, activity)
 	case typeProp.Is(vocab.TypeLike):
 		return h.handleLikeActivity(activity)
 	case typeProp.Is(vocab.TypeUndo):
-		return h.handleUndoActivity(ctx, activity)
+		return h.handleUndoActivity(spanCtx, activity)
 	default:
 		return fmt.Errorf("unsupported activity type: %s", typeProp.Types())
 	}
