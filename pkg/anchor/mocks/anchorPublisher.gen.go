@@ -2,16 +2,18 @@
 package mocks
 
 import (
+	"context"
 	"sync"
 
-	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
+	"github.com/trustbloc/orb/pkg/anchor/info"
 )
 
 type AnchorPublisher struct {
-	PublishAnchorStub        func(anchor *anchorinfo.AnchorInfo) error
+	PublishAnchorStub        func(context.Context, *info.AnchorInfo) error
 	publishAnchorMutex       sync.RWMutex
 	publishAnchorArgsForCall []struct {
-		anchor *anchorinfo.AnchorInfo
+		arg1 context.Context
+		arg2 *info.AnchorInfo
 	}
 	publishAnchorReturns struct {
 		result1 error
@@ -23,21 +25,24 @@ type AnchorPublisher struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *AnchorPublisher) PublishAnchor(anchor *anchorinfo.AnchorInfo) error {
+func (fake *AnchorPublisher) PublishAnchor(arg1 context.Context, arg2 *info.AnchorInfo) error {
 	fake.publishAnchorMutex.Lock()
 	ret, specificReturn := fake.publishAnchorReturnsOnCall[len(fake.publishAnchorArgsForCall)]
 	fake.publishAnchorArgsForCall = append(fake.publishAnchorArgsForCall, struct {
-		anchor *anchorinfo.AnchorInfo
-	}{anchor})
-	fake.recordInvocation("PublishAnchor", []interface{}{anchor})
+		arg1 context.Context
+		arg2 *info.AnchorInfo
+	}{arg1, arg2})
+	stub := fake.PublishAnchorStub
+	fakeReturns := fake.publishAnchorReturns
+	fake.recordInvocation("PublishAnchor", []interface{}{arg1, arg2})
 	fake.publishAnchorMutex.Unlock()
-	if fake.PublishAnchorStub != nil {
-		return fake.PublishAnchorStub(anchor)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	return fake.publishAnchorReturns.result1
+	return fakeReturns.result1
 }
 
 func (fake *AnchorPublisher) PublishAnchorCallCount() int {
@@ -46,13 +51,22 @@ func (fake *AnchorPublisher) PublishAnchorCallCount() int {
 	return len(fake.publishAnchorArgsForCall)
 }
 
-func (fake *AnchorPublisher) PublishAnchorArgsForCall(i int) *anchorinfo.AnchorInfo {
+func (fake *AnchorPublisher) PublishAnchorCalls(stub func(context.Context, *info.AnchorInfo) error) {
+	fake.publishAnchorMutex.Lock()
+	defer fake.publishAnchorMutex.Unlock()
+	fake.PublishAnchorStub = stub
+}
+
+func (fake *AnchorPublisher) PublishAnchorArgsForCall(i int) (context.Context, *info.AnchorInfo) {
 	fake.publishAnchorMutex.RLock()
 	defer fake.publishAnchorMutex.RUnlock()
-	return fake.publishAnchorArgsForCall[i].anchor
+	argsForCall := fake.publishAnchorArgsForCall[i]
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *AnchorPublisher) PublishAnchorReturns(result1 error) {
+	fake.publishAnchorMutex.Lock()
+	defer fake.publishAnchorMutex.Unlock()
 	fake.PublishAnchorStub = nil
 	fake.publishAnchorReturns = struct {
 		result1 error
@@ -60,6 +74,8 @@ func (fake *AnchorPublisher) PublishAnchorReturns(result1 error) {
 }
 
 func (fake *AnchorPublisher) PublishAnchorReturnsOnCall(i int, result1 error) {
+	fake.publishAnchorMutex.Lock()
+	defer fake.publishAnchorMutex.Unlock()
 	fake.PublishAnchorStub = nil
 	if fake.publishAnchorReturnsOnCall == nil {
 		fake.publishAnchorReturnsOnCall = make(map[int]struct {

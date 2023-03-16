@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package inspector
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"time"
@@ -52,7 +53,7 @@ type witnessPolicy interface {
 
 // Outbox defines outbox.
 type Outbox interface {
-	Post(activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error)
+	Post(ctx context.Context, activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error)
 }
 
 type outboxProvider func() Outbox
@@ -82,7 +83,7 @@ func (c *Inspector) CheckPolicy(anchorID string) error {
 	witnessesIRI = append(witnessesIRI, vocab.PublicIRI)
 
 	// send an offer activity to additional witnesses
-	err = c.postOfferActivity(anchorLink, witnessesIRI)
+	err = c.postOfferActivity(context.Background(), anchorLink, witnessesIRI)
 	if err != nil {
 		return fmt.Errorf("failed to post new offer activity to additional witnesses for anchor %s: %w",
 			anchorLink.Anchor(), err)
@@ -92,7 +93,7 @@ func (c *Inspector) CheckPolicy(anchorID string) error {
 }
 
 // postOfferActivity creates and posts offer activity (requests witnessing of anchor credential).
-func (c *Inspector) postOfferActivity(anchorLink *linkset.Link, witnessesIRI []*url.URL) error {
+func (c *Inspector) postOfferActivity(ctx context.Context, anchorLink *linkset.Link, witnessesIRI []*url.URL) error {
 	logger.Debug("Sending anchor to additional witnesses",
 		logfields.WithAnchorURI(anchorLink.Anchor()), logfields.WithWitnessURIs(witnessesIRI...))
 
@@ -114,7 +115,7 @@ func (c *Inspector) postOfferActivity(anchorLink *linkset.Link, witnessesIRI []*
 		vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 	)
 
-	activityID, err := c.Outbox().Post(offer)
+	activityID, err := c.Outbox().Post(ctx, offer)
 	if err != nil {
 		return fmt.Errorf("failed to post additional offer for anchor[%s]: %w", anchorLink.Anchor(), err)
 	}

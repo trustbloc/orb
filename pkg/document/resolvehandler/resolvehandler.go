@@ -8,6 +8,7 @@ package resolvehandler
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -59,7 +60,7 @@ type coreResolver interface {
 
 // did discovery service.
 type discoveryService interface {
-	RequestDiscovery(id string) error
+	RequestDiscovery(ctx context.Context, id string) error
 }
 
 type endpointClient interface {
@@ -69,7 +70,7 @@ type endpointClient interface {
 }
 
 type remoteResolver interface {
-	ResolveDocumentFromResolutionEndpoints(id string, endpoints []string) (*document.ResolutionResult, error)
+	ResolveDocumentFromResolutionEndpoints(ctx context.Context, id string, endpoints []string) (*document.ResolutionResult, error)
 }
 
 type metricsProvider interface {
@@ -139,13 +140,15 @@ func (r *ResolveHandler) ResolveDocument(id string, opts ...document.ResolutionO
 		r.metrics.DocumentResolveTime(time.Since(startTime))
 	}()
 
-	localResponse, err := r.resolveDocumentLocally(id, opts...)
+	ctx := context.Background()
+
+	localResponse, err := r.resolveDocumentLocally(ctx, id, opts...)
 	if err != nil {
 		return nil, fmt.Errorf("resolve document [%s] locally: %w", id, err)
 	}
 
 	if r.enableResolutionFromAnchorOrigin && !strings.Contains(id, r.unpublishedDIDLabel) {
-		return r.resolveDocumentFromAnchorOriginAndCombineWithLocal(id, localResponse, opts...), nil
+		return r.resolveDocumentFromAnchorOriginAndCombineWithLocal(ctx, id, localResponse, opts...), nil
 	}
 
 	return localResponse, nil
@@ -153,7 +156,7 @@ func (r *ResolveHandler) ResolveDocument(id string, opts ...document.ResolutionO
 
 //nolint:funlen,cyclop
 func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(
-	id string, localResponse *document.ResolutionResult,
+	ctx context.Context, id string, localResponse *document.ResolutionResult,
 	opts ...document.ResolutionOption) *document.ResolutionResult {
 	localAnchorOrigin, err := util.GetAnchorOrigin(localResponse.DocumentMetadata)
 	if err != nil {
@@ -199,7 +202,7 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(
 		return localResponse
 	}
 
-	anchorOriginResponse, err := r.resolveDocumentFromAnchorOrigin(id, localAnchorOrigin)
+	anchorOriginResponse, err := r.resolveDocumentFromAnchorOrigin(ctx, id, localAnchorOrigin)
 	if err != nil {
 		logger.Warn("Resolving locally since there was an error getting local anchor origin",
 			logfields.WithDID(id), log.WithError(err))
@@ -246,7 +249,7 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(
 
 	opts = append(opts, document.WithAdditionalOperations(anchorOriginOps))
 
-	localResponseWithAnchorOriginOps, err := r.resolveDocumentLocally(id, opts...)
+	localResponseWithAnchorOriginOps, err := r.resolveDocumentLocally(ctx, id, opts...)
 	if err != nil {
 		logger.Debug("Resolving locally due to error in resolve doc locally with unpublished/additional published ops",
 			logfields.WithDID(id), log.WithError(err))
@@ -385,7 +388,7 @@ func checkCommitment(anchorOrigin, local map[string]interface{}, commitmentType 
 	return nil
 }
 
-func (r *ResolveHandler) resolveDocumentFromAnchorOrigin(id, anchorOrigin string) (*document.ResolutionResult, error) {
+func (r *ResolveHandler) resolveDocumentFromAnchorOrigin(ctx context.Context, id, anchorOrigin string) (*document.ResolutionResult, error) {
 	endpoint, err := r.getAnchorOriginEndpoint(anchorOrigin)
 	if err != nil {
 		return nil, err
@@ -397,7 +400,7 @@ func (r *ResolveHandler) resolveDocumentFromAnchorOrigin(id, anchorOrigin string
 		r.metrics.ResolveDocumentFromAnchorOriginTime(time.Since(resolveDocumentFromAnchorOriginStartTime))
 	}()
 
-	anchorOriginResponse, err := r.remoteResolver.ResolveDocumentFromResolutionEndpoints(id, endpoint.ResolutionEndpoints)
+	anchorOriginResponse, err := r.remoteResolver.ResolveDocumentFromResolutionEndpoints(ctx, id, endpoint.ResolutionEndpoints)
 	if err != nil {
 		return nil, fmt.Errorf("unable to resolve id[%s] from anchor origin endpoints%s: %w",
 			id, endpoint.ResolutionEndpoints, err)
@@ -424,7 +427,8 @@ func (r *ResolveHandler) getAnchorOriginEndpoint(anchorOrigin string) (*models.E
 	return endpoint, nil
 }
 
-func (r *ResolveHandler) resolveDocumentLocally(id string, opts ...document.ResolutionOption) (*document.ResolutionResult, error) {
+func (r *ResolveHandler) resolveDocumentLocally(ctx context.Context, id string,
+	opts ...document.ResolutionOption) (*document.ResolutionResult, error) {
 	resolveDocumentLocallyStartTime := time.Now()
 
 	defer func() {
@@ -436,7 +440,7 @@ func (r *ResolveHandler) resolveDocumentLocally(id string, opts ...document.Reso
 		if strings.Contains(err.Error(), "not found") &&
 			!strings.Contains(id, r.unpublishedDIDLabel) &&
 			r.enableDidDiscovery {
-			r.requestDiscovery(id)
+			r.requestDiscovery(ctx, id)
 		}
 
 		return nil, fmt.Errorf("resolve document [%s]: %w", id, err)
@@ -455,7 +459,7 @@ func (r *ResolveHandler) resolveDocumentLocally(id string, opts ...document.Reso
 	return response, nil
 }
 
-func (r *ResolveHandler) requestDiscovery(did string) {
+func (r *ResolveHandler) requestDiscovery(ctx context.Context, did string) {
 	logger.Info("Requesting discovery for DID", logfields.WithDID(did))
 
 	requestDiscoveryStartTime := time.Now()
@@ -464,7 +468,7 @@ func (r *ResolveHandler) requestDiscovery(did string) {
 		r.metrics.RequestDiscoveryTime(time.Since(requestDiscoveryStartTime))
 	}()
 
-	err := r.discoveryService.RequestDiscovery(did)
+	err := r.discoveryService.RequestDiscovery(ctx, did)
 	if err != nil {
 		logger.Warn("Error while requesting discovery for DID", logfields.WithDID(did), log.WithError(err))
 	}

@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package local
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -21,7 +22,7 @@ import (
 var logger = log.New("local-discovery")
 
 type didPublisher interface {
-	PublishDID(dids string) error
+	PublishDID(ctx context.Context, dids string) error
 }
 
 type endpointClient interface {
@@ -45,7 +46,7 @@ type Discovery struct {
 }
 
 // RequestDiscovery requests did discovery.
-func (d *Discovery) RequestDiscovery(did string) error {
+func (d *Discovery) RequestDiscovery(ctx context.Context, did string) error {
 	suffix, err := util.GetSuffix(did)
 	if err != nil {
 		return err
@@ -61,7 +62,7 @@ func (d *Discovery) RequestDiscovery(did string) error {
 		}
 	}
 
-	return d.publisher.PublishDID(latestCID + docutil.NamespaceDelimiter + suffix)
+	return d.publisher.PublishDID(ctx, latestCID+docutil.NamespaceDelimiter+suffix)
 }
 
 func (d *Discovery) getCID(id, suffix string) (string, error) {

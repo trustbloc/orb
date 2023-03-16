@@ -214,12 +214,14 @@ func (h *Inbox) handle(msg *message.Message) {
 }
 
 func (h *Inbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, error) {
-	h.logger.Debug("Handling activities message",
+	ctx := context.Background()
+
+	h.logger.Debugc(ctx, "Handling activities message",
 		logfields.WithMessageID(msg.UUID), logfields.WithData(msg.Payload))
 
 	activity, err := h.unmarshalAndValidateActivity(msg)
 	if err != nil {
-		h.logger.Error("Error validating activity", log.WithError(err), logfields.WithMessageID(msg.UUID))
+		h.logger.Errorc(ctx, "Error validating activity", log.WithError(err), logfields.WithMessageID(msg.UUID))
 
 		return nil, err
 	}
@@ -227,18 +229,18 @@ func (h *Inbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, er
 	_, err = h.activityStore.GetActivity(activity.ID().URL())
 	if err != nil {
 		if !errors.Is(err, store.ErrNotFound) {
-			h.logger.Error("Error retrieving activity", log.WithError(err),
+			h.logger.Errorc(ctx, "Error retrieving activity", log.WithError(err),
 				logfields.WithActivityID(activity.ID()), logfields.WithMessageID(msg.UUID))
 
 			return nil, err
 		}
 	} else {
-		h.logger.Info("Ignoring duplicate activity", logfields.WithActivityID(activity.ID()), logfields.WithMessageID(msg.UUID))
+		h.logger.Infoc(ctx, "Ignoring duplicate activity", logfields.WithActivityID(activity.ID()), logfields.WithMessageID(msg.UUID))
 
 		return activity, nil
 	}
 
-	err = h.activityHandler.HandleActivity(nil, activity)
+	err = h.activityHandler.HandleActivity(ctx, nil, activity)
 	if err != nil {
 		// If it's a transient error then return it so that the message is Nacked and retried. Otherwise, fall
 		// through in order to store the activity and Ack the message.
@@ -247,16 +249,16 @@ func (h *Inbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, er
 		}
 	}
 
-	h.logger.Debug("Handled message. Adding activity to inbox...",
+	h.logger.Debugc(ctx, "Handled message. Adding activity to inbox...",
 		logfields.WithMessageID(msg.UUID), logfields.WithActivityID(activity.ID()))
 
 	// Don't return an error if we can't store the activity since we've already successfully processed the activity,
 	// and we don't want to reprocess the same message.
 	if e := h.activityStore.AddActivity(activity); e != nil {
-		h.logger.Error("Error storing activity", log.WithError(e), logfields.WithActivityID(activity.ID()))
+		h.logger.Errorc(ctx, "Error storing activity", log.WithError(e), logfields.WithActivityID(activity.ID()))
 	} else if e := h.activityStore.AddReference(store.Inbox, h.ServiceIRI, activity.ID().URL(),
 		store.WithActivityType(activity.Type().Types()[0])); e != nil {
-		h.logger.Error("Error adding reference to activity", log.WithError(e), logfields.WithActivityID(activity.ID()))
+		h.logger.Errorc(ctx, "Error adding reference to activity", log.WithError(e), logfields.WithActivityID(activity.ID()))
 	}
 
 	return activity, err

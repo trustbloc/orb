@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package inspector
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -274,7 +275,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		c, err := New(providers, testMaxWitnessDelay)
 		require.NoError(t, err)
 
-		err = c.postOfferActivity(anchorLink, []*url.URL{testWitnessURL})
+		err = c.postOfferActivity(context.Background(), anchorLink, []*url.URL{testWitnessURL})
 		require.NoError(t, err)
 	})
 
@@ -288,7 +289,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 		c, err := New(providers, testMaxWitnessDelay)
 		require.NoError(t, err)
 
-		err = c.postOfferActivity(anchorLink, []*url.URL{testWitnessURL})
+		err = c.postOfferActivity(context.Background(), anchorLink, []*url.URL{testWitnessURL})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "outbox error")
 	})
@@ -298,7 +299,7 @@ type mockOutbox struct {
 	Err error
 }
 
-func (m *mockOutbox) Post(activity *vocab.ActivityType, _ ...*url.URL) (*url.URL, error) {
+func (m *mockOutbox) Post(ctx context.Context, activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}

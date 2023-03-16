@@ -8,10 +8,10 @@ import (
 )
 
 type SignatureVerifier struct {
-	VerifyRequestStub        func(req *http.Request) (bool, *url.URL, error)
+	VerifyRequestStub        func(*http.Request) (bool, *url.URL, error)
 	verifyRequestMutex       sync.RWMutex
 	verifyRequestArgsForCall []struct {
-		req *http.Request
+		arg1 *http.Request
 	}
 	verifyRequestReturns struct {
 		result1 bool
@@ -27,21 +27,23 @@ type SignatureVerifier struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *SignatureVerifier) VerifyRequest(req *http.Request) (bool, *url.URL, error) {
+func (fake *SignatureVerifier) VerifyRequest(arg1 *http.Request) (bool, *url.URL, error) {
 	fake.verifyRequestMutex.Lock()
 	ret, specificReturn := fake.verifyRequestReturnsOnCall[len(fake.verifyRequestArgsForCall)]
 	fake.verifyRequestArgsForCall = append(fake.verifyRequestArgsForCall, struct {
-		req *http.Request
-	}{req})
-	fake.recordInvocation("VerifyRequest", []interface{}{req})
+		arg1 *http.Request
+	}{arg1})
+	stub := fake.VerifyRequestStub
+	fakeReturns := fake.verifyRequestReturns
+	fake.recordInvocation("VerifyRequest", []interface{}{arg1})
 	fake.verifyRequestMutex.Unlock()
-	if fake.VerifyRequestStub != nil {
-		return fake.VerifyRequestStub(req)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2, ret.result3
 	}
-	return fake.verifyRequestReturns.result1, fake.verifyRequestReturns.result2, fake.verifyRequestReturns.result3
+	return fakeReturns.result1, fakeReturns.result2, fakeReturns.result3
 }
 
 func (fake *SignatureVerifier) VerifyRequestCallCount() int {
@@ -50,13 +52,22 @@ func (fake *SignatureVerifier) VerifyRequestCallCount() int {
 	return len(fake.verifyRequestArgsForCall)
 }
 
+func (fake *SignatureVerifier) VerifyRequestCalls(stub func(*http.Request) (bool, *url.URL, error)) {
+	fake.verifyRequestMutex.Lock()
+	defer fake.verifyRequestMutex.Unlock()
+	fake.VerifyRequestStub = stub
+}
+
 func (fake *SignatureVerifier) VerifyRequestArgsForCall(i int) *http.Request {
 	fake.verifyRequestMutex.RLock()
 	defer fake.verifyRequestMutex.RUnlock()
-	return fake.verifyRequestArgsForCall[i].req
+	argsForCall := fake.verifyRequestArgsForCall[i]
+	return argsForCall.arg1
 }
 
 func (fake *SignatureVerifier) VerifyRequestReturns(result1 bool, result2 *url.URL, result3 error) {
+	fake.verifyRequestMutex.Lock()
+	defer fake.verifyRequestMutex.Unlock()
 	fake.VerifyRequestStub = nil
 	fake.verifyRequestReturns = struct {
 		result1 bool
@@ -66,6 +77,8 @@ func (fake *SignatureVerifier) VerifyRequestReturns(result1 bool, result2 *url.U
 }
 
 func (fake *SignatureVerifier) VerifyRequestReturnsOnCall(i int, result1 bool, result2 *url.URL, result3 error) {
+	fake.verifyRequestMutex.Lock()
+	defer fake.verifyRequestMutex.Unlock()
 	fake.VerifyRequestStub = nil
 	if fake.verifyRequestReturnsOnCall == nil {
 		fake.verifyRequestReturnsOnCall = make(map[int]struct {

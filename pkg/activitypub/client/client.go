@@ -168,7 +168,7 @@ func (c *Client) loadActor(actorIRI string) (*vocab.ActorType, error) {
 		return nil, fmt.Errorf("parse actor IRI [%s]: %w", resolvedActorIRI, err)
 	}
 
-	respBytes, err := c.get(u)
+	respBytes, err := c.get(context.Background(), u)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response from %s: %w", actorIRI, err)
 	}
@@ -211,7 +211,7 @@ func (c *Client) loadPublicKey(keyIRI string) (*vocab.PublicKeyType, error) {
 		return nil, fmt.Errorf("parse key IRI [%s]: %w", keyIRI, err)
 	}
 
-	respBytes, err := c.get(keyURL)
+	respBytes, err := c.get(context.Background(), keyURL)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response from %s: %w", keyIRI, err)
 	}
@@ -230,8 +230,8 @@ func (c *Client) loadPublicKey(keyIRI string) (*vocab.PublicKeyType, error) {
 
 // GetReferences returns an iterator that reads all references at the given IRI. The IRI either resolves
 // to an ActivityPub actor, collection or ordered collection.
-func (c *Client) GetReferences(iri *url.URL) (ReferenceIterator, error) {
-	respBytes, err := c.get(iri)
+func (c *Client) GetReferences(ctx context.Context, iri *url.URL) (ReferenceIterator, error) {
+	respBytes, err := c.get(ctx, iri)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response from %s: %w", iri, err)
 	}
@@ -249,13 +249,13 @@ func (c *Client) GetReferences(iri *url.URL) (ReferenceIterator, error) {
 		items[i] = prop.IRI()
 	}
 
-	return newReferenceIterator(items, firstPage, totalItems, c.get), nil
+	return newReferenceIterator(ctx, items, firstPage, totalItems, c.get), nil
 }
 
 // GetActivities returns an iterator that reads activities at the given IRI. The IRI may reference a
 // Collection, OrderedCollection, CollectionPage, or OrderedCollectionPage.
-func (c *Client) GetActivities(iri *url.URL, order Order) (ActivityIterator, error) {
-	respBytes, err := c.get(iri)
+func (c *Client) GetActivities(ctx context.Context, iri *url.URL, order Order) (ActivityIterator, error) {
+	respBytes, err := c.get(ctx, iri)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response from %s: %w", iri, err)
 	}
@@ -271,15 +271,15 @@ func (c *Client) GetActivities(iri *url.URL, order Order) (ActivityIterator, err
 
 	switch {
 	case obj.Type().IsAny(vocab.TypeCollection, vocab.TypeOrderedCollection):
-		return c.activityIteratorFromCollection(respBytes, order)
+		return c.activityIteratorFromCollection(ctx, respBytes, order)
 	case obj.Type().IsAny(vocab.TypeCollectionPage, vocab.TypeOrderedCollectionPage):
-		return c.activityIteratorFromCollectionPage(respBytes, order)
+		return c.activityIteratorFromCollectionPage(ctx, respBytes, order)
 	default:
 		return nil, fmt.Errorf("invalid collection type %s", obj.Type())
 	}
 }
 
-func (c *Client) activityIteratorFromCollection(collBytes []byte, order Order) (ActivityIterator, error) {
+func (c *Client) activityIteratorFromCollection(ctx context.Context, collBytes []byte, order Order) (ActivityIterator, error) {
 	_, first, last, totalItems, err := unmarshalCollection(collBytes)
 	if err != nil {
 		return nil, fmt.Errorf("unmarsal collection: %w", err)
@@ -290,18 +290,18 @@ func (c *Client) activityIteratorFromCollection(collBytes []byte, order Order) (
 		logger.Debug("Creating forward activity iterator",
 			logfields.WithNextIRI(first), logfields.WithTotal(totalItems))
 
-		return newForwardActivityIterator(nil, nil, first, totalItems, c.get), nil
+		return newForwardActivityIterator(ctx, nil, nil, first, totalItems, c.get), nil
 	case Reverse:
 		logger.Debug("Creating reverse activity iterator",
 			logfields.WithNextIRI(last), logfields.WithTotal(totalItems))
 
-		return newReverseActivityIterator(nil, nil, last, totalItems, c.get), nil
+		return newReverseActivityIterator(ctx, nil, nil, last, totalItems, c.get), nil
 	default:
 		return nil, fmt.Errorf("invalid order [%s]", order)
 	}
 }
 
-func (c *Client) activityIteratorFromCollectionPage(collBytes []byte, order Order) (ActivityIterator, error) {
+func (c *Client) activityIteratorFromCollectionPage(ctx context.Context, collBytes []byte, order Order) (ActivityIterator, error) {
 	page, err := unmarshalCollectionPage(collBytes)
 	if err != nil {
 		return nil, fmt.Errorf("unmarsal collection page: %w", err)
@@ -318,19 +318,19 @@ func (c *Client) activityIteratorFromCollectionPage(collBytes []byte, order Orde
 		logger.Debug("Creating forward activity iterator",
 			logfields.WithCurrentIRI(page.current), logfields.WithSize(len(activities)), logfields.WithTotal(page.totalItems))
 
-		return newForwardActivityIterator(activities, page.current, page.next, page.totalItems, c.get), nil
+		return newForwardActivityIterator(ctx, activities, page.current, page.next, page.totalItems, c.get), nil
 	case Reverse:
 		logger.Debug("Creating reverse activity iterator",
 			logfields.WithCurrentIRI(page.current), logfields.WithSize(len(activities)), logfields.WithTotal(page.totalItems))
 
-		return newReverseActivityIterator(activities, page.current, page.prev, page.totalItems, c.get), nil
+		return newReverseActivityIterator(ctx, activities, page.current, page.prev, page.totalItems, c.get), nil
 	default:
 		return nil, fmt.Errorf("invalid order [%s]", order)
 	}
 }
 
-func (c *Client) get(iri *url.URL) ([]byte, error) {
-	resp, err := c.Get(context.Background(), transport.NewRequest(iri,
+func (c *Client) get(ctx context.Context, iri *url.URL) ([]byte, error) {
+	resp, err := c.Get(ctx, transport.NewRequest(iri,
 		transport.WithHeader(transport.AcceptHeader, transport.ActivityStreamsContentType)))
 	if err != nil {
 		return nil, orberrors.NewTransientf("transient http error: request to %s failed: %w",
@@ -415,9 +415,10 @@ func (c *Client) resolvePublicKeyFromDID(keyIRI string) (*vocab.PublicKeyType, e
 	), nil
 }
 
-type getFunc func(iri *url.URL) ([]byte, error)
+type getFunc func(ctx context.Context, iri *url.URL) ([]byte, error)
 
 type referenceIterator struct {
+	ctx          context.Context
 	totalItems   int
 	currentItems []*url.URL
 	currentIndex int
@@ -425,8 +426,9 @@ type referenceIterator struct {
 	get          getFunc
 }
 
-func newReferenceIterator(items []*url.URL, nextPage *url.URL, totalItems int, retrieve getFunc) *referenceIterator {
+func newReferenceIterator(ctx context.Context, items []*url.URL, nextPage *url.URL, totalItems int, retrieve getFunc) *referenceIterator {
 	return &referenceIterator{
+		ctx:          ctx,
 		currentItems: items,
 		totalItems:   totalItems,
 		nextPage:     nextPage,
@@ -461,7 +463,7 @@ func (it *referenceIterator) getNextPage() error {
 
 	logger.Debug("Retrieving next page", logfields.WithNextIRI(it.nextPage))
 
-	respBytes, err := it.get(it.nextPage)
+	respBytes, err := it.get(it.ctx, it.nextPage)
 	if err != nil {
 		return fmt.Errorf("get references from %s: %w", it.nextPage, err)
 	}
@@ -501,6 +503,7 @@ type getNextIRIFunc func(next, prev *url.URL) *url.URL
 type appendFunc func(activities []*vocab.ActivityType, activity *vocab.ActivityType) []*vocab.ActivityType
 
 type activityIterator struct {
+	ctx            context.Context
 	currentItems   []*vocab.ActivityType
 	currentPage    *url.URL
 	nextPage       *url.URL
@@ -512,9 +515,10 @@ type activityIterator struct {
 	appendActivity appendFunc
 }
 
-func newActivityIterator(items []*vocab.ActivityType, currentPage, nextPage *url.URL, totalItems int,
+func newActivityIterator(ctx context.Context, items []*vocab.ActivityType, currentPage, nextPage *url.URL, totalItems int,
 	get getFunc, getNext getNextIRIFunc, appendActivity appendFunc) *activityIterator {
 	return &activityIterator{
+		ctx:            ctx,
 		currentItems:   items,
 		currentPage:    currentPage,
 		nextPage:       nextPage,
@@ -588,7 +592,7 @@ func (it *activityIterator) getNextPage() error {
 
 	logger.Debug("Retrieving next page of activities", logfields.WithNextIRI(it.nextPage))
 
-	respBytes, err := it.get(it.nextPage)
+	respBytes, err := it.get(it.ctx, it.nextPage)
 	if err != nil {
 		return fmt.Errorf("get activities from %s: %w", it.nextPage, err)
 	}
@@ -626,9 +630,9 @@ func (it *activityIterator) getNextPage() error {
 	return nil
 }
 
-func newForwardActivityIterator(items []*vocab.ActivityType, currentPage, nextPage *url.URL,
+func newForwardActivityIterator(ctx context.Context, items []*vocab.ActivityType, currentPage, nextPage *url.URL,
 	totalItems int, retrieve getFunc) *activityIterator {
-	return newActivityIterator(items, currentPage, nextPage, totalItems, retrieve,
+	return newActivityIterator(ctx, items, currentPage, nextPage, totalItems, retrieve,
 		func(next, _ *url.URL) *url.URL {
 			return next
 		},
@@ -638,9 +642,9 @@ func newForwardActivityIterator(items []*vocab.ActivityType, currentPage, nextPa
 	)
 }
 
-func newReverseActivityIterator(items []*vocab.ActivityType, currentPage, nextPage *url.URL,
+func newReverseActivityIterator(ctx context.Context, items []*vocab.ActivityType, currentPage, nextPage *url.URL,
 	totalItems int, retrieve getFunc) *activityIterator {
-	return newActivityIterator(reverseSort(items), currentPage, nextPage, totalItems, retrieve,
+	return newActivityIterator(ctx, reverseSort(items), currentPage, nextPage, totalItems, retrieve,
 		func(_, prev *url.URL) *url.URL {
 			return prev
 		},

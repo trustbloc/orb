@@ -7,13 +7,13 @@ SPDX-License-Identifier: Apache-2.0
 package anchorsynctask
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
 	"time"
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
-
 	"github.com/trustbloc/logutil-go/pkg/log"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
@@ -44,7 +44,7 @@ const (
 
 type activityPubClient interface {
 	GetActor(iri *url.URL) (*vocab.ActorType, error)
-	GetActivities(iri *url.URL, order client.Order) (client.ActivityIterator, error)
+	GetActivities(ctx context.Context, iri *url.URL, order client.Order) (client.ActivityIterator, error)
 }
 
 type taskManager interface {
@@ -207,7 +207,7 @@ func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vo
 			}
 		}
 
-		n, e := m.syncActivity(serviceIRI, currentPage, a)
+		n, e := m.syncActivity(context.Background(), serviceIRI, currentPage, a)
 		if e != nil {
 			return fmt.Errorf("sync activity [%s]: %w", a.ID(), e)
 		}
@@ -242,7 +242,7 @@ func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vo
 	return nil
 }
 
-func (m *task) syncActivity(serviceIRI, currentPage *url.URL, a *vocab.ActivityType) (int, error) {
+func (m *task) syncActivity(ctx context.Context, serviceIRI, currentPage *url.URL, a *vocab.ActivityType) (int, error) {
 	logger.Debug("Syncing activity from current page", logfields.WithActivityID(a.ID()), logfields.WithURL(currentPage))
 
 	processed, err := m.isProcessed(a)
@@ -260,7 +260,7 @@ func (m *task) syncActivity(serviceIRI, currentPage *url.URL, a *vocab.ActivityT
 	logger.Debug("Processing activity.", logfields.WithActivityID(a.ID()), logfields.WithActivityType(a.Type().String()),
 		logfields.WithURL(currentPage))
 
-	numProcessed, e := m.process(serviceIRI, a)
+	numProcessed, e := m.process(ctx, serviceIRI, a)
 	if e != nil {
 		if errors.Is(e, spi.ErrDuplicateAnchorEvent) {
 			logger.Debug("Ignoring activity since it has already been processed.",
@@ -276,12 +276,12 @@ func (m *task) syncActivity(serviceIRI, currentPage *url.URL, a *vocab.ActivityT
 	return numProcessed, nil
 }
 
-func (m *task) process(source *url.URL, a *vocab.ActivityType) (numProcessed int, err error) {
+func (m *task) process(ctx context.Context, source *url.URL, a *vocab.ActivityType) (numProcessed int, err error) {
 	switch {
 	case a.Type().Is(vocab.TypeCreate):
 		logger.Debug("Processing create activity", logfields.WithActivityID(a.ID()))
 
-		err = m.getHandler().HandleCreateActivity(source, a, false)
+		err = m.getHandler().HandleCreateActivity(ctx, source, a, false)
 		if err != nil {
 			return 0, fmt.Errorf("handle create activity [%s]: %w", a.ID(), err)
 		}
@@ -291,7 +291,7 @@ func (m *task) process(source *url.URL, a *vocab.ActivityType) (numProcessed int
 	case a.Type().Is(vocab.TypeAnnounce):
 		logger.Debug("Processing announce activity", logfields.WithActivityID(a.ID()))
 
-		numProcessed, err = m.getHandler().HandleAnnounceActivity(source, a)
+		numProcessed, err = m.getHandler().HandleAnnounceActivity(ctx, source, a)
 		if err != nil {
 			return 0, fmt.Errorf("handle announce activity [%s]: %w", a.ID(), err)
 		}
@@ -342,7 +342,7 @@ func (m *task) getNewActivities(serviceIRI *url.URL, src activitySource) (client
 		return nil, nil, 0, fmt.Errorf("get last synced page: %w", err)
 	}
 
-	it, err := m.apClient.GetActivities(page, client.Forward)
+	it, err := m.apClient.GetActivities(context.Background(), page, client.Forward)
 	if err != nil {
 		return nil, nil, 0, fmt.Errorf("get activities from [%s]: %w", page, err)
 	}

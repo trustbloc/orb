@@ -226,7 +226,7 @@ func TestOutbox_Post(t *testing.T) {
 		),
 	)
 
-	activityID, err := ob.Post(activity)
+	activityID, err := ob.Post(context.Background(), activity)
 	require.NoError(t, err)
 	require.NotNil(t, activityID)
 
@@ -292,7 +292,7 @@ func TestOutbox_PostError(t *testing.T) {
 
 		activity := vocab.NewCreateActivity(nil)
 
-		activityID, err := ob.Post(activity)
+		activityID, err := ob.Post(context.Background(), activity)
 		require.True(t, errors.Is(err, lifecycle.ErrNotStarted))
 		require.Nil(t, activityID)
 	})
@@ -311,7 +311,7 @@ func TestOutbox_PostError(t *testing.T) {
 
 		activity := vocab.NewCreateActivity(nil)
 
-		activityID, err := ob.Post(activity)
+		activityID, err := ob.Post(context.Background(), activity)
 		require.True(t, errors.Is(err, errExpected))
 		require.True(t, orberrors.IsBadRequest(err))
 		require.Nil(t, activityID)
@@ -341,7 +341,7 @@ func TestOutbox_PostError(t *testing.T) {
 			vocab.WithTo(service2URL),
 		)
 
-		activityID, err := ob.Post(activity)
+		activityID, err := ob.Post(context.Background(), activity)
 
 		require.Error(t, err)
 		require.EqualError(t, err, "invalid actor IRI")

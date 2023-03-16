@@ -2,14 +2,16 @@
 package mocks
 
 import (
+	"context"
 	"sync"
 )
 
 type DIDPublisher struct {
-	PublishDIDStub        func(string) error
+	PublishDIDStub        func(context.Context, string) error
 	publishDIDMutex       sync.RWMutex
 	publishDIDArgsForCall []struct {
-		arg1 string
+		arg1 context.Context
+		arg2 string
 	}
 	publishDIDReturns struct {
 		result1 error
@@ -21,21 +23,23 @@ type DIDPublisher struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *DIDPublisher) PublishDID(arg1 string) error {
+func (fake *DIDPublisher) PublishDID(arg1 context.Context, arg2 string) error {
 	fake.publishDIDMutex.Lock()
 	ret, specificReturn := fake.publishDIDReturnsOnCall[len(fake.publishDIDArgsForCall)]
 	fake.publishDIDArgsForCall = append(fake.publishDIDArgsForCall, struct {
-		arg1 string
-	}{arg1})
-	fake.recordInvocation("PublishDID", []interface{}{arg1})
+		arg1 context.Context
+		arg2 string
+	}{arg1, arg2})
+	stub := fake.PublishDIDStub
+	fakeReturns := fake.publishDIDReturns
+	fake.recordInvocation("PublishDID", []interface{}{arg1, arg2})
 	fake.publishDIDMutex.Unlock()
-	if fake.PublishDIDStub != nil {
-		return fake.PublishDIDStub(arg1)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.publishDIDReturns
 	return fakeReturns.result1
 }
 
@@ -45,17 +49,17 @@ func (fake *DIDPublisher) PublishDIDCallCount() int {
 	return len(fake.publishDIDArgsForCall)
 }
 
-func (fake *DIDPublisher) PublishDIDCalls(stub func(string) error) {
+func (fake *DIDPublisher) PublishDIDCalls(stub func(context.Context, string) error) {
 	fake.publishDIDMutex.Lock()
 	defer fake.publishDIDMutex.Unlock()
 	fake.PublishDIDStub = stub
 }
 
-func (fake *DIDPublisher) PublishDIDArgsForCall(i int) string {
+func (fake *DIDPublisher) PublishDIDArgsForCall(i int) (context.Context, string) {
 	fake.publishDIDMutex.RLock()
 	defer fake.publishDIDMutex.RUnlock()
 	argsForCall := fake.publishDIDArgsForCall[i]
-	return argsForCall.arg1
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *DIDPublisher) PublishDIDReturns(result1 error) {

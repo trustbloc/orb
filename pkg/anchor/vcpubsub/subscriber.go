@@ -21,7 +21,7 @@ import (
 )
 
 type (
-	anchorProcessor func(*linkset.Linkset) error
+	anchorProcessor func(context.Context, *linkset.Linkset) error
 )
 
 // Subscriber implements a subscriber that processes witnessed verifiable credentials from a message queue.
@@ -88,7 +88,7 @@ func (h *Subscriber) handleAnchorMessage(msg *message.Message) {
 		return
 	}
 
-	err = h.processAnchor(anchorLinkset)
+	err = h.processAnchor(context.Background(), anchorLinkset)
 
 	switch {
 	case err == nil:

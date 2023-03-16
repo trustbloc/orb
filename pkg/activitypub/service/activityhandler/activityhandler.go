@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package activityhandler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -16,7 +17,6 @@ import (
 	"github.com/trustbloc/logutil-go/pkg/log"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
-	"github.com/trustbloc/orb/pkg/activitypub/client"
 	service "github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -53,7 +53,6 @@ type Config struct {
 
 type activityPubClient interface {
 	GetActor(iri *url.URL) (*vocab.ActorType, error)
-	GetActivities(iri *url.URL, order client.Order) (client.ActivityIterator, error)
 }
 
 type undoFunc func(activity *vocab.ActivityType) error
@@ -121,7 +120,7 @@ func (h *handler) Subscribe() <-chan *vocab.ActivityType {
 	return ch
 }
 
-func (h *handler) handleUndoActivity(undo *vocab.ActivityType) error {
+func (h *handler) handleUndoActivity(_ context.Context, undo *vocab.ActivityType) error {
 	h.logger.Debug("Handling 'Undo' activity", logfields.WithActivityID(undo.ID()))
 
 	if undo.Actor() == nil {

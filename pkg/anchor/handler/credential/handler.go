@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package credential
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -52,7 +53,7 @@ type casResolver interface {
 }
 
 type anchorPublisher interface {
-	PublishAnchor(anchor *anchorinfo.AnchorInfo) error
+	PublishAnchor(ctx context.Context, anchorInfo *anchorinfo.AnchorInfo) error
 }
 
 // New creates new credential handler.
@@ -74,7 +75,7 @@ func New(anchorPublisher anchorPublisher, casResolver casResolver,
 // HandleAnchorEvent handles an anchor event.
 //
 //nolint:cyclop
-func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorRef, source *url.URL,
+func (h *AnchorEventHandler) HandleAnchorEvent(ctx context.Context, actor, anchorRef, source *url.URL,
 	anchorEvent *vocab.AnchorEventType) error {
 	logger.Debug("Received request for anchor", logfields.WithActorIRI(actor), logfields.WithAnchorEventURI(anchorRef))
 
@@ -112,7 +113,7 @@ func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorRef, source *url.URL
 	}
 
 	// Make sure that all parents/grandparents of this anchor event are processed.
-	err = h.ensureParentAnchorsAreProcessed(anchorRef, anchorLink)
+	err = h.ensureParentAnchorsAreProcessed(ctx, anchorRef, anchorLink)
 	if err != nil {
 		return fmt.Errorf("ensure unprocessed parents are processed for %s: %w", anchorRef, err)
 	}
@@ -134,7 +135,7 @@ func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorRef, source *url.URL
 	}
 
 	// Now process the latest anchor event.
-	err = h.processAnchorEvent(&anchorInfo{
+	err = h.processAnchorEvent(ctx, &anchorInfo{
 		anchorLink: anchorLink,
 		AnchorInfo: &anchorinfo.AnchorInfo{
 			Hashlink:         anchorRef.String(),
@@ -150,7 +151,7 @@ func (h *AnchorEventHandler) HandleAnchorEvent(actor, anchorRef, source *url.URL
 	return nil
 }
 
-func (h *AnchorEventHandler) processAnchorEvent(anchorInfo *anchorInfo) error {
+func (h *AnchorEventHandler) processAnchorEvent(ctx context.Context, anchorInfo *anchorInfo) error {
 	anchorLink := anchorInfo.anchorLink
 
 	contentBytes, err := anchorLink.Original().Content()
@@ -177,12 +178,12 @@ func (h *AnchorEventHandler) processAnchorEvent(anchorInfo *anchorInfo) error {
 		return fmt.Errorf("validate credential subject for anchor [%s]: %w", anchorLink.Anchor(), err)
 	}
 
-	return h.anchorPublisher.PublishAnchor(anchorInfo.AnchorInfo)
+	return h.anchorPublisher.PublishAnchor(ctx, anchorInfo.AnchorInfo)
 }
 
 // ensureParentAnchorsAreProcessed checks all ancestors (parents, grandparents, etc.) of the given anchor event
 // and processes all that have not yet been processed.
-func (h *AnchorEventHandler) ensureParentAnchorsAreProcessed(anchorRef *url.URL, anchorLink *linkset.Link) error {
+func (h *AnchorEventHandler) ensureParentAnchorsAreProcessed(ctx context.Context, anchorRef *url.URL, anchorLink *linkset.Link) error {
 	unprocessedParents, err := h.getUnprocessedParentAnchors(anchorRef.String(), anchorLink)
 	if err != nil {
 		return fmt.Errorf("get unprocessed parent anchors for [%s]: %w", anchorRef, err)
@@ -191,12 +192,14 @@ func (h *AnchorEventHandler) ensureParentAnchorsAreProcessed(anchorRef *url.URL,
 	logger.Debug("Processing parents of anchor", logfields.WithTotal(len(unprocessedParents)),
 		logfields.WithAnchorURI(anchorRef), logfields.WithParents(unprocessedParents.HashLinks()))
 
-	for _, parentAnchorInfo := range unprocessedParents {
-		logger.Info("Processing parent", logfields.WithAnchorURI(anchorRef), logfields.WithParent(parentAnchorInfo.Hashlink))
+	if len(unprocessedParents) > 0 {
+		for _, parentAnchorInfo := range unprocessedParents {
+			logger.Info("Processing parent", logfields.WithAnchorURI(anchorRef), logfields.WithParent(parentAnchorInfo.Hashlink))
 
-		err = h.processAnchorEvent(parentAnchorInfo)
-		if err != nil {
-			return fmt.Errorf("process anchor [%s]: %w", parentAnchorInfo.Hashlink, err)
+			err = h.processAnchorEvent(ctx, parentAnchorInfo)
+			if err != nil {
+				return fmt.Errorf("process anchor [%s]: %w", parentAnchorInfo.Hashlink, err)
+			}
 		}
 	}
 

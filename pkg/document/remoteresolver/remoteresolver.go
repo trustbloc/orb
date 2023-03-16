@@ -44,7 +44,8 @@ func New(httpClient httpClient) *Resolver {
 }
 
 // ResolveDocumentFromResolutionEndpoints resolved document from resolution endpoints.
-func (rr *Resolver) ResolveDocumentFromResolutionEndpoints(id string, endpoints []string) (*document.ResolutionResult, error) {
+func (rr *Resolver) ResolveDocumentFromResolutionEndpoints(ctx context.Context, id string,
+	endpoints []string) (*document.ResolutionResult, error) {
 	if len(endpoints) == 0 {
 		return nil, fmt.Errorf("must provide at least one remote resolver endpoint in order to retrieve data")
 	}
@@ -52,7 +53,7 @@ func (rr *Resolver) ResolveDocumentFromResolutionEndpoints(id string, endpoints 
 	var errMsgs []string
 
 	for _, endpoint := range endpoints {
-		rr, err := rr.resolveDocumentFromEndpoint(id, endpoint)
+		rr, err := rr.resolveDocumentFromEndpoint(ctx, id, endpoint)
 		if err != nil {
 			errMsgs = append(errMsgs, err.Error())
 
@@ -65,10 +66,10 @@ func (rr *Resolver) ResolveDocumentFromResolutionEndpoints(id string, endpoints 
 	return nil, fmt.Errorf("%s", errMsgs)
 }
 
-func (rr *Resolver) resolveDocumentFromEndpoint(id, endpoint string) (*document.ResolutionResult, error) {
+func (rr *Resolver) resolveDocumentFromEndpoint(ctx context.Context, id, endpoint string) (*document.ResolutionResult, error) {
 	reqURL := fmt.Sprintf("%s/%s", endpoint, id)
 
-	responseBytes, err := rr.send(reqURL)
+	responseBytes, err := rr.send(ctx, reqURL)
 	if err != nil {
 		return nil, fmt.Errorf("remote request[%s]: %w", reqURL, err)
 	}
@@ -85,13 +86,13 @@ func (rr *Resolver) resolveDocumentFromEndpoint(id, endpoint string) (*document.
 }
 
 // resolveDID makes DID resolution via HTTP.
-func (rr *Resolver) send(uri string) ([]byte, error) {
+func (rr *Resolver) send(ctx context.Context, uri string) ([]byte, error) {
 	req, err := url.Parse(uri)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse request URL[%s]: %w", uri, err)
 	}
 
-	resp, err := rr.httpClient.Get(context.Background(), transport.NewRequest(req,
+	resp, err := rr.httpClient.Get(ctx, transport.NewRequest(req,
 		transport.WithHeader(transport.AcceptHeader, didLDJson)))
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute GET call on %s: %w", req.String(), err)

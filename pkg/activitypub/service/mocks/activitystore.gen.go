@@ -61,30 +61,6 @@ type ActivityStore struct {
 		result1 *vocab.ActivityType
 		result2 error
 	}
-	GetActorStub        func(*url.URL) (*vocab.ActorType, error)
-	getActorMutex       sync.RWMutex
-	getActorArgsForCall []struct {
-		arg1 *url.URL
-	}
-	getActorReturns struct {
-		result1 *vocab.ActorType
-		result2 error
-	}
-	getActorReturnsOnCall map[int]struct {
-		result1 *vocab.ActorType
-		result2 error
-	}
-	PutActorStub        func(*vocab.ActorType) error
-	putActorMutex       sync.RWMutex
-	putActorArgsForCall []struct {
-		arg1 *vocab.ActorType
-	}
-	putActorReturns struct {
-		result1 error
-	}
-	putActorReturnsOnCall map[int]struct {
-		result1 error
-	}
 	QueryActivitiesStub        func(*spi.Criteria, ...spi.QueryOpt) (spi.ActivityIterator, error)
 	queryActivitiesMutex       sync.RWMutex
 	queryActivitiesArgsForCall []struct {
@@ -370,131 +346,6 @@ func (fake *ActivityStore) GetActivityReturnsOnCall(i int, result1 *vocab.Activi
 	}{result1, result2}
 }
 
-func (fake *ActivityStore) GetActor(arg1 *url.URL) (*vocab.ActorType, error) {
-	fake.getActorMutex.Lock()
-	ret, specificReturn := fake.getActorReturnsOnCall[len(fake.getActorArgsForCall)]
-	fake.getActorArgsForCall = append(fake.getActorArgsForCall, struct {
-		arg1 *url.URL
-	}{arg1})
-	stub := fake.GetActorStub
-	fakeReturns := fake.getActorReturns
-	fake.recordInvocation("GetActor", []interface{}{arg1})
-	fake.getActorMutex.Unlock()
-	if stub != nil {
-		return stub(arg1)
-	}
-	if specificReturn {
-		return ret.result1, ret.result2
-	}
-	return fakeReturns.result1, fakeReturns.result2
-}
-
-func (fake *ActivityStore) GetActorCallCount() int {
-	fake.getActorMutex.RLock()
-	defer fake.getActorMutex.RUnlock()
-	return len(fake.getActorArgsForCall)
-}
-
-func (fake *ActivityStore) GetActorCalls(stub func(*url.URL) (*vocab.ActorType, error)) {
-	fake.getActorMutex.Lock()
-	defer fake.getActorMutex.Unlock()
-	fake.GetActorStub = stub
-}
-
-func (fake *ActivityStore) GetActorArgsForCall(i int) *url.URL {
-	fake.getActorMutex.RLock()
-	defer fake.getActorMutex.RUnlock()
-	argsForCall := fake.getActorArgsForCall[i]
-	return argsForCall.arg1
-}
-
-func (fake *ActivityStore) GetActorReturns(result1 *vocab.ActorType, result2 error) {
-	fake.getActorMutex.Lock()
-	defer fake.getActorMutex.Unlock()
-	fake.GetActorStub = nil
-	fake.getActorReturns = struct {
-		result1 *vocab.ActorType
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *ActivityStore) GetActorReturnsOnCall(i int, result1 *vocab.ActorType, result2 error) {
-	fake.getActorMutex.Lock()
-	defer fake.getActorMutex.Unlock()
-	fake.GetActorStub = nil
-	if fake.getActorReturnsOnCall == nil {
-		fake.getActorReturnsOnCall = make(map[int]struct {
-			result1 *vocab.ActorType
-			result2 error
-		})
-	}
-	fake.getActorReturnsOnCall[i] = struct {
-		result1 *vocab.ActorType
-		result2 error
-	}{result1, result2}
-}
-
-func (fake *ActivityStore) PutActor(arg1 *vocab.ActorType) error {
-	fake.putActorMutex.Lock()
-	ret, specificReturn := fake.putActorReturnsOnCall[len(fake.putActorArgsForCall)]
-	fake.putActorArgsForCall = append(fake.putActorArgsForCall, struct {
-		arg1 *vocab.ActorType
-	}{arg1})
-	stub := fake.PutActorStub
-	fakeReturns := fake.putActorReturns
-	fake.recordInvocation("PutActor", []interface{}{arg1})
-	fake.putActorMutex.Unlock()
-	if stub != nil {
-		return stub(arg1)
-	}
-	if specificReturn {
-		return ret.result1
-	}
-	return fakeReturns.result1
-}
-
-func (fake *ActivityStore) PutActorCallCount() int {
-	fake.putActorMutex.RLock()
-	defer fake.putActorMutex.RUnlock()
-	return len(fake.putActorArgsForCall)
-}
-
-func (fake *ActivityStore) PutActorCalls(stub func(*vocab.ActorType) error) {
-	fake.putActorMutex.Lock()
-	defer fake.putActorMutex.Unlock()
-	fake.PutActorStub = stub
-}
-
-func (fake *ActivityStore) PutActorArgsForCall(i int) *vocab.ActorType {
-	fake.putActorMutex.RLock()
-	defer fake.putActorMutex.RUnlock()
-	argsForCall := fake.putActorArgsForCall[i]
-	return argsForCall.arg1
-}
-
-func (fake *ActivityStore) PutActorReturns(result1 error) {
-	fake.putActorMutex.Lock()
-	defer fake.putActorMutex.Unlock()
-	fake.PutActorStub = nil
-	fake.putActorReturns = struct {
-		result1 error
-	}{result1}
-}
-
-func (fake *ActivityStore) PutActorReturnsOnCall(i int, result1 error) {
-	fake.putActorMutex.Lock()
-	defer fake.putActorMutex.Unlock()
-	fake.PutActorStub = nil
-	if fake.putActorReturnsOnCall == nil {
-		fake.putActorReturnsOnCall = make(map[int]struct {
-			result1 error
-		})
-	}
-	fake.putActorReturnsOnCall[i] = struct {
-		result1 error
-	}{result1}
-}
-
 func (fake *ActivityStore) QueryActivities(arg1 *spi.Criteria, arg2 ...spi.QueryOpt) (spi.ActivityIterator, error) {
 	fake.queryActivitiesMutex.Lock()
 	ret, specificReturn := fake.queryActivitiesReturnsOnCall[len(fake.queryActivitiesArgsForCall)]
@@ -637,10 +488,6 @@ func (fake *ActivityStore) Invocations() map[string][][]interface{} {
 	defer fake.deleteReferenceMutex.RUnlock()
 	fake.getActivityMutex.RLock()
 	defer fake.getActivityMutex.RUnlock()
-	fake.getActorMutex.RLock()
-	defer fake.getActorMutex.RUnlock()
-	fake.putActorMutex.RLock()
-	defer fake.putActorMutex.RUnlock()
 	fake.queryActivitiesMutex.RLock()
 	defer fake.queryActivitiesMutex.RUnlock()
 	fake.queryReferencesMutex.RLock()

@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package mocks
 
 import (
+	"context"
 	"net/url"
 	"sync"
 
@@ -51,7 +52,7 @@ func (m *Outbox) Activities() Activities {
 
 // Post post an activity to the outbox. The activity is simply stored
 // so that it may be retrieved by the Activies function.
-func (m *Outbox) Post(activity *vocab.ActivityType, _ ...*url.URL) (*url.URL, error) {
+func (m *Outbox) Post(ctx context.Context, activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error) {
 	if m.err != nil {
 		return nil, m.err
 	}

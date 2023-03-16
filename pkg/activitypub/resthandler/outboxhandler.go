@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package resthandler
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -23,7 +24,7 @@ import (
 )
 
 type outbox interface {
-	Post(activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error)
+	Post(ctx context.Context, activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error)
 }
 
 // Outbox implements a REST handler for posts to a service's outbox.
@@ -67,6 +68,8 @@ func (h *Outbox) Handler() common.HTTPRequestHandler {
 }
 
 func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
+	ctx := req.Context()
+
 	ok, _, err := h.Authorize(req)
 	if err != nil {
 		h.logger.Error("Error authorizing request", log.WithError(err), logfields.WithRequestURL(req.URL))
@@ -104,7 +107,7 @@ func (h *Outbox) handlePost(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	activityID, err := h.ob.Post(activity)
+	activityID, err := h.ob.Post(ctx, activity)
 	if err != nil {
 		if orberrors.IsBadRequest(err) {
 			h.logger.Debug("Error posting activity", log.WithError(err))

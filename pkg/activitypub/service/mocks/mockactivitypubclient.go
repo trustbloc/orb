@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package mocks
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 
@@ -94,7 +95,7 @@ func (m *ActivityPubClient) GetActor(actorIRI *url.URL) (*vocab.ActorType, error
 }
 
 // GetReferences simply returns an iterator that contains the IRI passed as an arg.
-func (m *ActivityPubClient) GetReferences(iri *url.URL) (client.ReferenceIterator, error) {
+func (m *ActivityPubClient) GetReferences(ctx context.Context, iri *url.URL) (client.ReferenceIterator, error) {
 	if m.err != nil {
 		return nil, m.err
 	}
@@ -107,7 +108,7 @@ func (m *ActivityPubClient) GetReferences(iri *url.URL) (client.ReferenceIterato
 }
 
 // GetActivities simply returns an iterator that contains the mock activities.
-func (m *ActivityPubClient) GetActivities(iri *url.URL, _ client.Order) (client.ActivityIterator, error) {
+func (m *ActivityPubClient) GetActivities(ctx context.Context, iri *url.URL, order client.Order) (client.ActivityIterator, error) {
 	if m.err != nil {
 		return nil, m.err
 	}

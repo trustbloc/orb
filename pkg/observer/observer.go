@@ -67,11 +67,12 @@ type didAnchors interface {
 
 // Publisher publishes anchors and DIDs to a message queue for processing.
 type Publisher interface {
-	PublishAnchor(anchor *anchorinfo.AnchorInfo) error
-	PublishDID(did string) error
+	PublishAnchor(ctx context.Context, anchorInfo *anchorinfo.AnchorInfo) error
+	PublishDID(ctx context.Context, did string) error
 }
 
 type pubSub interface {
+	Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error)
 	SubscribeWithOpts(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error)
 	Publish(topic string, messages ...*message.Message) error
 	Close() error
@@ -84,7 +85,7 @@ type metricsProvider interface {
 
 // Outbox defines an ActivityPub outbox.
 type Outbox interface {
-	Post(activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error)
+	Post(ctx context.Context, activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error)
 }
 
 type resourceResolver interface {
@@ -218,7 +219,7 @@ func (o *Observer) Publisher() Publisher {
 	return o.pubSub
 }
 
-func (o *Observer) handleAnchor(anchor *anchorinfo.AnchorInfo) error {
+func (o *Observer) handleAnchor(ctx context.Context, anchor *anchorinfo.AnchorInfo) error {
 	logger.Debug("Observing anchor", logfields.WithAnchorEventURIString(anchor.Hashlink),
 		logfields.WithLocalHashlink(anchor.LocalHashlink), logfields.WithAttributedTo(anchor.AttributedTo))
 
@@ -239,7 +240,7 @@ func (o *Observer) handleAnchor(anchor *anchorinfo.AnchorInfo) error {
 	logger.Debug("Successfully read anchor Linkset from anchor graph", logfields.WithAnchorEventURIString(anchor.Hashlink))
 
 	for _, anchorLink := range anchorLinkset.Linkset {
-		if err := o.processAnchor(anchor, anchorLink); err != nil {
+		if err := o.processAnchor(ctx, anchor, anchorLink); err != nil {
 			logger.Warn("Error processing anchor", logfields.WithAnchorEventURIString(anchor.Hashlink), log.WithError(err))
 
 			return err
@@ -249,7 +250,7 @@ func (o *Observer) handleAnchor(anchor *anchorinfo.AnchorInfo) error {
 	return nil
 }
 
-func (o *Observer) processDID(did string) error {
+func (o *Observer) processDID(ctx context.Context, did string) error {
 	logger.Debug("Processing out-of-system DID", logfields.WithDID(did))
 
 	startTime := time.Now()
@@ -277,7 +278,7 @@ func (o *Observer) processDID(did string) error {
 	for _, anchor := range anchors {
 		logger.Debug("Processing anchor for out-of-system DID", logfields.WithAnchorCID(anchor.CID), logfields.WithDID(did))
 
-		if err := o.processAnchor(
+		if err := o.processAnchor(ctx,
 			&anchorinfo.AnchorInfo{Hashlink: anchor.CID},
 			anchor.Info, suffix); err != nil {
 			if errors.IsTransient(err) {
@@ -306,7 +307,7 @@ func getDidParts(did string) (cid, suffix string, err error) {
 }
 
 //nolint:funlen,cyclop
-func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
+func (o *Observer) processAnchor(ctx context.Context, anchor *anchorinfo.AnchorInfo,
 	anchorLink *linkset.Link, suffixes ...string) error {
 	logger.Debug("Processing anchor", logfields.WithAnchorEventURIString(anchor.Hashlink),
 		logfields.WithAttributedTo(anchor.AttributedTo), logfields.WithSuffixes(suffixes...))
@@ -404,7 +405,7 @@ func (o *Observer) processAnchor(anchor *anchorinfo.AnchorInfo,
 		logfields.WithAnchorEventURIString(anchor.Hashlink), logfields.WithCoreIndex(anchorPayload.CoreIndex))
 
 	// Post a 'Like' activity to the originator of the anchor credential.
-	err = o.saveAnchorLinkAndPostLikeActivity(anchor)
+	err = o.saveAnchorLinkAndPostLikeActivity(ctx, anchor)
 	if err != nil {
 		// This is not a critical error. We have already processed the anchor, so we don't want
 		// to trigger a retry by returning a transient error. Just log a warning.
@@ -447,7 +448,7 @@ func (o *Observer) setupProofMonitoring(vc *verifiable.Credential) {
 }
 
 //nolint:cyclop
-func (o *Observer) saveAnchorLinkAndPostLikeActivity(anchor *anchorinfo.AnchorInfo) error {
+func (o *Observer) saveAnchorLinkAndPostLikeActivity(ctx context.Context, anchor *anchorinfo.AnchorInfo) error {
 	refURL, err := url.Parse(anchor.Hashlink)
 	if err != nil {
 		return fmt.Errorf("parse hash link [%s]: %w", anchor.Hashlink, err)
@@ -497,7 +498,7 @@ func (o *Observer) saveAnchorLinkAndPostLikeActivity(anchor *anchorinfo.AnchorIn
 		return fmt.Errorf("new like result for local hashlink: %w", err)
 	}
 
-	err = o.doPostLikeActivity(to, refURL, result)
+	err = o.doPostLikeActivity(ctx, to, refURL, result)
 	if err != nil {
 		return fmt.Errorf("post 'Like' activity to outbox for hashlink [%s]: %w", refURL, err)
 	}
@@ -505,7 +506,7 @@ func (o *Observer) saveAnchorLinkAndPostLikeActivity(anchor *anchorinfo.AnchorIn
 	return nil
 }
 
-func (o *Observer) doPostLikeActivity(to []*url.URL, refURL *url.URL, result *vocab.ObjectProperty) error {
+func (o *Observer) doPostLikeActivity(ctx context.Context, to []*url.URL, refURL *url.URL, result *vocab.ObjectProperty) error {
 	publishedTime := time.Now()
 
 	like := vocab.NewLikeActivity(
@@ -517,7 +518,7 @@ func (o *Observer) doPostLikeActivity(to []*url.URL, refURL *url.URL, result *vo
 		vocab.WithResult(result),
 	)
 
-	if _, err := o.Outbox().Post(like); err != nil {
+	if _, err := o.Outbox().Post(ctx, like); err != nil {
 		return fmt.Errorf("post like: %w", err)
 	}
 

@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package mocks
 
 import (
+	"context"
 	"net/url"
 	"sync"
 
@@ -35,7 +36,7 @@ func (m *AnchorEventHandler) WithError(err error) *AnchorEventHandler {
 }
 
 // HandleAnchorEvent stores the anchor event or returns an error if it was set.
-func (m *AnchorEventHandler) HandleAnchorEvent(actor, hl, src *url.URL, anchorEvent *vocab.AnchorEventType) error {
+func (m *AnchorEventHandler) HandleAnchorEvent(ctx context.Context, actor, hl, source *url.URL, anchorEvent *vocab.AnchorEventType) error {
 	if m.err != nil {
 		return m.err
 	}

@@ -2,14 +2,16 @@
 package mocks
 
 import (
+	"context"
 	"sync"
 )
 
 type Discovery struct {
-	RequestDiscoveryStub        func(string) error
+	RequestDiscoveryStub        func(context.Context, string) error
 	requestDiscoveryMutex       sync.RWMutex
 	requestDiscoveryArgsForCall []struct {
-		arg1 string
+		arg1 context.Context
+		arg2 string
 	}
 	requestDiscoveryReturns struct {
 		result1 error
@@ -21,21 +23,23 @@ type Discovery struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *Discovery) RequestDiscovery(arg1 string) error {
+func (fake *Discovery) RequestDiscovery(arg1 context.Context, arg2 string) error {
 	fake.requestDiscoveryMutex.Lock()
 	ret, specificReturn := fake.requestDiscoveryReturnsOnCall[len(fake.requestDiscoveryArgsForCall)]
 	fake.requestDiscoveryArgsForCall = append(fake.requestDiscoveryArgsForCall, struct {
-		arg1 string
-	}{arg1})
-	fake.recordInvocation("RequestDiscovery", []interface{}{arg1})
+		arg1 context.Context
+		arg2 string
+	}{arg1, arg2})
+	stub := fake.RequestDiscoveryStub
+	fakeReturns := fake.requestDiscoveryReturns
+	fake.recordInvocation("RequestDiscovery", []interface{}{arg1, arg2})
 	fake.requestDiscoveryMutex.Unlock()
-	if fake.RequestDiscoveryStub != nil {
-		return fake.RequestDiscoveryStub(arg1)
+	if stub != nil {
+		return stub(arg1, arg2)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.requestDiscoveryReturns
 	return fakeReturns.result1
 }
 
@@ -45,17 +49,17 @@ func (fake *Discovery) RequestDiscoveryCallCount() int {
 	return len(fake.requestDiscoveryArgsForCall)
 }
 
-func (fake *Discovery) RequestDiscoveryCalls(stub func(string) error) {
+func (fake *Discovery) RequestDiscoveryCalls(stub func(context.Context, string) error) {
 	fake.requestDiscoveryMutex.Lock()
 	defer fake.requestDiscoveryMutex.Unlock()
 	fake.RequestDiscoveryStub = stub
 }
 
-func (fake *Discovery) RequestDiscoveryArgsForCall(i int) string {
+func (fake *Discovery) RequestDiscoveryArgsForCall(i int) (context.Context, string) {
 	fake.requestDiscoveryMutex.RLock()
 	defer fake.requestDiscoveryMutex.RUnlock()
 	argsForCall := fake.requestDiscoveryArgsForCall[i]
-	return argsForCall.arg1
+	return argsForCall.arg1, argsForCall.arg2
 }
 
 func (fake *Discovery) RequestDiscoveryReturns(result1 error) {

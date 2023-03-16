@@ -854,6 +854,7 @@ func WithMinAge(value time.Duration) zap.Field {
 	return zap.Duration(FieldMinAge, value)
 }
 
+// WithLogSpec sets the logSpec field.
 func WithLogSpec(value string) zap.Field {
 	return zap.String(FieldLogSpec, value)
 }

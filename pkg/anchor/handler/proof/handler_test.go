@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package proof
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -113,7 +114,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
 		require.NoError(t, err)
 	})
 
@@ -163,8 +164,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		expiredTime := time.Now().Add(-60 * time.Second)
 
-		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
-			expiredTime, []byte(witnessProofJSONWebSignature))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiredTime, []byte(witnessProofJSONWebSignature))
 		require.NoError(t, err)
 	})
 
@@ -214,8 +214,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProofJSONWebSignature))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
 		require.NoError(t, err)
 	})
 
@@ -249,8 +248,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProofJSONWebSignature))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
 		require.NoError(t, err)
 	})
 
@@ -299,8 +297,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProofJSONWebSignature))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
 		require.NoError(t, err)
 	})
 
@@ -335,8 +332,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProofJSONWebSignature))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
 		require.NoError(t, err)
 	})
 
@@ -395,8 +391,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProofED25519Signature2020))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofED25519Signature2020))
 		require.NoError(t, err)
 	})
 
@@ -445,8 +440,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProofJSONWebSignature))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
 			"failed get verifiable credential from anchor: no replies in anchor link")
@@ -499,8 +493,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		expiredTime := time.Now()
 
-		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
-			expiredTime, []byte(witnessProofWithoutCreated))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiredTime, []byte(witnessProofWithoutCreated))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get create time")
 	})
@@ -544,8 +537,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProofJSONWebSignature))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
 			"failed to get status for anchor [%s]: get status error", al.Anchor().String()))
@@ -583,8 +575,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProofJSONWebSignature))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
 			"failed to get status for anchor [%s]: second get status error", al.Anchor().String()))
@@ -621,8 +612,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProofJSONWebSignature))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
 			"failed to change status to 'completed' for anchor [%s]: add status error", al.Anchor().String()))
@@ -671,8 +661,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProofJSONWebSignature))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
 		require.NoError(t, err)
 	})
 
@@ -707,8 +696,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProofJSONWebSignature))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
 			"failed to evaluate witness policy for anchor [%s]: witness policy error", al.Anchor().String()))
@@ -742,8 +730,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(),
-			expiryTime, []byte(witnessProofJSONWebSignature))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "status not found for anchor [hl:uEiABbKSeh3rb4MOjS1Era2_62bBPwP9EytPSg5tIkNYiSQ]")
 	})
@@ -775,7 +762,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witness1IRI, anchorID, expiryTime, []byte(witnessProofJSONWebSignature))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, anchorID, expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get anchor link: get error")
 	})
@@ -811,7 +798,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "witness store error")
 	})
@@ -847,7 +834,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "witness store error")
 	})
@@ -873,7 +860,7 @@ func TestWitnessProofHandler(t *testing.T) {
 
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
-		err = proofHandler.HandleProof(witness1IRI, anchorID, expiryTime, []byte(""))
+		err = proofHandler.HandleProof(context.Background(), witness1IRI, anchorID, expiryTime, []byte(""))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to unmarshal incoming witness proof for anchor")
 	})

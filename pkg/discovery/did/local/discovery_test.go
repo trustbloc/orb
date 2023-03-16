@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package local
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
@@ -31,7 +32,7 @@ func TestDiscovery_RequestDiscovery(t *testing.T) {
 
 		d := New(testNS, &mocks.DIDPublisher{}, endpointClient)
 
-		err := d.RequestDiscovery("did:orb:ipfs:cid:suffix")
+		err := d.RequestDiscovery(context.Background(), "did:orb:ipfs:cid:suffix")
 		require.NoError(t, err)
 	})
 
@@ -42,7 +43,7 @@ func TestDiscovery_RequestDiscovery(t *testing.T) {
 
 		d := New(testNS, &mocks.DIDPublisher{}, endpointClient)
 
-		err := d.RequestDiscovery("did:orb:https:domain.com:cid:suffix")
+		err := d.RequestDiscovery(context.Background(), "did:orb:https:domain.com:cid:suffix")
 		require.NoError(t, err)
 	})
 
@@ -53,7 +54,7 @@ func TestDiscovery_RequestDiscovery(t *testing.T) {
 
 		d := New(testNS, &mocks.DIDPublisher{}, endpointClient)
 
-		err := d.RequestDiscovery("did:orb:cid:suffix")
+		err := d.RequestDiscovery(context.Background(), "did:orb:cid:suffix")
 		require.NoError(t, err)
 	})
 
@@ -64,7 +65,7 @@ func TestDiscovery_RequestDiscovery(t *testing.T) {
 
 		d := New(testNS, &mocks.DIDPublisher{}, endpointClient)
 
-		err := d.RequestDiscovery("did:orb:cid")
+		err := d.RequestDiscovery(context.Background(), "did:orb:cid")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid number of parts[3] for Orb identifier")
 	})
@@ -75,7 +76,7 @@ func TestDiscovery_RequestDiscovery(t *testing.T) {
 
 		d := New(testNS, &mocks.DIDPublisher{}, endpointClient)
 
-		err := d.RequestDiscovery("did:orb:ipfs:abc:123")
+		err := d.RequestDiscovery(context.Background(), "did:orb:ipfs:abc:123")
 		require.NoError(t, err)
 	})
 }
