@@ -29,8 +29,8 @@ const (
 )
 
 type (
-	anchorProcessor func(anchor *anchorinfo.AnchorInfo) error
-	didProcessor    func(did string) error
+	anchorProcessor func(ctx context.Context, anchor *anchorinfo.AnchorInfo) error
+	didProcessor    func(ctx context.Context, did string) error
 )
 
 type messagePublisher interface {
@@ -89,7 +89,7 @@ func NewPubSub(pubSub pubSub, anchorProcessor anchorProcessor, didProcessor didP
 }
 
 // PublishAnchor publishes the anchor to the queue for processing.
-func (h *PubSub) PublishAnchor(anchorInfo *anchorinfo.AnchorInfo) error {
+func (h *PubSub) PublishAnchor(ctx context.Context, anchorInfo *anchorinfo.AnchorInfo) error {
 	if h.State() != lifecycle.StateStarted {
 		return lifecycle.ErrNotStarted
 	}
@@ -119,7 +119,7 @@ func (h *PubSub) PublishAnchor(anchorInfo *anchorinfo.AnchorInfo) error {
 }
 
 // PublishDID publishes the DID to the queue for processing.
-func (h *PubSub) PublishDID(did string) error {
+func (h *PubSub) PublishDID(ctx context.Context, did string) error {
 	if h.State() != lifecycle.StateStarted {
 		return lifecycle.ErrNotStarted
 	}
@@ -187,7 +187,7 @@ func (h *PubSub) handleAnchorCredentialMessage(msg *message.Message) {
 		return
 	}
 
-	h.ackNackMessage(msg, h.processAnchors(anchorInfo), logfields.WithAnchorEventURIString(anchorInfo.Hashlink),
+	h.ackNackMessage(msg, h.processAnchors(context.Background(), anchorInfo), logfields.WithAnchorEventURIString(anchorInfo.Hashlink),
 		logfields.WithAttributedTo(anchorInfo.AttributedTo), logfields.WithLocalHashlink(anchorInfo.LocalHashlink))
 }
 
@@ -206,7 +206,7 @@ func (h *PubSub) handleDIDMessage(msg *message.Message) {
 		return
 	}
 
-	h.ackNackMessage(msg, h.processDID(did), logfields.WithDID(did))
+	h.ackNackMessage(msg, h.processDID(context.Background(), did), logfields.WithDID(did))
 }
 
 func (h *PubSub) ackNackMessage(msg *message.Message, err error, logFields ...zap.Field) {

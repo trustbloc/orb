@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package observer
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -34,14 +35,14 @@ func TestPubSub(t *testing.T) {
 	var gotDIDs []string
 
 	ps, err := NewPubSub(p,
-		func(anchor *anchorinfo.AnchorInfo) error {
+		func(_ context.Context, anchor *anchorinfo.AnchorInfo) error {
 			mutex.Lock()
 			gotAnchors = append(gotAnchors, anchor)
 			mutex.Unlock()
 
 			return nil
 		},
-		func(did string) error {
+		func(_ context.Context, did string) error {
 			mutex.Lock()
 			gotDIDs = append(gotDIDs, did)
 			mutex.Unlock()
@@ -62,8 +63,8 @@ func TestPubSub(t *testing.T) {
 
 	did := "123456"
 
-	require.NoError(t, ps.PublishAnchor(anchorInfo))
-	require.NoError(t, ps.PublishDID(did))
+	require.NoError(t, ps.PublishAnchor(context.Background(), anchorInfo))
+	require.NoError(t, ps.PublishDID(context.Background(), did))
 
 	time.Sleep(1 * time.Second)
 
@@ -83,8 +84,8 @@ func TestPubSub_Error(t *testing.T) {
 		p.SubscribeWithOptsReturns(nil, errExpected)
 
 		ps, err := NewPubSub(p,
-			func(anchor *anchorinfo.AnchorInfo) error { return nil },
-			func(did string) error { return nil },
+			func(_ context.Context, anchor *anchorinfo.AnchorInfo) error { return nil },
+			func(_ context.Context, did string) error { return nil },
 			5,
 		)
 		require.Error(t, err)
@@ -98,8 +99,8 @@ func TestPubSub_Error(t *testing.T) {
 		p.SubscribeWithOptsReturnsOnCall(1, nil, errExpected)
 
 		ps, err := NewPubSub(p,
-			func(anchor *anchorinfo.AnchorInfo) error { return nil },
-			func(did string) error { return nil },
+			func(_ context.Context, anchor *anchorinfo.AnchorInfo) error { return nil },
+			func(_ context.Context, did string) error { return nil },
 			5,
 		)
 		require.Error(t, err)
@@ -111,8 +112,8 @@ func TestPubSub_Error(t *testing.T) {
 		require.NotNil(t, p)
 
 		ps, err := NewPubSub(p,
-			func(anchor *anchorinfo.AnchorInfo) error { return nil },
-			func(did string) error { return nil },
+			func(_ context.Context, anchor *anchorinfo.AnchorInfo) error { return nil },
+			func(_ context.Context, did string) error { return nil },
 			5,
 		)
 		require.NoError(t, err)
@@ -125,11 +126,11 @@ func TestPubSub_Error(t *testing.T) {
 		ps.Start()
 		defer ps.Stop()
 
-		err = ps.PublishAnchor(&anchorinfo.AnchorInfo{Hashlink: "abcdefg"})
+		err = ps.PublishAnchor(context.Background(), &anchorinfo.AnchorInfo{Hashlink: "abcdefg"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 
-		err = ps.PublishDID("123456")
+		err = ps.PublishDID(context.Background(), "123456")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -145,14 +146,14 @@ func TestPubSub_Error(t *testing.T) {
 		var gotDIDs []string
 
 		ps, err := NewPubSub(p,
-			func(anchor *anchorinfo.AnchorInfo) error {
+			func(_ context.Context, anchor *anchorinfo.AnchorInfo) error {
 				mutex.Lock()
 				gotAnchors = append(gotAnchors, anchor)
 				mutex.Unlock()
 
 				return nil
 			},
-			func(did string) error {
+			func(_ context.Context, did string) error {
 				mutex.Lock()
 				gotDIDs = append(gotDIDs, did)
 				mutex.Unlock()
@@ -171,8 +172,8 @@ func TestPubSub_Error(t *testing.T) {
 		ps.Start()
 		defer ps.Stop()
 
-		require.NoError(t, ps.PublishAnchor(&anchorinfo.AnchorInfo{Hashlink: "abcdefg"}))
-		require.NoError(t, ps.PublishDID("123456"))
+		require.NoError(t, ps.PublishAnchor(context.Background(), &anchorinfo.AnchorInfo{Hashlink: "abcdefg"}))
+		require.NoError(t, ps.PublishDID(context.Background(), "123456"))
 
 		time.Sleep(1 * time.Second)
 
@@ -189,8 +190,8 @@ func TestPubSub_Error(t *testing.T) {
 		errExpected := errors.New("injected unmarshal error")
 
 		ps, err := NewPubSub(p,
-			func(anchor *anchorinfo.AnchorInfo) error { return orberrors.NewTransient(errExpected) },
-			func(did string) error { return orberrors.NewTransient(errExpected) },
+			func(_ context.Context, _ *anchorinfo.AnchorInfo) error { return orberrors.NewTransient(errExpected) },
+			func(_ context.Context, _ string) error { return orberrors.NewTransient(errExpected) },
 			5,
 		)
 		require.NoError(t, err)
@@ -199,8 +200,8 @@ func TestPubSub_Error(t *testing.T) {
 		ps.Start()
 		defer ps.Stop()
 
-		require.NoError(t, ps.PublishAnchor(&anchorinfo.AnchorInfo{Hashlink: "abcdefg"}))
-		require.NoError(t, ps.PublishDID("123456"))
+		require.NoError(t, ps.PublishAnchor(context.Background(), &anchorinfo.AnchorInfo{Hashlink: "abcdefg"}))
+		require.NoError(t, ps.PublishDID(context.Background(), "123456"))
 	})
 
 	t.Run("Not started error", func(t *testing.T) {
@@ -208,14 +209,14 @@ func TestPubSub_Error(t *testing.T) {
 		require.NotNil(t, p)
 
 		ps, err := NewPubSub(p,
-			func(anchor *anchorinfo.AnchorInfo) error { return nil },
-			func(did string) error { return nil },
+			func(_ context.Context, _ *anchorinfo.AnchorInfo) error { return nil },
+			func(_ context.Context, _ string) error { return nil },
 			5,
 		)
 		require.NoError(t, err)
 		require.NotNil(t, ps)
 
-		require.EqualError(t, ps.PublishAnchor(&anchorinfo.AnchorInfo{Hashlink: "abcdefg"}), lifecycle.ErrNotStarted.Error())
-		require.EqualError(t, ps.PublishDID("123456"), lifecycle.ErrNotStarted.Error())
+		require.EqualError(t, ps.PublishAnchor(context.Background(), &anchorinfo.AnchorInfo{Hashlink: "abcdefg"}), lifecycle.ErrNotStarted.Error())
+		require.EqualError(t, ps.PublishDID(context.Background(), "123456"), lifecycle.ErrNotStarted.Error())
 	})
 }

@@ -207,9 +207,9 @@ func TestStartObserver(t *testing.T) {
 		o.Start()
 		defer o.Stop()
 
-		require.NoError(t, o.pubSub.PublishAnchor(anchor1))
-		require.NoError(t, o.pubSub.PublishAnchor(anchor2))
-		require.NoError(t, o.pubSub.PublishAnchor(anchor3))
+		require.NoError(t, o.pubSub.PublishAnchor(context.Background(), anchor1))
+		require.NoError(t, o.pubSub.PublishAnchor(context.Background(), anchor2))
+		require.NoError(t, o.pubSub.PublishAnchor(context.Background(), anchor3))
 
 		time.Sleep(200 * time.Millisecond)
 
@@ -277,8 +277,8 @@ func TestStartObserver(t *testing.T) {
 		o.Start()
 		defer o.Stop()
 
-		require.NoError(t, o.pubSub.PublishDID(cid+":"+did1))
-		require.NoError(t, o.pubSub.PublishDID(cid+":"+did2))
+		require.NoError(t, o.pubSub.PublishDID(context.Background(), cid+":"+did1))
+		require.NoError(t, o.pubSub.PublishDID(context.Background(), cid+":"+did2))
 
 		time.Sleep(200 * time.Millisecond)
 
@@ -356,7 +356,7 @@ func TestStartObserver(t *testing.T) {
 		o.Start()
 		defer o.Stop()
 
-		require.NoError(t, o.pubSub.PublishDID(cid+":"+did1))
+		require.NoError(t, o.pubSub.PublishDID(context.Background(), cid+":"+did1))
 		time.Sleep(200 * time.Millisecond)
 
 		require.Equal(t, 2, tp.ProcessCallCount())
@@ -421,8 +421,8 @@ func TestStartObserver(t *testing.T) {
 		o.Start()
 		defer o.Stop()
 
-		require.NoError(t, o.pubSub.PublishAnchor(anchor))
-		require.NoError(t, o.pubSub.PublishDID(cid+":"+did))
+		require.NoError(t, o.pubSub.PublishAnchor(context.Background(), anchor))
+		require.NoError(t, o.pubSub.PublishDID(context.Background(), cid+":"+did))
 		time.Sleep(200 * time.Millisecond)
 
 		require.Equal(t, 2, tp.ProcessCallCount())
@@ -488,8 +488,8 @@ func TestStartObserver(t *testing.T) {
 		o.Start()
 		defer o.Stop()
 
-		require.NoError(t, o.pubSub.PublishDID(cid+":"+did1))
-		require.NoError(t, o.pubSub.PublishDID(cid+":"+did2))
+		require.NoError(t, o.pubSub.PublishDID(context.Background(), cid+":"+did1))
+		require.NoError(t, o.pubSub.PublishDID(context.Background(), cid+":"+did2))
 
 		time.Sleep(200 * time.Millisecond)
 
@@ -565,8 +565,8 @@ func TestStartObserver(t *testing.T) {
 		o.Start()
 		defer o.Stop()
 
-		require.NoError(t, o.pubSub.PublishAnchor(anchor1))
-		require.NoError(t, o.pubSub.PublishAnchor(anchor2))
+		require.NoError(t, o.pubSub.PublishAnchor(context.Background(), anchor1))
+		require.NoError(t, o.pubSub.PublishAnchor(context.Background(), anchor2))
 
 		time.Sleep(200 * time.Millisecond)
 
@@ -615,7 +615,7 @@ func TestStartObserver(t *testing.T) {
 		o.Start()
 		defer o.Stop()
 
-		require.NoError(t, o.pubSub.PublishDID("cid:did"))
+		require.NoError(t, o.pubSub.PublishDID(context.Background(), "cid:did"))
 		time.Sleep(200 * time.Millisecond)
 
 		require.Equal(t, 0, tp.ProcessCallCount())
@@ -646,7 +646,7 @@ func TestStartObserver(t *testing.T) {
 		o.Start()
 		defer o.Stop()
 
-		require.NoError(t, o.pubSub.PublishDID("no-cid"))
+		require.NoError(t, o.pubSub.PublishDID(context.Background(), "no-cid"))
 		time.Sleep(200 * time.Millisecond)
 
 		require.Equal(t, 0, tp.ProcessCallCount())
@@ -683,7 +683,7 @@ func TestStartObserver(t *testing.T) {
 		o.Start()
 		defer o.Stop()
 
-		require.NoError(t, o.pubSub.PublishDID("cid:xyz"))
+		require.NoError(t, o.pubSub.PublishDID(context.Background(), "cid:xyz"))
 		time.Sleep(200 * time.Millisecond)
 
 		require.Empty(t, tp.ProcessCallCount())
@@ -754,7 +754,7 @@ func TestStartObserver(t *testing.T) {
 		o.Start()
 		defer o.Stop()
 
-		require.NoError(t, o.pubSub.PublishDID(cid+":"+did1))
+		require.NoError(t, o.pubSub.PublishDID(context.Background(), cid+":"+did1))
 
 		select {
 		case msg := <-undeliverableChan:
@@ -837,7 +837,7 @@ func TestStartObserver(t *testing.T) {
 			o.Start()
 			defer o.Stop()
 
-			require.NoError(t, o.pubSub.PublishAnchor(anchor1))
+			require.NoError(t, o.pubSub.PublishAnchor(context.Background(), anchor1))
 
 			time.Sleep(200 * time.Millisecond)
 
@@ -870,7 +870,7 @@ func TestStartObserver(t *testing.T) {
 			o.Start()
 			defer o.Stop()
 
-			require.NoError(t, o.pubSub.PublishAnchor(anchor1))
+			require.NoError(t, o.pubSub.PublishAnchor(context.Background(), anchor1))
 
 			time.Sleep(200 * time.Millisecond)
 		})

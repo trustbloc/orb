@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package credential
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -58,7 +59,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 
 		anchorEvent := &vocab.AnchorEventType{}
 		require.NoError(t, json.Unmarshal([]byte(sampleGrandparentAnchorEvent), anchorEvent))
-		require.NoError(t, handler.HandleAnchorEvent(actor, anchorEvent.URL()[0], actor, anchorEvent))
+		require.NoError(t, handler.HandleAnchorEvent(context.Background(), actor, anchorEvent.URL()[0], actor, anchorEvent))
 	})
 
 	t.Run("Success - no embedded anchor Linkset", func(t *testing.T) {
@@ -69,7 +70,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 
 		handler := newAnchorEventHandler(t, casStore)
 
-		err = handler.HandleAnchorEvent(actor, testutil.MustParseURL(hl), nil, nil)
+		err = handler.HandleAnchorEvent(context.Background(), actor, testutil.MustParseURL(hl), nil, nil)
 		require.NoError(t, err)
 	})
 
@@ -93,7 +94,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 		hl, err := hashlink.New().CreateHashLink([]byte(sampleGrandparentAnchorEvent), nil)
 		require.NoError(t, err)
 
-		err = anchorCredentialHandler.HandleAnchorEvent(actor, testutil.MustParseURL(hl), nil, nil)
+		err = anchorCredentialHandler.HandleAnchorEvent(context.Background(), actor, testutil.MustParseURL(hl), nil, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "content not found")
 	})
@@ -103,7 +104,7 @@ func TestAnchorCredentialHandler(t *testing.T) {
 
 		anchorEvent := &vocab.AnchorEventType{}
 		require.NoError(t, json.Unmarshal([]byte(sampleGrandparentAnchorEvent), anchorEvent))
-		require.NoError(t, handler.HandleAnchorEvent(actor, anchorEvent.URL()[0], actor, anchorEvent))
+		require.NoError(t, handler.HandleAnchorEvent(context.Background(), actor, anchorEvent.URL()[0], actor, anchorEvent))
 	})
 }
 
@@ -300,7 +301,7 @@ func TestAnchorEventHandler_processAnchorEvent(t *testing.T) {
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(sampleGrandparentAnchorLinkset), anchorLinkset))
 
-		err := handler.processAnchorEvent(&anchorInfo{
+		err := handler.processAnchorEvent(context.Background(), &anchorInfo{
 			AnchorInfo: &info.AnchorInfo{},
 			anchorLink: anchorLinkset.Link(),
 		})
@@ -311,7 +312,7 @@ func TestAnchorEventHandler_processAnchorEvent(t *testing.T) {
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(anchorLinksetNoReplies), anchorLinkset))
 
-		err := handler.processAnchorEvent(&anchorInfo{
+		err := handler.processAnchorEvent(context.Background(), &anchorInfo{
 			AnchorInfo: &info.AnchorInfo{},
 			anchorLink: anchorLinkset.Link(),
 		})
@@ -323,7 +324,7 @@ func TestAnchorEventHandler_processAnchorEvent(t *testing.T) {
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(anchorLinksetInvalidContent), anchorLinkset))
 
-		err := handler.processAnchorEvent(&anchorInfo{
+		err := handler.processAnchorEvent(context.Background(), &anchorInfo{
 			AnchorInfo: &info.AnchorInfo{},
 			anchorLink: anchorLinkset.Link(),
 		})
@@ -335,7 +336,7 @@ func TestAnchorEventHandler_processAnchorEvent(t *testing.T) {
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(anchorLinksetUnsupportedProfile), anchorLinkset))
 
-		err := handler.processAnchorEvent(&anchorInfo{
+		err := handler.processAnchorEvent(context.Background(), &anchorInfo{
 			AnchorInfo: &info.AnchorInfo{},
 			anchorLink: anchorLinkset.Link(),
 		})
@@ -347,7 +348,7 @@ func TestAnchorEventHandler_processAnchorEvent(t *testing.T) {
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(anchorLinksetInvalidVC), anchorLinkset))
 
-		err := handler.processAnchorEvent(&anchorInfo{
+		err := handler.processAnchorEvent(context.Background(), &anchorInfo{
 			AnchorInfo: &info.AnchorInfo{},
 			anchorLink: anchorLinkset.Link(),
 		})

@@ -44,7 +44,7 @@ func NewPublisher(pubSub pubSub) *Publisher {
 }
 
 // Publish publishes a verifiable credential to a message queue for processing.
-func (h *Publisher) Publish(anchorLinkset *linkset.Linkset) error {
+func (h *Publisher) Publish(ctx context.Context, anchorLinkset *linkset.Linkset) error {
 	payload, err := h.jsonMarshal(anchorLinkset)
 	if err != nil {
 		return fmt.Errorf("marshal anchor link: %w", err)

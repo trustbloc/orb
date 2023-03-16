@@ -2,6 +2,7 @@
 package mocks
 
 import (
+	"context"
 	"net/url"
 	"sync"
 
@@ -10,11 +11,12 @@ import (
 )
 
 type ActivityHandler struct {
-	HandleActivityStub        func(*url.URL, *vocab.ActivityType) error
+	HandleActivityStub        func(context.Context, *url.URL, *vocab.ActivityType) error
 	handleActivityMutex       sync.RWMutex
 	handleActivityArgsForCall []struct {
-		arg1 *url.URL
-		arg2 *vocab.ActivityType
+		arg1 context.Context
+		arg2 *url.URL
+		arg3 *vocab.ActivityType
 	}
 	handleActivityReturns struct {
 		result1 error
@@ -54,19 +56,20 @@ type ActivityHandler struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *ActivityHandler) HandleActivity(arg1 *url.URL, arg2 *vocab.ActivityType) error {
+func (fake *ActivityHandler) HandleActivity(arg1 context.Context, arg2 *url.URL, arg3 *vocab.ActivityType) error {
 	fake.handleActivityMutex.Lock()
 	ret, specificReturn := fake.handleActivityReturnsOnCall[len(fake.handleActivityArgsForCall)]
 	fake.handleActivityArgsForCall = append(fake.handleActivityArgsForCall, struct {
-		arg1 *url.URL
-		arg2 *vocab.ActivityType
-	}{arg1, arg2})
+		arg1 context.Context
+		arg2 *url.URL
+		arg3 *vocab.ActivityType
+	}{arg1, arg2, arg3})
 	stub := fake.HandleActivityStub
 	fakeReturns := fake.handleActivityReturns
-	fake.recordInvocation("HandleActivity", []interface{}{arg1, arg2})
+	fake.recordInvocation("HandleActivity", []interface{}{arg1, arg2, arg3})
 	fake.handleActivityMutex.Unlock()
 	if stub != nil {
-		return stub(arg1, arg2)
+		return stub(arg1, arg2, arg3)
 	}
 	if specificReturn {
 		return ret.result1
@@ -80,17 +83,17 @@ func (fake *ActivityHandler) HandleActivityCallCount() int {
 	return len(fake.handleActivityArgsForCall)
 }
 
-func (fake *ActivityHandler) HandleActivityCalls(stub func(*url.URL, *vocab.ActivityType) error) {
+func (fake *ActivityHandler) HandleActivityCalls(stub func(context.Context, *url.URL, *vocab.ActivityType) error) {
 	fake.handleActivityMutex.Lock()
 	defer fake.handleActivityMutex.Unlock()
 	fake.HandleActivityStub = stub
 }
 
-func (fake *ActivityHandler) HandleActivityArgsForCall(i int) (*url.URL, *vocab.ActivityType) {
+func (fake *ActivityHandler) HandleActivityArgsForCall(i int) (context.Context, *url.URL, *vocab.ActivityType) {
 	fake.handleActivityMutex.RLock()
 	defer fake.handleActivityMutex.RUnlock()
 	argsForCall := fake.handleActivityArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
 func (fake *ActivityHandler) HandleActivityReturns(result1 error) {

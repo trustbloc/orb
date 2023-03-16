@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package mocks
 
 import (
+	"context"
 	"net/url"
 	"sync"
 	"time"
@@ -34,7 +35,7 @@ func (m *ProofHandler) WithError(err error) *ProofHandler {
 }
 
 // HandleProof store the proof and returns any injected error.
-func (m *ProofHandler) HandleProof(witness *url.URL, anchorCredID string, endTime time.Time, proof []byte) error {
+func (m *ProofHandler) HandleProof(ctx context.Context, witness *url.URL, anchorCredID string, endTime time.Time, proof []byte) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 

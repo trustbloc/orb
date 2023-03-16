@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package client
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -257,7 +258,7 @@ func TestClient_GetReferences(t *testing.T) {
 		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
-		it, e := c.GetReferences(serviceIRI)
+		it, e := c.GetReferences(context.Background(), serviceIRI)
 		require.NoError(t, e)
 		require.NotNil(t, it)
 
@@ -317,7 +318,7 @@ func TestClient_GetReferences(t *testing.T) {
 		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
-		it, e := c.GetReferences(collIRI)
+		it, e := c.GetReferences(context.Background(), collIRI)
 		require.NoError(t, e)
 		require.NotNil(t, it)
 		require.Equal(t, len(followers), it.TotalItems())
@@ -385,7 +386,7 @@ func TestClient_GetReferences(t *testing.T) {
 		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
-		it, e := c.GetReferences(collIRI)
+		it, e := c.GetReferences(context.Background(), collIRI)
 		require.NoError(t, e)
 		require.NotNil(t, it)
 
@@ -411,7 +412,7 @@ func TestClient_GetReferences(t *testing.T) {
 		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
-		actor, e := c.GetReferences(collIRI)
+		actor, e := c.GetReferences(context.Background(), collIRI)
 		require.Error(t, e)
 		require.Contains(t, e.Error(), errExpected.Error())
 		require.Nil(t, actor)
@@ -432,7 +433,7 @@ func TestClient_GetReferences(t *testing.T) {
 		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
-		it, e := c.GetReferences(collIRI)
+		it, e := c.GetReferences(context.Background(), collIRI)
 		require.Error(t, e)
 		require.Contains(t, e.Error(), "unexpected end of JSON input")
 		require.Nil(t, it)
@@ -458,7 +459,7 @@ func TestClient_GetReferences(t *testing.T) {
 		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
-		it, e := c.GetReferences(collIRI)
+		it, e := c.GetReferences(context.Background(), collIRI)
 		require.Error(t, e)
 		require.Contains(t, e.Error(),
 			"expecting Service, Collection, OrderedCollection, CollectionPage, or OrderedCollectionPage in response payload")
@@ -489,7 +490,7 @@ func TestClient_GetReferences(t *testing.T) {
 		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
-		it, err := c.GetReferences(collIRI)
+		it, err := c.GetReferences(context.Background(), collIRI)
 		require.NoError(t, err)
 		require.NotNil(t, it)
 		require.Equal(t, len(followers), it.TotalItems())
@@ -530,7 +531,7 @@ func TestClient_GetReferences(t *testing.T) {
 		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
-		it, err := c.GetReferences(collIRI)
+		it, err := c.GetReferences(context.Background(), collIRI)
 		require.NoError(t, err)
 		require.NotNil(t, it)
 		require.Equal(t, len(followers), it.TotalItems())
@@ -811,7 +812,7 @@ func TestClient_GetActivities(t *testing.T) {
 			c := newMockClient(httpClient)
 			require.NotNil(t, t, c)
 
-			it, e := c.GetActivities(collIRI, Forward)
+			it, e := c.GetActivities(context.Background(), collIRI, Forward)
 			require.NoError(t, e)
 			require.NotNil(t, it)
 			require.Equal(t, len(outboxActivities), it.TotalItems())
@@ -864,7 +865,7 @@ func TestClient_GetActivities(t *testing.T) {
 			c := newMockClient(httpClient)
 			require.NotNil(t, t, c)
 
-			it, e := c.GetActivities(collIRI, Reverse)
+			it, e := c.GetActivities(context.Background(), collIRI, Reverse)
 			require.NoError(t, e)
 			require.NotNil(t, it)
 			require.Equal(t, len(outboxActivities), it.TotalItems())
@@ -917,7 +918,7 @@ func TestClient_GetActivities(t *testing.T) {
 			c := newMockClient(httpClient)
 			require.NotNil(t, t, c)
 
-			it, e := c.GetActivities(collIRI, Forward)
+			it, e := c.GetActivities(context.Background(), collIRI, Forward)
 			require.NoError(t, e)
 			require.NotNil(t, it)
 			require.Equal(t, len(outboxActivities), it.TotalItems())
@@ -968,7 +969,7 @@ func TestClient_GetActivities(t *testing.T) {
 			c := newMockClient(httpClient)
 			require.NotNil(t, t, c)
 
-			it, e := c.GetActivities(collIRI, Reverse)
+			it, e := c.GetActivities(context.Background(), collIRI, Reverse)
 			require.NoError(t, e)
 			require.NotNil(t, it)
 			require.Equal(t, len(outboxActivities), it.TotalItems())
@@ -1010,7 +1011,7 @@ func TestClient_GetActivities(t *testing.T) {
 				c := newMockClient(httpClient)
 				require.NotNil(t, t, c)
 
-				it, e := c.GetActivities(collIRI, Forward)
+				it, e := c.GetActivities(context.Background(), collIRI, Forward)
 				require.NoError(t, e)
 				require.NotNil(t, it)
 				require.Equal(t, len(outboxActivities), it.TotalItems())
@@ -1052,7 +1053,7 @@ func TestClient_GetActivities(t *testing.T) {
 				c := newMockClient(httpClient)
 				require.NotNil(t, t, c)
 
-				it, e := c.GetActivities(collIRI, Reverse)
+				it, e := c.GetActivities(context.Background(), collIRI, Reverse)
 				require.NoError(t, e)
 				require.NotNil(t, it)
 				require.Equal(t, len(outboxActivities), it.TotalItems())
@@ -1094,7 +1095,7 @@ func TestClient_GetActivities(t *testing.T) {
 				c := newMockClient(httpClient)
 				require.NotNil(t, t, c)
 
-				it, e := c.GetActivities(collIRI, Forward)
+				it, e := c.GetActivities(context.Background(), collIRI, Forward)
 				require.NoError(t, e)
 				require.NotNil(t, it)
 				require.Equal(t, len(outboxActivities), it.TotalItems())
@@ -1136,7 +1137,7 @@ func TestClient_GetActivities(t *testing.T) {
 				c := newMockClient(httpClient)
 				require.NotNil(t, t, c)
 
-				it, e := c.GetActivities(collIRI, Reverse)
+				it, e := c.GetActivities(context.Background(), collIRI, Reverse)
 				require.NoError(t, e)
 				require.NotNil(t, it)
 				require.Equal(t, len(outboxActivities), it.TotalItems())
@@ -1188,7 +1189,7 @@ func TestClient_GetActivities(t *testing.T) {
 		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
-		it, e := c.GetActivities(collIRI, Forward)
+		it, e := c.GetActivities(context.Background(), collIRI, Forward)
 		require.NoError(t, e)
 		require.NotNil(t, it)
 		require.Equal(t, len(outboxActivities), it.TotalItems())
@@ -1233,7 +1234,7 @@ func TestClient_GetActivities(t *testing.T) {
 		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
-		activities, e := c.GetActivities(collIRI, Forward)
+		activities, e := c.GetActivities(context.Background(), collIRI, Forward)
 		require.Error(t, e)
 		require.Contains(t, e.Error(), errExpected.Error())
 		require.Nil(t, activities)
@@ -1254,7 +1255,7 @@ func TestClient_GetActivities(t *testing.T) {
 		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
-		it, e := c.GetActivities(collIRI, Forward)
+		it, e := c.GetActivities(context.Background(), collIRI, Forward)
 		require.Error(t, e)
 		require.Contains(t, e.Error(), "unexpected end of JSON input")
 		require.Nil(t, it)
@@ -1280,7 +1281,7 @@ func TestClient_GetActivities(t *testing.T) {
 		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
 
-		it, e := c.GetActivities(collIRI, Forward)
+		it, e := c.GetActivities(context.Background(), collIRI, Forward)
 		require.Error(t, e)
 		require.Contains(t, e.Error(), "invalid collection type")
 		require.Nil(t, it)
@@ -1307,7 +1308,7 @@ func TestClient_GetActivities(t *testing.T) {
 			c := newMockClient(httpClient)
 			require.NotNil(t, t, c)
 
-			it, e := c.GetActivities(collIRI, "invalid-order")
+			it, e := c.GetActivities(context.Background(), collIRI, "invalid-order")
 			require.Error(t, e)
 			require.Contains(t, e.Error(), "invalid order [invalid-order]")
 			require.Nil(t, it)
@@ -1337,7 +1338,7 @@ func TestClient_GetActivities(t *testing.T) {
 			c := newMockClient(httpClient)
 			require.NotNil(t, t, c)
 
-			it, e := c.GetActivities(collIRI, "invalid-order")
+			it, e := c.GetActivities(context.Background(), collIRI, "invalid-order")
 			require.Error(t, e)
 			require.Contains(t, e.Error(), "invalid order [invalid-order]")
 			require.Nil(t, it)

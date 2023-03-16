@@ -36,15 +36,16 @@ func (fake *MonitoringService) Watch(arg1 *verifiable.Credential, arg2 time.Time
 		arg3 string
 		arg4 time.Time
 	}{arg1, arg2, arg3, arg4})
+	stub := fake.WatchStub
+	fakeReturns := fake.watchReturns
 	fake.recordInvocation("Watch", []interface{}{arg1, arg2, arg3, arg4})
 	fake.watchMutex.Unlock()
-	if fake.WatchStub != nil {
-		return fake.WatchStub(arg1, arg2, arg3, arg4)
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4)
 	}
 	if specificReturn {
 		return ret.result1
 	}
-	fakeReturns := fake.watchReturns
 	return fakeReturns.result1
 }
 

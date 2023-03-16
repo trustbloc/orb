@@ -127,7 +127,7 @@ func TestService_Create(t *testing.T) {
 		vocab.WithTo(service2IRI, unavailableServiceIRI),
 	)
 
-	createID, err := service1.Outbox().Post(create)
+	createID, err := service1.Outbox().Post(context.Background(), create)
 	require.NoError(t, err)
 	require.NotNil(t, createID)
 
@@ -206,7 +206,7 @@ func TestService_Follow(t *testing.T) {
 			vocab.WithTo(service2IRI),
 		)
 
-		activityID, err := service1.Outbox().Post(follow)
+		activityID, err := service1.Outbox().Post(context.Background(), follow)
 		require.NoError(t, err)
 		require.NotNil(t, activityID)
 
@@ -285,7 +285,7 @@ func TestService_Follow(t *testing.T) {
 
 		for i := 0; i < 5; i++ {
 			// Wait for the service to start
-			_, err := service2.Outbox().Post(follow)
+			_, err := service2.Outbox().Post(context.Background(), follow)
 			if err == nil {
 				break
 			}
@@ -437,7 +437,7 @@ func TestService_Announce(t *testing.T) {
 			vocab.WithPublishedTime(&published),
 		)
 
-		activityID, err := service2.Outbox().Post(announce)
+		activityID, err := service2.Outbox().Post(context.Background(), announce)
 		require.NoError(t, err)
 		require.NotNil(t, activityID)
 
@@ -494,7 +494,7 @@ func TestService_Announce(t *testing.T) {
 			vocab.WithPublishedTime(&published),
 		)
 
-		activityID, err := service2.Outbox().Post(announce)
+		activityID, err := service2.Outbox().Post(context.Background(), announce)
 		require.NoError(t, err)
 		require.NotNil(t, activityID)
 
@@ -536,14 +536,14 @@ func TestService_Announce(t *testing.T) {
 		mockProviders2.followerAuth.WithAccept()
 		mockProviders3.followerAuth.WithAccept()
 
-		activityID, err := service3.Outbox().Post(vocab.NewFollowActivity(
+		activityID, err := service3.Outbox().Post(context.Background(), vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service2IRI)),
 			vocab.WithTo(service2IRI),
 		))
 		require.NoError(t, err)
 		require.NotNil(t, activityID)
 
-		activityID, err = service1.Outbox().Post(vocab.NewFollowActivity(
+		activityID, err = service1.Outbox().Post(context.Background(), vocab.NewFollowActivity(
 			vocab.NewObjectProperty(vocab.WithIRI(service2IRI)),
 			vocab.WithTo(service2IRI),
 		))
@@ -571,7 +571,7 @@ func TestService_Announce(t *testing.T) {
 			vocab.WithTo(service2IRI),
 		)
 
-		createID, err := service1.Outbox().Post(create)
+		createID, err := service1.Outbox().Post(context.Background(), create)
 		require.NoError(t, err)
 		require.NotNil(t, createID)
 
@@ -686,7 +686,7 @@ func TestService_Offer(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 		)
 
-		activityID, err := service1.Outbox().Post(offer)
+		activityID, err := service1.Outbox().Post(context.Background(), offer)
 		require.NoError(t, err)
 		require.NotNil(t, activityID)
 
@@ -764,7 +764,7 @@ func TestService_InviteWitness(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service2IRI))),
 		)
 
-		activityID, err := service1.Outbox().Post(inviteWitness)
+		activityID, err := service1.Outbox().Post(context.Background(), inviteWitness)
 		require.NoError(t, err)
 		require.NotNil(t, activityID)
 
@@ -842,7 +842,7 @@ func TestService_InviteWitness(t *testing.T) {
 			vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(service1IRI))),
 		)
 
-		_, err := service2.Outbox().Post(inviteWitness)
+		_, err := service2.Outbox().Post(context.Background(), inviteWitness)
 		require.NoError(t, err)
 
 		// Wait for the message to be processed

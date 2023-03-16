@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package spi
 
 import (
+	"context"
 	"errors"
 	"net/url"
 	"time"
@@ -30,7 +31,7 @@ type Outbox interface {
 	ServiceLifecycle
 
 	// Post posts an activity to the outbox and returns the ID of the activity.
-	Post(activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error)
+	Post(ctx context.Context, activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error)
 }
 
 // Inbox defines the functions for an ActivityPub inbox.
@@ -40,7 +41,7 @@ type Inbox interface {
 
 // AnchorHandler handles a new, published anchor event.
 type AnchorHandler interface {
-	HandleAnchorEvent(actor, anchorEventRef, source *url.URL, anchorEvent *vocab.AnchorEventType) error
+	HandleAnchorEvent(ctx context.Context, actor, anchorEventRef, source *url.URL, anchorEvent *vocab.AnchorEventType) error
 }
 
 // AnchorEventAcknowledgementHandler handles notification of a successful anchor event processed from an Orb server,
@@ -50,7 +51,7 @@ type AnchorEventAcknowledgementHandler interface {
 	UndoAnchorEventAcknowledgement(actor, anchorRef *url.URL, additionalAnchorRefs []*url.URL) error
 }
 
-// ActorAuth makes the decision of whether or not a request by the given
+// ActorAuth makes the decision of whether a request by the given
 // actor should be accepted.
 type ActorAuth interface {
 	AuthorizeActor(actor *vocab.ActorType) (bool, error)
@@ -63,7 +64,7 @@ type WitnessHandler interface {
 
 // ProofHandler handles the given proof for the anchor credential.
 type ProofHandler interface {
-	HandleProof(witness *url.URL, anchorID string, endTime time.Time, proof []byte) error
+	HandleProof(ctx context.Context, witness *url.URL, anchorID string, endTime time.Time, proof []byte) error
 }
 
 // AcceptFollowHandler handles accepting follow request.
@@ -82,7 +83,7 @@ type ActivityHandler interface {
 
 	// HandleActivity handles the ActivityPub activity. An optional source may be added
 	// to indicate where the activity was retrieved from.
-	HandleActivity(source *url.URL, activity *vocab.ActivityType) error
+	HandleActivity(ctx context.Context, source *url.URL, activity *vocab.ActivityType) error
 
 	// Subscribe allows a client to receive published activities.
 	Subscribe() <-chan *vocab.ActivityType
@@ -93,8 +94,8 @@ var ErrDuplicateAnchorEvent = errors.New("anchor event already handled")
 
 // InboxHandler defines functions for handling Create and Announce activities.
 type InboxHandler interface {
-	HandleCreateActivity(source *url.URL, create *vocab.ActivityType, announce bool) error
-	HandleAnnounceActivity(source *url.URL, create *vocab.ActivityType) (numProcessed int, err error)
+	HandleCreateActivity(ctx context.Context, source *url.URL, create *vocab.ActivityType, announce bool) error
+	HandleAnnounceActivity(ctx context.Context, source *url.URL, create *vocab.ActivityType) (numProcessed int, err error)
 }
 
 // UndeliverableActivityHandler handles undeliverable activities.

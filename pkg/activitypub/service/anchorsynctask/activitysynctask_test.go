@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package anchorsynctask
 
 import (
+	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"crypto/x509"
@@ -214,7 +215,7 @@ type mockHandler struct {
 	err              error
 }
 
-func (m *mockHandler) HandleCreateActivity(src *url.URL, a *vocab.ActivityType, announce bool) error {
+func (m *mockHandler) HandleCreateActivity(ctx context.Context, source *url.URL, a *vocab.ActivityType, announce bool) error {
 	if m.err != nil {
 		return m.err
 	}
@@ -228,7 +229,7 @@ func (m *mockHandler) HandleCreateActivity(src *url.URL, a *vocab.ActivityType, 
 	return nil
 }
 
-func (m *mockHandler) HandleAnnounceActivity(src *url.URL, a *vocab.ActivityType) (int, error) {
+func (m *mockHandler) HandleAnnounceActivity(ctx context.Context, src *url.URL, a *vocab.ActivityType) (int, error) {
 	if m.err != nil {
 		return 0, m.err
 	}

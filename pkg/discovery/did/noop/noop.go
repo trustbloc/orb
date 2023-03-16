@@ -6,6 +6,8 @@ SPDX-License-Identifier: Apache-2.0
 
 package noop
 
+import "context"
+
 // New creates new noop discovery.
 func New() *Discovery {
 	return &Discovery{}
@@ -15,6 +17,6 @@ func New() *Discovery {
 type Discovery struct{}
 
 // RequestDiscovery requests did discovery.
-func (*Discovery) RequestDiscovery(id string) error {
+func (*Discovery) RequestDiscovery(ctx context.Context, id string) error {
 	return nil
 }

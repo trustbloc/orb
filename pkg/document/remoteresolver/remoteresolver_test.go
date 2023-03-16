@@ -6,6 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 package remoteresolver
 
 import (
+	"context"
 	"fmt"
 	"net/http/httptest"
 	"testing"
@@ -38,7 +39,7 @@ func TestNew(t *testing.T) {
 		resolver := New(httpClient)
 		require.NotNil(t, resolver)
 
-		rr, err := resolver.ResolveDocumentFromResolutionEndpoints(id, endpoints)
+		rr, err := resolver.ResolveDocumentFromResolutionEndpoints(context.Background(), id, endpoints)
 		require.NoError(t, err)
 		require.NotNil(t, rr)
 
@@ -61,7 +62,7 @@ func TestNew(t *testing.T) {
 		resolver := New(httpClient)
 		require.NotNil(t, resolver)
 
-		rr, err := resolver.ResolveDocumentFromResolutionEndpoints(id, endpoints)
+		rr, err := resolver.ResolveDocumentFromResolutionEndpoints(context.Background(), id, endpoints)
 		require.Error(t, err)
 		require.Nil(t, rr)
 		require.Contains(t, err.Error(),
@@ -74,7 +75,7 @@ func TestNew(t *testing.T) {
 		resolver := New(&mocks.HTTPTransport{})
 		require.NotNil(t, resolver)
 
-		rr, err := resolver.ResolveDocumentFromResolutionEndpoints(id, []string{})
+		rr, err := resolver.ResolveDocumentFromResolutionEndpoints(context.Background(), id, []string{})
 		require.Error(t, err)
 		require.Nil(t, rr)
 		require.Contains(t, err.Error(), "must provide at least one remote resolver endpoint in order to retrieve data")
@@ -87,7 +88,7 @@ func TestNew(t *testing.T) {
 		resolver := New(httpClient)
 		require.NotNil(t, resolver)
 
-		rr, err := resolver.ResolveDocumentFromResolutionEndpoints(id, endpoints)
+		rr, err := resolver.ResolveDocumentFromResolutionEndpoints(context.Background(), id, endpoints)
 		require.Error(t, err)
 		require.Nil(t, rr)
 		require.Contains(t, err.Error(), "failed to execute GET call on https://domain.com/identifiers/abc: HTTP Get Error")
@@ -109,7 +110,7 @@ func TestNew(t *testing.T) {
 		resolver := New(httpClient)
 		require.NotNil(t, resolver)
 
-		rr, err := resolver.ResolveDocumentFromResolutionEndpoints(id, endpoints)
+		rr, err := resolver.ResolveDocumentFromResolutionEndpoints(context.Background(), id, endpoints)
 		require.Error(t, err)
 		require.Nil(t, rr)
 		require.Contains(t, err.Error(), "Response status code: 500")
@@ -133,7 +134,7 @@ func TestNew(t *testing.T) {
 		resolver := New(httpClient)
 		require.NotNil(t, resolver)
 
-		rr, err := resolver.ResolveDocumentFromResolutionEndpoints(id, endpoints)
+		rr, err := resolver.ResolveDocumentFromResolutionEndpoints(context.Background(), id, endpoints)
 		require.Error(t, err)
 		require.Nil(t, rr)
 		require.Contains(t, err.Error(), "data not found for request")
@@ -156,7 +157,7 @@ func TestNew(t *testing.T) {
 		resolver := New(httpClient)
 		require.NotNil(t, resolver)
 
-		rr, err := resolver.ResolveDocumentFromResolutionEndpoints(id, endpoints)
+		rr, err := resolver.ResolveDocumentFromResolutionEndpoints(context.Background(), id, endpoints)
 		require.Error(t, err)
 		require.Nil(t, rr)
 		require.Contains(t, err.Error(), "Content-type: text/plain")
@@ -168,7 +169,7 @@ func TestNew(t *testing.T) {
 		resolver := New(&mocks.HTTPTransport{})
 		require.NotNil(t, resolver)
 
-		rr, err := resolver.ResolveDocumentFromResolutionEndpoints(id, []string{"!!!:"})
+		rr, err := resolver.ResolveDocumentFromResolutionEndpoints(context.Background(), id, []string{"!!!:"})
 		require.Error(t, err)
 		require.Nil(t, rr)
 		require.Contains(t, err.Error(), "failed to parse request URL")

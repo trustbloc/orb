@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package vcpubsub
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"testing"
@@ -55,7 +56,7 @@ func TestPubSub(t *testing.T) {
 	var gotLinksets []*linkset.Linkset
 
 	s, err := NewSubscriber(ps,
-		func(ls *linkset.Linkset) error {
+		func(ctx context.Context, ls *linkset.Linkset) error {
 			mutex.Lock()
 			gotLinksets = append(gotLinksets, ls)
 			mutex.Unlock()
@@ -70,7 +71,7 @@ func TestPubSub(t *testing.T) {
 
 	al := linkset.NewLink(anchorIndexURL, nil, nil, nil, nil, nil)
 
-	require.NoError(t, p.Publish(linkset.New(al)))
+	require.NoError(t, p.Publish(context.Background(), linkset.New(al)))
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -93,7 +94,7 @@ func TestPublisherError(t *testing.T) {
 			return nil, errExpected
 		}
 
-		err := p.Publish(linkset.New(al))
+		err := p.Publish(context.Background(), linkset.New(al))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -107,7 +108,7 @@ func TestPublisherError(t *testing.T) {
 		p := NewPublisher(ps)
 		require.NotNil(t, p)
 
-		err := p.Publish(linkset.New(al))
+		err := p.Publish(context.Background(), linkset.New(al))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 		require.True(t, orberrors.IsTransient(err))
@@ -129,7 +130,7 @@ func TestSubscriberError(t *testing.T) {
 		var gotAnchorLinksets []*linkset.Linkset
 
 		s, err := NewSubscriber(ps,
-			func(ls *linkset.Linkset) error {
+			func(ctx context.Context, ls *linkset.Linkset) error {
 				mutex.Lock()
 				gotAnchorLinksets = append(gotAnchorLinksets, ls)
 				mutex.Unlock()
@@ -146,7 +147,7 @@ func TestSubscriberError(t *testing.T) {
 
 		s.Start()
 
-		require.NoError(t, p.Publish(linkset.New(al)))
+		require.NoError(t, p.Publish(context.Background(), linkset.New(al)))
 
 		time.Sleep(100 * time.Millisecond)
 
@@ -162,7 +163,7 @@ func TestSubscriberError(t *testing.T) {
 			var gotAnchorLinksets []*linkset.Linkset
 
 			s, err := NewSubscriber(ps,
-				func(ls *linkset.Linkset) error {
+				func(ctx context.Context, ls *linkset.Linkset) error {
 					mutex.Lock()
 					gotAnchorLinksets = append(gotAnchorLinksets, ls)
 					mutex.Unlock()
@@ -175,7 +176,7 @@ func TestSubscriberError(t *testing.T) {
 
 			s.Start()
 
-			require.NoError(t, p.Publish(linkset.New(al)))
+			require.NoError(t, p.Publish(context.Background(), linkset.New(al)))
 
 			time.Sleep(100 * time.Millisecond)
 
@@ -190,7 +191,7 @@ func TestSubscriberError(t *testing.T) {
 			var gotAnchorLinksets []*linkset.Linkset
 
 			s, err := NewSubscriber(ps,
-				func(ls *linkset.Linkset) error {
+				func(ctx context.Context, ls *linkset.Linkset) error {
 					mutex.Lock()
 					gotAnchorLinksets = append(gotAnchorLinksets, ls)
 					mutex.Unlock()
@@ -203,7 +204,7 @@ func TestSubscriberError(t *testing.T) {
 
 			s.Start()
 
-			require.NoError(t, p.Publish(linkset.New(al)))
+			require.NoError(t, p.Publish(context.Background(), linkset.New(al)))
 
 			time.Sleep(100 * time.Millisecond)
 

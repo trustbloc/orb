@@ -8,6 +8,7 @@ package writer
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1094,7 +1095,7 @@ func TestWriter_handle(t *testing.T) {
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(jsonAnchorLinkset), anchorLinkset))
 
-		require.NoError(t, c.handle(anchorLinkset))
+		require.NoError(t, c.handle(context.Background(), anchorLinkset))
 	})
 
 	t.Run("error - add anchor credential to txn graph error", func(t *testing.T) {
@@ -1125,7 +1126,7 @@ func TestWriter_handle(t *testing.T) {
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(jsonAnchorLinkset), anchorLinkset))
 
-		err = c.handle(anchorLinkset)
+		err = c.handle(context.Background(), anchorLinkset)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "add witnessed anchor")
 	})
@@ -1164,7 +1165,7 @@ func TestWriter_handle(t *testing.T) {
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(jsonAnchorLinkset), anchorLinkset))
 
-		err = c.handle(anchorLinkset)
+		err = c.handle(context.Background(), anchorLinkset)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
@@ -1197,7 +1198,7 @@ func TestWriter_handle(t *testing.T) {
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(jsonAnchorLinkset), anchorLinkset))
 
-		err = c.handle(anchorLinkset)
+		err = c.handle(context.Background(), anchorLinkset)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "post create activity for anchor")
 		require.False(t, orberrors.IsTransient(err))
@@ -1232,7 +1233,7 @@ func TestWriter_handle(t *testing.T) {
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(jsonAnchorLinkset), anchorLinkset))
 
-		require.NoError(t, c.handle(anchorLinkset))
+		require.NoError(t, c.handle(context.Background(), anchorLinkset))
 	})
 
 	t.Run("error - delete anchor event error (transient store - log only)", func(t *testing.T) {
@@ -1268,7 +1269,7 @@ func TestWriter_handle(t *testing.T) {
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(jsonAnchorLinkset), anchorLinkset))
 
-		require.NoError(t, c.handle(anchorLinkset))
+		require.NoError(t, c.handle(context.Background(), anchorLinkset))
 	})
 
 	t.Run("error - parse verifiable credential from anchor event error", func(t *testing.T) {
@@ -1300,7 +1301,7 @@ func TestWriter_handle(t *testing.T) {
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(jsonAnchorLinksetInvalidReply), anchorLinkset))
 
-		err = c.handle(anchorLinkset)
+		err = c.handle(context.Background(), anchorLinkset)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "issuer is required")
 		require.False(t, orberrors.IsTransient(err))
@@ -1335,7 +1336,7 @@ func TestWriter_handle(t *testing.T) {
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(jsonAnchorLinkset), anchorLinkset))
 
-		err = c.handle(anchorLinkset)
+		err = c.handle(context.Background(), anchorLinkset)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to store vc")
 		require.False(t, orberrors.IsTransient(err))
@@ -1387,7 +1388,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			&mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		err = c.postOfferActivity(anchorLink, nil, []string{"https://abc.com/services/orb"})
+		err = c.postOfferActivity(context.Background(), anchorLink, nil, []string{"https://abc.com/services/orb"})
 		require.NoError(t, err)
 	})
 
@@ -1401,7 +1402,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			&mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		err = c.postOfferActivity(anchorLink, nil, []string{":xyz"})
+		err = c.postOfferActivity(context.Background(), anchorLink, nil, []string{":xyz"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "missing protocol scheme")
 	})
@@ -1420,7 +1421,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			&mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		err = c.postOfferActivity(anchorLink, nil, []string{"https://abc.com/services/orb"})
+		err = c.postOfferActivity(context.Background(), anchorLink, nil, []string{"https://abc.com/services/orb"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "witness store error")
 	})
@@ -1453,11 +1454,11 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			require.NoError(t, err)
 
 			// test error for batch witness
-			err = c.postOfferActivity(anchorLink, nil, []string{"https://abc.com/services/orb"})
+			err = c.postOfferActivity(context.Background(), anchorLink, nil, []string{"https://abc.com/services/orb"})
 			require.NoError(t, err)
 
 			// test error for system witness (no batch witnesses)
-			err = c.postOfferActivity(anchorLink, nil, []string{})
+			err = c.postOfferActivity(context.Background(), anchorLink, nil, []string{})
 			require.NoError(t, err)
 		},
 	)
@@ -1475,7 +1476,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			&mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		err = c.postOfferActivity(anchorLink, nil, []string{"https://abc.com/services/orb"})
+		err = c.postOfferActivity(context.Background(), anchorLink, nil, []string{"https://abc.com/services/orb"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(),
 			"failed to query references for system witnesses: activity store error")
@@ -1496,7 +1497,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			&mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		err = c.postOfferActivity(anchorLink, nil, []string{"https://abc.com/services/orb"})
+		err = c.postOfferActivity(context.Background(), anchorLink, nil, []string{"https://abc.com/services/orb"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "outbox error")
 	})
@@ -1516,7 +1517,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 			&mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		err = c.postOfferActivity(anchorLink, nil, []string{"https://abc.com/services/orb"})
+		err = c.postOfferActivity(context.Background(), anchorLink, nil, []string{"https://abc.com/services/orb"})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to get witnesses: select witnesses: witness selection error")
 	})
@@ -1775,7 +1776,7 @@ type mockTxnBuilder struct {
 }
 
 func (m *mockTxnBuilder) Build(profile *url.URL, anchorHashlink, coreIndexHashlink string,
-	context []string) (*verifiable.Credential, error) {
+	_ []string) (*verifiable.Credential, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}
@@ -1827,7 +1828,7 @@ type mockOutbox struct {
 	Err error
 }
 
-func (m *mockOutbox) Post(activity *vocab.ActivityType, _ ...*url.URL) (*url.URL, error) {
+func (m *mockOutbox) Post(ctx context.Context, activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}

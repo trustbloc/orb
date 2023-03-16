@@ -197,6 +197,7 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager, met
 // Add publishes the given operation.
 func (q *Queue) Add(op *operation.QueuedOperation, protocolVersion uint64) (uint, error) {
 	return q.publish(
+		context.Background(),
 		&OperationMessage{
 			ID: uuid.New().String(),
 			Operation: &operation.QueuedOperationAtTime{
@@ -207,7 +208,7 @@ func (q *Queue) Add(op *operation.QueuedOperation, protocolVersion uint64) (uint
 	)
 }
 
-func (q *Queue) publish(op *OperationMessage) (uint, error) {
+func (q *Queue) publish(_ context.Context, op *OperationMessage) (uint, error) {
 	if q.State() != lifecycle.StateStarted {
 		return 0, lifecycle.ErrNotStarted
 	}
@@ -220,7 +221,7 @@ func (q *Queue) publish(op *OperationMessage) (uint, error) {
 
 	b, err := q.marshal(op)
 	if err != nil {
-		return 0, fmt.Errorf("marshall queued operation: %w", err)
+		return 0, fmt.Errorf("marshal queued operation: %w", err)
 	}
 
 	msg := message.NewMessage(watermill.NewUUID(), b)
@@ -435,7 +436,7 @@ func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 			q.logger.Info("... re-posting operation ...", logfields.WithOperationID(op.ID),
 				logfields.WithSuffix(op.Operation.UniqueSuffix), logfields.WithRetries(op.Retries))
 
-			if _, err := q.publish(op.OperationMessage); err != nil {
+			if _, err := q.publish(context.Background(), op.OperationMessage); err != nil {
 				q.logger.Error("Error re-posting operation. Operation will be detached from this server instance",
 					logfields.WithOperationID(op.ID), log.WithError(err))
 
@@ -622,7 +623,7 @@ func (q *Queue) repostOperations(serverID string) error { //nolint:cyclop
 		q.logger.Info("Re-posting operation.", logfields.WithOperationID(op.ID),
 			logfields.WithSuffix(op.Operation.UniqueSuffix))
 
-		if _, e = q.publish(op); e != nil {
+		if _, e = q.publish(context.Background(), op); e != nil {
 			return fmt.Errorf("publish operation [%s]: %w", op.ID, e)
 		}
 

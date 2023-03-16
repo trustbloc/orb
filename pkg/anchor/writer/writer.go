@@ -66,7 +66,7 @@ type metricsProvider interface {
 }
 
 type proofHandler interface {
-	HandleProof(witness *url.URL, anchorID string, endTime time.Time, proof []byte) error
+	HandleProof(ctx context.Context, witness *url.URL, anchorID string, endTime time.Time, proof []byte) error
 }
 
 type generatorRegistry interface {
@@ -93,7 +93,7 @@ type Writer struct {
 	metrics              metricsProvider
 }
 
-// Providers contains all of the providers required by the client.
+// Providers contains the providers required by the client.
 type Providers struct {
 	AnchorGraph            anchorGraph
 	DidAnchors             didAnchors
@@ -147,7 +147,7 @@ type monitoringSvc interface {
 }
 
 type outbox interface {
-	Post(activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error)
+	Post(ctx context.Context, activity *vocab.ActivityType, exclude ...*url.URL) (*url.URL, error)
 }
 
 type opProcessor interface {
@@ -176,7 +176,7 @@ type statusStore interface {
 }
 
 type anchorPublisher interface {
-	PublishAnchor(anchorInfo *anchorinfo.AnchorInfo) error
+	PublishAnchor(ctx context.Context, anchorInfo *anchorinfo.AnchorInfo) error
 }
 
 type pubSub interface {
@@ -266,7 +266,7 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 		logfields.WithCoreIndex(payload.CoreIndex), logfields.WithAnchorURI(anchorLink.Anchor()))
 
 	// send an offer activity to witnesses (request witnessing anchor credential from non-local witness logs)
-	err = c.postOfferActivity(anchorLink, vcBytes, batchWitnesses)
+	err = c.postOfferActivity(context.Background(), anchorLink, vcBytes, batchWitnesses)
 	if err != nil {
 		return fmt.Errorf("failed to post new offer activity for core index[%s]: %w",
 			payload.CoreIndex, err)
@@ -465,7 +465,7 @@ func (c *Writer) signCredentialWithLocalWitnessLog(vc *verifiable.Credential) (*
 	return vc, nil
 }
 
-func (c *Writer) handle(anchorLinkset *linkset.Linkset) error {
+func (c *Writer) handle(ctx context.Context, anchorLinkset *linkset.Linkset) error {
 	anchorLink := anchorLinkset.Link()
 	if anchorLink == nil {
 		return fmt.Errorf("anchor Linkset is empty")
@@ -492,7 +492,7 @@ func (c *Writer) handle(anchorLinkset *linkset.Linkset) error {
 	logger.Debug("Publishing anchor", logfields.WithAnchorURI(anchorLink.Anchor()),
 		logfields.WithAnchorEventURIString(anchorLinksetHL))
 
-	err = c.anchorPublisher.PublishAnchor(&anchorinfo.AnchorInfo{Hashlink: anchorLinksetHL})
+	err = c.anchorPublisher.PublishAnchor(ctx, &anchorinfo.AnchorInfo{Hashlink: anchorLinksetHL})
 	if err != nil {
 		return fmt.Errorf("publish anchor[%s] ref [%s]: %w", anchorLink.Anchor(), anchorLinksetHL, err)
 	}
@@ -507,7 +507,7 @@ func (c *Writer) handle(anchorLinkset *linkset.Linkset) error {
 		logfields.WithAnchorEventURIString(anchorLinksetHL))
 
 	// announce anchor credential activity to followers
-	err = c.postCreateActivity(anchorLinkset, anchorLinksetHL)
+	err = c.postCreateActivity(ctx, anchorLinkset, anchorLinksetHL)
 	if err != nil {
 		// Don't return a transient error since the anchor has already been published and we don't want to trigger a retry.
 		return fmt.Errorf("post create activity for anchor[%s] ref[%s]: %w",
@@ -556,7 +556,7 @@ func (c *Writer) storeVC(anchorLink *linkset.Link) error {
 }
 
 // postCreateActivity creates and posts create activity (announces anchor credential to followers).
-func (c *Writer) postCreateActivity(anchorLinkset *linkset.Linkset, hl string) error { //nolint: interfacer
+func (c *Writer) postCreateActivity(ctx context.Context, anchorLinkset *linkset.Linkset, hl string) error { //nolint: interfacer
 	systemFollowers, err := url.Parse(c.apServiceEndpointURL.String() + resthandler.FollowersPath)
 	if err != nil {
 		return fmt.Errorf("failed to create new object with document: %w", err)
@@ -587,7 +587,7 @@ func (c *Writer) postCreateActivity(anchorLinkset *linkset.Linkset, hl string) e
 		vocab.WithPublishedTime(&now),
 	)
 
-	activityID, err := c.Outbox.Post(create)
+	activityID, err := c.Outbox.Post(ctx, create)
 	if err != nil {
 		return err
 	}
@@ -598,7 +598,7 @@ func (c *Writer) postCreateActivity(anchorLinkset *linkset.Linkset, hl string) e
 }
 
 // postOfferActivity creates and posts offer activity (requests witnessing of anchor credential).
-func (c *Writer) postOfferActivity(anchorLink *linkset.Link, localProofBytes []byte, batchWitnesses []string) error {
+func (c *Writer) postOfferActivity(ctx context.Context, anchorLink *linkset.Link, localProofBytes []byte, batchWitnesses []string) error {
 	postOfferActivityStartTime := time.Now()
 
 	defer c.metrics.WriteAnchorPostOfferActivityTime(time.Since(postOfferActivityStartTime))
@@ -629,7 +629,7 @@ func (c *Writer) postOfferActivity(anchorLink *linkset.Link, localProofBytes []b
 		vocab.WithTarget(vocab.NewObjectProperty(vocab.WithIRI(vocab.AnchorWitnessTargetIRI))),
 	)
 
-	activityID, err := c.Outbox.Post(offer)
+	activityID, err := c.Outbox.Post(ctx, offer)
 	if err != nil {
 		return fmt.Errorf("failed to post offer for anchor[%s]: %w", anchorLink.Anchor(), err)
 	}
@@ -654,7 +654,7 @@ func (c *Writer) postOfferActivity(anchorLink *linkset.Link, localProofBytes []b
 		}
 
 		// Handle the anchor event by providing this service's proof.
-		e := c.ProofHandler.HandleProof(c.apServiceIRI, anchorLink.Anchor().String(), endTime, localProofBytes)
+		e := c.ProofHandler.HandleProof(ctx, c.apServiceIRI, anchorLink.Anchor().String(), endTime, localProofBytes)
 		if e != nil {
 			return fmt.Errorf("handle offer with no witnesses: %w", e)
 		}

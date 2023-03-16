@@ -2,17 +2,19 @@
 package mocks
 
 import (
+	"context"
 	"sync"
 
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 )
 
 type RemoteResolver struct {
-	ResolveDocumentFromResolutionEndpointsStub        func(string, []string) (*document.ResolutionResult, error)
+	ResolveDocumentFromResolutionEndpointsStub        func(context.Context, string, []string) (*document.ResolutionResult, error)
 	resolveDocumentFromResolutionEndpointsMutex       sync.RWMutex
 	resolveDocumentFromResolutionEndpointsArgsForCall []struct {
-		arg1 string
-		arg2 []string
+		arg1 context.Context
+		arg2 string
+		arg3 []string
 	}
 	resolveDocumentFromResolutionEndpointsReturns struct {
 		result1 *document.ResolutionResult
@@ -26,27 +28,29 @@ type RemoteResolver struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *RemoteResolver) ResolveDocumentFromResolutionEndpoints(arg1 string, arg2 []string) (*document.ResolutionResult, error) {
-	var arg2Copy []string
-	if arg2 != nil {
-		arg2Copy = make([]string, len(arg2))
-		copy(arg2Copy, arg2)
+func (fake *RemoteResolver) ResolveDocumentFromResolutionEndpoints(arg1 context.Context, arg2 string, arg3 []string) (*document.ResolutionResult, error) {
+	var arg3Copy []string
+	if arg3 != nil {
+		arg3Copy = make([]string, len(arg3))
+		copy(arg3Copy, arg3)
 	}
 	fake.resolveDocumentFromResolutionEndpointsMutex.Lock()
 	ret, specificReturn := fake.resolveDocumentFromResolutionEndpointsReturnsOnCall[len(fake.resolveDocumentFromResolutionEndpointsArgsForCall)]
 	fake.resolveDocumentFromResolutionEndpointsArgsForCall = append(fake.resolveDocumentFromResolutionEndpointsArgsForCall, struct {
-		arg1 string
-		arg2 []string
-	}{arg1, arg2Copy})
-	fake.recordInvocation("ResolveDocumentFromResolutionEndpoints", []interface{}{arg1, arg2Copy})
+		arg1 context.Context
+		arg2 string
+		arg3 []string
+	}{arg1, arg2, arg3Copy})
+	stub := fake.ResolveDocumentFromResolutionEndpointsStub
+	fakeReturns := fake.resolveDocumentFromResolutionEndpointsReturns
+	fake.recordInvocation("ResolveDocumentFromResolutionEndpoints", []interface{}{arg1, arg2, arg3Copy})
 	fake.resolveDocumentFromResolutionEndpointsMutex.Unlock()
-	if fake.ResolveDocumentFromResolutionEndpointsStub != nil {
-		return fake.ResolveDocumentFromResolutionEndpointsStub(arg1, arg2)
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.resolveDocumentFromResolutionEndpointsReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -56,17 +60,17 @@ func (fake *RemoteResolver) ResolveDocumentFromResolutionEndpointsCallCount() in
 	return len(fake.resolveDocumentFromResolutionEndpointsArgsForCall)
 }
 
-func (fake *RemoteResolver) ResolveDocumentFromResolutionEndpointsCalls(stub func(string, []string) (*document.ResolutionResult, error)) {
+func (fake *RemoteResolver) ResolveDocumentFromResolutionEndpointsCalls(stub func(context.Context, string, []string) (*document.ResolutionResult, error)) {
 	fake.resolveDocumentFromResolutionEndpointsMutex.Lock()
 	defer fake.resolveDocumentFromResolutionEndpointsMutex.Unlock()
 	fake.ResolveDocumentFromResolutionEndpointsStub = stub
 }
 
-func (fake *RemoteResolver) ResolveDocumentFromResolutionEndpointsArgsForCall(i int) (string, []string) {
+func (fake *RemoteResolver) ResolveDocumentFromResolutionEndpointsArgsForCall(i int) (context.Context, string, []string) {
 	fake.resolveDocumentFromResolutionEndpointsMutex.RLock()
 	defer fake.resolveDocumentFromResolutionEndpointsMutex.RUnlock()
 	argsForCall := fake.resolveDocumentFromResolutionEndpointsArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3
 }
 
 func (fake *RemoteResolver) ResolveDocumentFromResolutionEndpointsReturns(result1 *document.ResolutionResult, result2 error) {

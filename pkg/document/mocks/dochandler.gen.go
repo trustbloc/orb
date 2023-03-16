@@ -33,15 +33,16 @@ func (fake *Resolver) ResolveDocument(arg1 string, arg2 ...document.ResolutionOp
 		arg1 string
 		arg2 []document.ResolutionOption
 	}{arg1, arg2})
+	stub := fake.ResolveDocumentStub
+	fakeReturns := fake.resolveDocumentReturns
 	fake.recordInvocation("ResolveDocument", []interface{}{arg1, arg2})
 	fake.resolveDocumentMutex.Unlock()
-	if fake.ResolveDocumentStub != nil {
-		return fake.ResolveDocumentStub(arg1, arg2...)
+	if stub != nil {
+		return stub(arg1, arg2...)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.resolveDocumentReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 

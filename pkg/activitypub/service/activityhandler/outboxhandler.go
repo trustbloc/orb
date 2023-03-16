@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package activityhandler
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -49,23 +50,23 @@ func NewOutbox(cfg *Config, s store.Store, activityPubClient activityPubClient) 
 }
 
 // HandleActivity handles the ActivityPub activity in the outbox.
-func (h *Outbox) HandleActivity(_ *url.URL, activity *vocab.ActivityType) error {
+func (h *Outbox) HandleActivity(ctx context.Context, source *url.URL, activity *vocab.ActivityType) error {
 	typeProp := activity.Type()
 
 	switch {
 	case typeProp.Is(vocab.TypeCreate):
-		return h.handleCreateActivity(activity)
+		return h.handleCreateActivity(ctx, activity)
 	case typeProp.Is(vocab.TypeUndo):
-		return h.handleUndoActivity(activity)
+		return h.handleUndoActivity(ctx, activity)
 	case typeProp.Is(vocab.TypeLike):
-		return h.handleLikeActivity(activity)
+		return h.handleLikeActivity(ctx, activity)
 	default:
 		// Nothing to do for activity.
 		return nil
 	}
 }
 
-func (h *handler) handleCreateActivity(create *vocab.ActivityType) error {
+func (h *handler) handleCreateActivity(_ context.Context, create *vocab.ActivityType) error {
 	h.logger.Debug("Handling 'Create' activity", logfields.WithActivityID(create.ID()))
 
 	obj := create.Object()
@@ -129,7 +130,7 @@ func (h *Outbox) undoAddReference(activity *vocab.ActivityType, refType store.Re
 	return nil
 }
 
-func (h *handler) handleLikeActivity(like *vocab.ActivityType) error {
+func (h *handler) handleLikeActivity(_ context.Context, like *vocab.ActivityType) error {
 	h.logger.Debug("Handling 'Like' activity", logfields.WithActivityID(like.ID()))
 
 	ref := like.Object().AnchorEvent()

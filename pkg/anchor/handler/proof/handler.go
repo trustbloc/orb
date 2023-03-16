@@ -39,7 +39,7 @@ type pubSub interface {
 }
 
 type anchorLinkPublisher interface {
-	Publish(anchorLinkset *linkset.Linkset) error
+	Publish(ctx context.Context, anchorLinkset *linkset.Linkset) error
 }
 
 type metricsProvider interface {
@@ -99,7 +99,7 @@ type witnessPolicy interface {
 }
 
 // HandleProof handles proof.
-func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchor string, endTime time.Time, proof []byte) error {
+func (h *WitnessProofHandler) HandleProof(ctx context.Context, witness *url.URL, anchor string, endTime time.Time, proof []byte) error {
 	logger.Debug("Received proof for anchor from witness", logfields.WithAnchorURIString(anchor),
 		logfields.WithActorIRI(witness), logfields.WithProof(proof))
 
@@ -165,7 +165,7 @@ func (h *WitnessProofHandler) HandleProof(witness *url.URL, anchor string, endTi
 			witness.String(), anchor, err)
 	}
 
-	return h.handleWitnessPolicy(anchorLink, vc)
+	return h.handleWitnessPolicy(ctx, anchorLink, vc)
 }
 
 func getCreatedTime(wp vct.Proof) (time.Time, error) {
@@ -182,7 +182,8 @@ func getCreatedTime(wp vct.Proof) (time.Time, error) {
 	return createdTime, nil
 }
 
-func (h *WitnessProofHandler) handleWitnessPolicy(anchorLink *linkset.Link, vc *verifiable.Credential) error { //nolint:cyclop
+func (h *WitnessProofHandler) handleWitnessPolicy(ctx context.Context, anchorLink *linkset.Link,
+	vc *verifiable.Credential) error { //nolint:cyclop
 	anchorID := anchorLink.Anchor().String()
 
 	logger.Debug("Handling witness policy for anchor link", logfields.WithAnchorURIString(anchorID))
@@ -248,7 +249,7 @@ func (h *WitnessProofHandler) handleWitnessPolicy(anchorLink *linkset.Link, vc *
 		linkset.NewReference(vcDataURI, linkset.TypeJSONLD),
 	)
 
-	err = h.publisher.Publish(linkset.New(anchorLink))
+	err = h.publisher.Publish(ctx, linkset.New(anchorLink))
 	if err != nil {
 		return fmt.Errorf("publish credential[%s]: %w", anchorID, err)
 	}

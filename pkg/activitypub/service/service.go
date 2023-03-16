@@ -80,8 +80,8 @@ type signatureVerifier interface {
 
 type activityPubClient interface {
 	GetActor(iri *url.URL) (*vocab.ActorType, error)
-	GetReferences(iri *url.URL) (client.ReferenceIterator, error)
-	GetActivities(iri *url.URL, order client.Order) (client.ActivityIterator, error)
+	GetReferences(ctx context.Context, iri *url.URL) (client.ReferenceIterator, error)
+	GetActivities(ctx context.Context, iri *url.URL, order client.Order) (client.ActivityIterator, error)
 }
 
 type resourceResolver interface {

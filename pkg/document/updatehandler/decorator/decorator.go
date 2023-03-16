@@ -7,6 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package decorator
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -61,7 +62,7 @@ type endpointClient interface {
 }
 
 type remoteResolver interface {
-	ResolveDocumentFromResolutionEndpoints(id string, endpoints []string) (*document.ResolutionResult, error)
+	ResolveDocumentFromResolutionEndpoints(ctx context.Context, id string, endpoints []string) (*document.ResolutionResult, error)
 }
 
 type metricsProvider interface {
@@ -121,7 +122,7 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 
 	resolveFromAnchorOriginTime := time.Now()
 
-	anchorOriginResponse, err := d.resolveDocumentFromAnchorOrigin(canonicalID, localAnchorOrigin)
+	anchorOriginResponse, err := d.resolveDocumentFromAnchorOrigin(context.Background(), canonicalID, localAnchorOrigin)
 	if err != nil {
 		logger.Debug("Failed to resolve document from anchor origin", logfields.WithDID(canonicalID), log.WithError(err))
 
@@ -171,7 +172,8 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 	return op, nil
 }
 
-func (d *OperationDecorator) resolveDocumentFromAnchorOrigin(id, anchorOrigin string) (*document.ResolutionResult, error) {
+func (d *OperationDecorator) resolveDocumentFromAnchorOrigin(ctx context.Context, id,
+	anchorOrigin string) (*document.ResolutionResult, error) {
 	endpoint, err := d.endpointClient.GetEndpoint(anchorOrigin)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get endpoint from anchor origin domain[%s]: %w", id, err)
@@ -180,7 +182,7 @@ func (d *OperationDecorator) resolveDocumentFromAnchorOrigin(id, anchorOrigin st
 	logger.Debug("Got anchor domain resolution endpoints", logfields.WithDID(id),
 		logfields.WithResolutionEndpoints(endpoint.ResolutionEndpoints...))
 
-	anchorOriginResponse, err := d.remoteResolver.ResolveDocumentFromResolutionEndpoints(id, endpoint.ResolutionEndpoints)
+	anchorOriginResponse, err := d.remoteResolver.ResolveDocumentFromResolutionEndpoints(ctx, id, endpoint.ResolutionEndpoints)
 	if err != nil {
 		return nil, fmt.Errorf("unable to resolve id[%s] from anchor origin endpoints%s: %w",
 			id, endpoint.ResolutionEndpoints, err)
