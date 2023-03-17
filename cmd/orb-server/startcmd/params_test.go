@@ -1714,7 +1714,7 @@ func TestTracingParameters(t *testing.T) {
 		cmd := getTestCmd(t)
 
 		_, err := getTracingParams(cmd)
-		require.EqualError(t, err, "Neither tracing-collector-url (command line flag) nor OUTBOX_TRACING_COLLECTOR_URL (environment variable) have been set.")
+		require.EqualError(t, err, "Neither tracing-collector-url (command line flag) nor ORB_TRACING_COLLECTOR_URL (environment variable) have been set.")
 	})
 
 	t.Run("Unsupported provider -> error", func(t *testing.T) {

@@ -683,18 +683,18 @@ const (
 	allowedPromHttpUrlFlagNameUsage = "URL that exposes the prometheus metrics endpoint. Format: HostName:Port. "
 
 	tracingProviderFlagName  = "tracing-provider"
-	tracingProviderEnvKey    = "OUTBOX_TRACING_PROVIDER"
+	tracingProviderEnvKey    = "ORB_TRACING_PROVIDER"
 	tracingProviderFlagUsage = "The tracing provider (for example, JAEGER). " +
 		commonEnvVarUsageText + tracingProviderEnvKey
 
 	tracingCollectorURLFlagName  = "tracing-collector-url"
-	tracingCollectorURLEnvKey    = "OUTBOX_TRACING_COLLECTOR_URL"
+	tracingCollectorURLEnvKey    = "ORB_TRACING_COLLECTOR_URL"
 	tracingCollectorURLFlagUsage = "The URL of the tracing collector (for example, Jaeger). " +
 		commonEnvVarUsageText + tracingCollectorURLEnvKey
 
 	tracingServiceNameFlagName  = "tracing-service-name"
-	tracingServiceNameEnvKey    = "OUTBOX_TRACING_SERVICE_NAME"
-	tracingServiceNameFlagUsage = "The name of the tracing service (for example, outbox1.domain.com). " +
+	tracingServiceNameEnvKey    = "ORB_TRACING_SERVICE_NAME"
+	tracingServiceNameFlagUsage = "The name of the tracing service (for example, orb1). " +
 		commonEnvVarUsageText + tracingServiceNameEnvKey
 )
 
