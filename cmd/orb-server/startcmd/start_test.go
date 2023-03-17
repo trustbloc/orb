@@ -27,7 +27,10 @@ import (
 
 func TestCreateProviders(t *testing.T) {
 	t.Run("test error from create new couchdb", func(t *testing.T) {
-		err := startOrbServices(&orbParameters{dbParameters: &dbParameters{databaseType: databaseTypeCouchDBOption}})
+		err := startOrbServices(&orbParameters{
+			dbParameters:  &dbParameters{databaseType: databaseTypeCouchDBOption},
+			tracingParams: &tracingParams{},
+		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to ping couchDB: url can't be blank")
 	})
@@ -40,12 +43,13 @@ func TestCreateProviders(t *testing.T) {
 			dbParameters: &dbParameters{
 				databaseType: databaseTypeMemOption,
 			},
+			tracingParams: &tracingParams{},
 		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to ping couchDB: url can't be blank")
 	})
 	t.Run("test invalid database type", func(t *testing.T) {
-		err := startOrbServices(&orbParameters{dbParameters: &dbParameters{databaseType: "data1"}})
+		err := startOrbServices(&orbParameters{dbParameters: &dbParameters{databaseType: "data1"}, tracingParams: &tracingParams{}})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "database type not set to a valid type")
 	})
@@ -58,6 +62,7 @@ func TestCreateProviders(t *testing.T) {
 			dbParameters: &dbParameters{
 				databaseType: databaseTypeMemOption,
 			},
+			tracingParams: &tracingParams{},
 		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "database type not set to a valid type")

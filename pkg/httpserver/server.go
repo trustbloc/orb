@@ -18,10 +18,16 @@ import (
 	"github.com/rs/cors"
 	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
+)
+
+const (
+	defaultServerIdleTimeout       = 20 * time.Second
+	defaultServerReadHeaderTimeout = 20 * time.Second
 )
 
 var (
@@ -39,17 +45,91 @@ type Server struct {
 	keyFile    string
 }
 
+type options struct {
+	handlers                []common.HTTPHandler
+	certFile                string
+	keyFile                 string
+	serverIdleTimeout       time.Duration
+	serverReadHeaderTimeout time.Duration
+	tracingEnabled          bool
+	tracingServiceName      string
+}
+
+// Opt is an HTTP server option.
+type Opt func(*options)
+
+// WithHandlers adds HTTP request handlers.
+func WithHandlers(handlers ...common.HTTPHandler) Opt {
+	return func(options *options) {
+		options.handlers = append(options.handlers, handlers...)
+	}
+}
+
+// WithCertFile sets the TLS certificate file.
+func WithCertFile(value string) Opt {
+	return func(options *options) {
+		options.certFile = value
+	}
+}
+
+// WithKeyFile sets the TLS key file.
+func WithKeyFile(value string) Opt {
+	return func(options *options) {
+		options.keyFile = value
+	}
+}
+
+// WithServerIdleTimeout sets the idle timeout.
+func WithServerIdleTimeout(value time.Duration) Opt {
+	return func(options *options) {
+		options.serverIdleTimeout = value
+	}
+}
+
+// WithServerReadHeaderTimeout sets the read header timeout.
+func WithServerReadHeaderTimeout(value time.Duration) Opt {
+	return func(options *options) {
+		options.serverReadHeaderTimeout = value
+	}
+}
+
+// WithTracingEnabled enables/disables OpenTelemetry tracing.
+func WithTracingEnabled(enable bool) Opt {
+	return func(options *options) {
+		options.tracingEnabled = enable
+	}
+}
+
+// WithTracingServiceName sets the name of the OpenTelemetry service.
+func WithTracingServiceName(serviceName string) Opt {
+	return func(options *options) {
+		options.tracingServiceName = serviceName
+	}
+}
+
 // New returns a new HTTP server.
-func New(url, certFile, keyFile string, serverIdleTimeout, serverReadHeaderTimeout time.Duration,
-	handlers ...common.HTTPHandler) *Server {
+func New(url string, opts ...Opt) *Server {
+	options := &options{
+		serverIdleTimeout:       defaultServerIdleTimeout,
+		serverReadHeaderTimeout: defaultServerReadHeaderTimeout,
+	}
+
+	for _, opt := range opts {
+		opt(options)
+	}
+
 	s := &Server{
-		certFile: certFile,
-		keyFile:  keyFile,
+		certFile: options.certFile,
+		keyFile:  options.keyFile,
 	}
 
 	router := mux.NewRouter()
 
-	for _, handler := range handlers {
+	if options.tracingEnabled {
+		router.Use(otelmux.Middleware(options.tracingServiceName))
+	}
+
+	for _, handler := range options.handlers {
 		logger.Info("Registering handler", logfields.WithServiceEndpoint(handler.Path()))
 
 		router.HandleFunc(handler.Path(), handler.Handler()).
@@ -67,7 +147,7 @@ func New(url, certFile, keyFile string, serverIdleTimeout, serverReadHeaderTimeo
 	).Handler(router)
 
 	http2Server := &http2.Server{
-		IdleTimeout: serverIdleTimeout,
+		IdleTimeout: options.serverIdleTimeout,
 		CountError: func(errType string) {
 			logger.Error("HTTP2 server error", log.WithError(errors.New(errType)))
 		},
@@ -76,8 +156,8 @@ func New(url, certFile, keyFile string, serverIdleTimeout, serverReadHeaderTimeo
 	httpServ := &http.Server{
 		Addr:              url,
 		Handler:           h2c.NewHandler(handler, http2Server),
-		IdleTimeout:       serverIdleTimeout,
-		ReadHeaderTimeout: serverReadHeaderTimeout,
+		IdleTimeout:       options.serverIdleTimeout,
+		ReadHeaderTimeout: options.serverReadHeaderTimeout,
 	}
 
 	s.httpServer = httpServ

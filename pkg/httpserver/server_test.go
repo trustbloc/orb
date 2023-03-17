@@ -28,14 +28,7 @@ const (
 )
 
 func TestServer_Start(t *testing.T) {
-	s := New(url,
-		"",
-		"",
-		time.Second,
-		time.Second,
-		&mockUpdateHandler{},
-		&mockResolveHandler{},
-	)
+	s := New(url, WithHandlers(&mockUpdateHandler{}, &mockResolveHandler{}))
 	require.NoError(t, s.Start())
 	require.Error(t, s.Start())
 

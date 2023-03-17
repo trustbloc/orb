@@ -17,6 +17,7 @@ import (
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/logutil-go/pkg/log"
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
+	"go.opentelemetry.io/otel/trace"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
@@ -25,6 +26,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/hashlink"
 	"github.com/trustbloc/orb/pkg/linkset"
+	"github.com/trustbloc/orb/pkg/observability/tracing"
 )
 
 var logger = log.New("anchor-credential-handler")
@@ -46,6 +48,7 @@ type AnchorEventHandler struct {
 	anchorLinkStore   anchorLinkStore
 	unmarshal         func(data []byte, v interface{}) error
 	generatorRegistry generatorRegistry
+	tracer            trace.Tracer
 }
 
 type casResolver interface {
@@ -69,6 +72,7 @@ func New(anchorPublisher anchorPublisher, casResolver casResolver,
 		anchorLinkStore:   anchorLinkStore,
 		generatorRegistry: registry,
 		unmarshal:         json.Unmarshal,
+		tracer:            tracing.Tracer(tracing.SubsystemAnchor),
 	}
 }
 
@@ -189,14 +193,18 @@ func (h *AnchorEventHandler) ensureParentAnchorsAreProcessed(ctx context.Context
 		return fmt.Errorf("get unprocessed parent anchors for [%s]: %w", anchorRef, err)
 	}
 
-	logger.Debug("Processing parents of anchor", logfields.WithTotal(len(unprocessedParents)),
+	logger.Debugc(ctx, "Processing parents of anchor", logfields.WithTotal(len(unprocessedParents)),
 		logfields.WithAnchorURI(anchorRef), logfields.WithParents(unprocessedParents.HashLinks()))
 
 	if len(unprocessedParents) > 0 {
-		for _, parentAnchorInfo := range unprocessedParents {
-			logger.Info("Processing parent", logfields.WithAnchorURI(anchorRef), logfields.WithParent(parentAnchorInfo.Hashlink))
+		spanCtx, span := h.tracer.Start(ctx, "process parent anchors",
+			trace.WithAttributes(tracing.AnchorEventURIAttribute(anchorRef.String())))
+		defer span.End()
 
-			err = h.processAnchorEvent(ctx, parentAnchorInfo)
+		for _, parentAnchorInfo := range unprocessedParents {
+			logger.Infoc(spanCtx, "Processing parent", logfields.WithAnchorURI(anchorRef), logfields.WithParent(parentAnchorInfo.Hashlink))
+
+			err = h.processAnchorEvent(spanCtx, parentAnchorInfo)
 			if err != nil {
 				return fmt.Errorf("process anchor [%s]: %w", parentAnchorInfo.Hashlink, err)
 			}

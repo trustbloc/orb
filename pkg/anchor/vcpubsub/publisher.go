@@ -11,13 +11,13 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/trustbloc/logutil-go/pkg/log"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/linkset"
+	"github.com/trustbloc/orb/pkg/pubsub"
 )
 
 var logger = log.New("anchor")
@@ -50,11 +50,9 @@ func (h *Publisher) Publish(ctx context.Context, anchorLinkset *linkset.Linkset)
 		return fmt.Errorf("marshal anchor link: %w", err)
 	}
 
-	msg := message.NewMessage(watermill.NewUUID(), payload)
+	logger.Debugc(ctx, "Publishing anchor linkset", log.WithTopic(anchorTopic), logfields.WithData(payload))
 
-	logger.Debug("Publishing anchor linkset", log.WithTopic(anchorTopic), logfields.WithData(payload))
-
-	err = h.pubSub.Publish(anchorTopic, msg)
+	err = h.pubSub.Publish(anchorTopic, pubsub.NewMessage(ctx, payload))
 	if err != nil {
 		return errors.NewTransient(err)
 	}

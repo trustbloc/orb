@@ -23,6 +23,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
+	"go.opentelemetry.io/otel/trace"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"
@@ -40,6 +41,7 @@ import (
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	docutil "github.com/trustbloc/orb/pkg/document/util"
 	"github.com/trustbloc/orb/pkg/linkset"
+	"github.com/trustbloc/orb/pkg/observability/tracing"
 	resourceresolver "github.com/trustbloc/orb/pkg/resolver/resource"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 	"github.com/trustbloc/orb/pkg/vct"
@@ -91,6 +93,7 @@ type Writer struct {
 	signWithLocalWitness bool
 	resourceResolver     *resourceresolver.Resolver
 	metrics              metricsProvider
+	tracer               trace.Tracer
 }
 
 // Providers contains the providers required by the client.
@@ -202,6 +205,7 @@ func New(namespace string, apServiceIRI, apServiceEndpointURL, casURL *url.URL, 
 		resourceResolver:     resourceResolver,
 		metrics:              metrics,
 		dataURIMediaType:     dataURIMediaType,
+		tracer:               tracing.Tracer(tracing.SubsystemAnchor),
 	}
 
 	s, err := vcpubsub.NewSubscriber(pubSub, w.handle)
@@ -265,8 +269,11 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 	logger.Debug("Signed and stored anchor object",
 		logfields.WithCoreIndex(payload.CoreIndex), logfields.WithAnchorURI(anchorLink.Anchor()))
 
+	ctx, span := c.tracer.Start(context.Background(), "write anchor")
+	defer span.End()
+
 	// send an offer activity to witnesses (request witnessing anchor credential from non-local witness logs)
-	err = c.postOfferActivity(context.Background(), anchorLink, vcBytes, batchWitnesses)
+	err = c.postOfferActivity(ctx, anchorLink, vcBytes, batchWitnesses)
 	if err != nil {
 		return fmt.Errorf("failed to post new offer activity for core index[%s]: %w",
 			payload.CoreIndex, err)

@@ -18,12 +18,14 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
+	"go.opentelemetry.io/otel/trace"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/context/common"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/client/models"
 	"github.com/trustbloc/orb/pkg/document/util"
 	"github.com/trustbloc/orb/pkg/hashlink"
+	"github.com/trustbloc/orb/pkg/observability/tracing"
 )
 
 var logger = log.New("orb-resolver")
@@ -36,6 +38,7 @@ type ResolveHandler struct {
 	coreResolver coreResolver
 	anchorGraph  common.AnchorGraph
 	metrics      metricsProvider
+	tracer       trace.Tracer
 
 	discoveryService discoveryService
 	remoteResolver   remoteResolver
@@ -121,6 +124,7 @@ func NewResolveHandler(namespace string, resolver coreResolver, discovery discov
 		remoteResolver:   remoteResolver,
 		anchorGraph:      anchorGraph,
 		metrics:          metrics,
+		tracer:           tracing.Tracer(tracing.SubsystemDocument),
 		hl:               hashlink.New(),
 	}
 
@@ -140,7 +144,8 @@ func (r *ResolveHandler) ResolveDocument(id string, opts ...document.ResolutionO
 		r.metrics.DocumentResolveTime(time.Since(startTime))
 	}()
 
-	ctx := context.Background()
+	ctx, span := r.tracer.Start(context.Background(), "resolve document")
+	defer span.End()
 
 	localResponse, err := r.resolveDocumentLocally(ctx, id, opts...)
 	if err != nil {

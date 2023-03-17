@@ -15,6 +15,7 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/logutil-go/pkg/log"
+	"go.opentelemetry.io/otel/trace"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/client"
@@ -22,6 +23,7 @@ import (
 	store "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/observability/tracing"
 )
 
 const logModule = "activity_sync"
@@ -66,6 +68,7 @@ type task struct {
 	activityPubStore store.Store
 	closed           chan struct{}
 	minActivityAge   time.Duration
+	tracer           trace.Tracer
 }
 
 // Register registers the anchor event synchronization task.
@@ -113,6 +116,7 @@ func newTask(serviceIRI *url.URL, apClient activityPubClient, apStore store.Stor
 		getHandler:       handlerFactory,
 		minActivityAge:   minActivityAge,
 		closed:           make(chan struct{}),
+		tracer:           tracing.Tracer(tracing.SubsystemActivityPub),
 	}, nil
 }
 
@@ -175,6 +179,9 @@ func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vo
 
 	progress := &progressLogger{}
 
+	span := tracing.NewSpan(m.tracer, context.Background())
+	defer span.End()
+
 	for {
 		a, e := it.Next()
 		if e != nil {
@@ -207,7 +214,7 @@ func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vo
 			}
 		}
 
-		n, e := m.syncActivity(context.Background(), serviceIRI, currentPage, a)
+		n, e := m.syncActivity(span.Start("sync activities"), serviceIRI, currentPage, a)
 		if e != nil {
 			return fmt.Errorf("sync activity [%s]: %w", a.ID(), e)
 		}

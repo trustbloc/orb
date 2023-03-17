@@ -18,6 +18,7 @@ import (
 	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/linkset"
+	"github.com/trustbloc/orb/pkg/pubsub"
 )
 
 type (
@@ -88,22 +89,24 @@ func (h *Subscriber) handleAnchorMessage(msg *message.Message) {
 		return
 	}
 
-	err = h.processAnchor(context.Background(), anchorLinkset)
+	ctx := pubsub.ContextFromMessage(msg)
+
+	err = h.processAnchor(ctx, anchorLinkset)
 
 	switch {
 	case err == nil:
-		logger.Debug("Acking anchor Linkset message", logfields.WithMessageID(msg.UUID))
+		logger.Debugc(ctx, "Acking anchor Linkset message", logfields.WithMessageID(msg.UUID))
 
 		msg.Ack()
 	case errors.IsTransient(err):
 		// The message should be redelivered to (potentially) another server instance.
-		logger.Warn("Nacking anchor Linkset message since it could not be processed due "+
+		logger.Warnc(ctx, "Nacking anchor Linkset message since it could not be processed due "+
 			"to a transient error", logfields.WithMessageID(msg.UUID), log.WithError(err))
 
 		msg.Nack()
 	default:
 		// A persistent message should not be retried.
-		logger.Warn("Acking anchor link message since it could not be processed due "+
+		logger.Warnc(ctx, "Acking anchor link message since it could not be processed due "+
 			"to a persistent error", logfields.WithMessageID(msg.UUID), log.WithError(err))
 
 		msg.Ack()

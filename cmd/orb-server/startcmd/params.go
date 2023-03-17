@@ -25,6 +25,7 @@ import (
 	"github.com/trustbloc/orb/pkg/datauri"
 	"github.com/trustbloc/orb/pkg/document/util"
 	"github.com/trustbloc/orb/pkg/httpserver/auth"
+	"github.com/trustbloc/orb/pkg/observability/tracing"
 )
 
 // kmsMode kms mode
@@ -145,6 +146,8 @@ const (
 	defaultWitnessPolicyCacheExpiration     = 30 * time.Second
 	defaultDataURIMediaType                 = datauri.MediaTypeDataURIGzipBase64
 	defaultAllowedOriginsCacheExpiration    = time.Minute
+
+	defaultTracingServiceName = "orb"
 
 	opQueueDefaultPoolSize            = 5
 	opQueueDefaultTaskMonitorInterval = 10 * time.Second
@@ -678,6 +681,21 @@ const (
 	promHttpUrlFlagName             = "prom-http-url"
 	promHttpUrlEnvKey               = "ORB_PROM_HTTP_URL"
 	allowedPromHttpUrlFlagNameUsage = "URL that exposes the prometheus metrics endpoint. Format: HostName:Port. "
+
+	tracingProviderFlagName  = "tracing-provider"
+	tracingProviderEnvKey    = "OUTBOX_TRACING_PROVIDER"
+	tracingProviderFlagUsage = "The tracing provider (for example, JAEGER). " +
+		commonEnvVarUsageText + tracingProviderEnvKey
+
+	tracingCollectorURLFlagName  = "tracing-collector-url"
+	tracingCollectorURLEnvKey    = "OUTBOX_TRACING_COLLECTOR_URL"
+	tracingCollectorURLFlagUsage = "The URL of the tracing collector (for example, Jaeger). " +
+		commonEnvVarUsageText + tracingCollectorURLEnvKey
+
+	tracingServiceNameFlagName  = "tracing-service-name"
+	tracingServiceNameEnvKey    = "OUTBOX_TRACING_SERVICE_NAME"
+	tracingServiceNameFlagUsage = "The name of the tracing service (for example, outbox1.domain.com). " +
+		commonEnvVarUsageText + tracingServiceNameEnvKey
 )
 
 type acceptRejectPolicy string
@@ -776,10 +794,18 @@ type orbParameters struct {
 	allowedDIDWebDomains                    []*url.URL
 	metricsProviderName                     string
 	prometheusMetricsProviderParams         *prometheusMetricsProviderParams
+	tracingParams                           *tracingParams
 }
 
 type prometheusMetricsProviderParams struct {
 	url string
+}
+
+type tracingParams struct {
+	provider     tracing.ProviderType
+	collectorURL string
+	serviceName  string
+	enabled      bool
 }
 
 // apServiceParams contains accessor functions for various
@@ -912,6 +938,11 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	if metricsProviderName == "prometheus" {
 		prometheusMetricsProviderParams, err = getPrometheusMetricsProviderParams(cmd)
 	}
+	if err != nil {
+		return nil, err
+	}
+
+	tracingParams, err := getTracingParams(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -1576,6 +1607,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		requestTokens:                           requestTokens,
 		metricsProviderName:                     metricsProviderName,
 		prometheusMetricsProviderParams:         prometheusMetricsProviderParams,
+		tracingParams:                           tracingParams,
 	}, nil
 }
 
@@ -1593,6 +1625,36 @@ func getPrometheusMetricsProviderParams(cmd *cobra.Command) (*prometheusMetricsP
 		return nil, err
 	}
 	return &prometheusMetricsProviderParams{url: promMetricsUrl}, nil
+}
+
+func getTracingParams(cmd *cobra.Command) (*tracingParams, error) {
+	serviceName := cmdutil.GetUserSetOptionalVarFromString(cmd, tracingServiceNameFlagName, tracingServiceNameEnvKey)
+	if serviceName == "" {
+		serviceName = defaultTracingServiceName
+	}
+
+	params := &tracingParams{
+		provider:    cmdutil.GetUserSetOptionalVarFromString(cmd, tracingProviderFlagName, tracingProviderEnvKey),
+		serviceName: serviceName,
+	}
+
+	switch params.provider {
+	case tracing.ProviderNone:
+		return params, nil
+	case tracing.ProviderJaeger:
+		var err error
+
+		params.collectorURL, err = cmdutil.GetUserSetVarFromString(cmd, tracingCollectorURLFlagName, tracingCollectorURLEnvKey, false)
+		if err != nil {
+			return nil, err
+		}
+
+		params.enabled = true
+	default:
+		return nil, fmt.Errorf("unsupported tracing provider: %s", params.provider)
+	}
+
+	return params, nil
 }
 
 func getRequestTokens(cmd *cobra.Command) map[string]string {
@@ -2327,4 +2389,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().String(kmsRegionFlagName, "", kmsRegionFlagUsage)
 	startCmd.Flags().StringP(metricsProviderFlagName, "", "", allowedMetricsProviderFlagUsage)
 	startCmd.Flags().StringP(promHttpUrlFlagName, "", "", allowedPromHttpUrlFlagNameUsage)
+	startCmd.Flags().StringP(tracingProviderFlagName, "", "", tracingProviderFlagUsage)
+	startCmd.Flags().StringP(tracingCollectorURLFlagName, "", "", tracingCollectorURLFlagUsage)
+	startCmd.Flags().StringP(tracingServiceNameFlagName, "", "", tracingServiceNameFlagUsage)
 }

@@ -11,7 +11,6 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/trustbloc/logutil-go/pkg/log"
 	"go.uber.org/zap"
@@ -20,6 +19,7 @@ import (
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
 	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/pubsub"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
@@ -99,20 +99,20 @@ func (h *PubSub) PublishAnchor(ctx context.Context, anchorInfo *anchorinfo.Ancho
 		return fmt.Errorf("publish anchorInfo: %w", err)
 	}
 
-	msg := message.NewMessage(watermill.NewUUID(), payload)
+	msg := pubsub.NewMessage(ctx, payload)
 
-	logger.Debug("Publishing anchors message to queue", logfields.WithMessageID(msg.UUID),
+	logger.Debugc(ctx, "Publishing anchors message to queue", logfields.WithMessageID(msg.UUID),
 		log.WithTopic(anchorTopic), logfields.WithData(msg.Payload))
 
 	err = h.publisher.Publish(anchorTopic, msg)
 	if err != nil {
-		logger.Warn("Error publishing anchors message to queue", log.WithTopic(anchorTopic),
+		logger.Warnc(ctx, "Error publishing anchors message to queue", log.WithTopic(anchorTopic),
 			logfields.WithData(msg.Payload), log.WithError(err))
 
 		return errors.NewTransient(err)
 	}
 
-	logger.Debug("Successfully published anchors message to queue", logfields.WithMessageID(msg.UUID),
+	logger.Debugc(ctx, "Successfully published anchors message to queue", logfields.WithMessageID(msg.UUID),
 		log.WithTopic(anchorTopic), logfields.WithData(msg.Payload))
 
 	return nil
@@ -129,9 +129,9 @@ func (h *PubSub) PublishDID(ctx context.Context, did string) error {
 		return fmt.Errorf("publish DID: %w", err)
 	}
 
-	msg := message.NewMessage(watermill.NewUUID(), payload)
+	msg := pubsub.NewMessage(ctx, payload)
 
-	logger.Debug("Publishing DIDs to queue", log.WithTopic(didTopic), logfields.WithDID(did))
+	logger.Debugc(ctx, "Publishing DIDs to queue", log.WithTopic(didTopic), logfields.WithDID(did))
 
 	return h.publisher.Publish(didTopic, msg)
 }
@@ -173,13 +173,15 @@ func (h *PubSub) listen() {
 }
 
 func (h *PubSub) handleAnchorCredentialMessage(msg *message.Message) {
+	ctx := pubsub.ContextFromMessage(msg)
+
 	logger.Debug("Handling message", logfields.WithMessageID(msg.UUID), logfields.WithData(msg.Payload))
 
 	anchorInfo := &anchorinfo.AnchorInfo{}
 
 	err := h.jsonUnmarshal(msg.Payload, anchorInfo)
 	if err != nil {
-		logger.Error("Error unmarshalling anchor", logfields.WithMessageID(msg.UUID), log.WithError(err))
+		logger.Errorc(ctx, "Error unmarshalling anchor", logfields.WithMessageID(msg.UUID), log.WithError(err))
 
 		// Ack the message to indicate that it should not be redelivered since this is a persistent error.
 		msg.Ack()
@@ -187,18 +189,20 @@ func (h *PubSub) handleAnchorCredentialMessage(msg *message.Message) {
 		return
 	}
 
-	h.ackNackMessage(msg, h.processAnchors(context.Background(), anchorInfo), logfields.WithAnchorEventURIString(anchorInfo.Hashlink),
+	h.ackNackMessage(msg, h.processAnchors(ctx, anchorInfo), logfields.WithAnchorEventURIString(anchorInfo.Hashlink),
 		logfields.WithAttributedTo(anchorInfo.AttributedTo), logfields.WithLocalHashlink(anchorInfo.LocalHashlink))
 }
 
 func (h *PubSub) handleDIDMessage(msg *message.Message) {
-	logger.Debug("Handling message", logfields.WithMessageID(msg.UUID), logfields.WithData(msg.Payload))
+	ctx := pubsub.ContextFromMessage(msg)
+
+	logger.Debugc(ctx, "Handling message", logfields.WithMessageID(msg.UUID), logfields.WithData(msg.Payload))
 
 	var did string
 
 	err := h.jsonUnmarshal(msg.Payload, &did)
 	if err != nil {
-		logger.Error("Error unmarshalling message", logfields.WithMessageID(msg.UUID), log.WithError(err))
+		logger.Errorc(ctx, "Error unmarshalling message", logfields.WithMessageID(msg.UUID), log.WithError(err))
 
 		// Ack the message to indicate that it should not be redelivered since this is a persistent error.
 		msg.Ack()
@@ -206,24 +210,26 @@ func (h *PubSub) handleDIDMessage(msg *message.Message) {
 		return
 	}
 
-	h.ackNackMessage(msg, h.processDID(context.Background(), did), logfields.WithDID(did))
+	h.ackNackMessage(msg, h.processDID(ctx, did), logfields.WithDID(did))
 }
 
 func (h *PubSub) ackNackMessage(msg *message.Message, err error, logFields ...zap.Field) {
+	ctx := pubsub.ContextFromMessage(msg)
+
 	switch {
 	case err == nil:
-		logger.Debug("Acking message", append(logFields, logfields.WithMessageID(msg.UUID))...)
+		logger.Debugc(ctx, "Acking message", append(logFields, logfields.WithMessageID(msg.UUID))...)
 
 		msg.Ack()
 	case errors.IsTransient(err):
 		// The message should be redelivered to (potentially) another server instance.
-		logger.Warn("Nacking message since it could not be delivered due to a transient error",
+		logger.Warnc(ctx, "Nacking message since it could not be delivered due to a transient error",
 			append(logFields, logfields.WithMessageID(msg.UUID), log.WithError(err))...)
 
 		msg.Nack()
 	default:
 		// A persistent message should not be retried.
-		logger.Warn("Acking message since it could not be delivered due to a persistent error",
+		logger.Warnc(ctx, "Acking message since it could not be delivered due to a persistent error",
 			append(logFields, logfields.WithMessageID(msg.UUID))...)
 
 		msg.Ack()

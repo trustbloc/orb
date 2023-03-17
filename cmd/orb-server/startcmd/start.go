@@ -67,6 +67,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/restapi/diddochandler"
 	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/operationparser"
 	"go.mongodb.org/mongo-driver/mongo"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 
 	"github.com/trustbloc/orb/internal/pkg/ldcontext"
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
@@ -130,6 +131,8 @@ import (
 	metricsProvider "github.com/trustbloc/orb/pkg/observability/metrics"
 	noopmetrics "github.com/trustbloc/orb/pkg/observability/metrics/noop"
 	"github.com/trustbloc/orb/pkg/observability/metrics/prometheus"
+	"github.com/trustbloc/orb/pkg/observability/tracing"
+	"github.com/trustbloc/orb/pkg/observability/tracing/otelamqp"
 	"github.com/trustbloc/orb/pkg/observer"
 	"github.com/trustbloc/orb/pkg/protocolversion/factoryregistry"
 	"github.com/trustbloc/orb/pkg/pubsub/amqp"
@@ -487,6 +490,12 @@ func startOrbServices(parameters *orbParameters) error {
 
 	metrics := mp.Metrics()
 
+	tracerProvider, err := tracing.Initialize(parameters.tracingParams.provider,
+		parameters.tracingParams.serviceName, parameters.tracingParams.collectorURL)
+	if err != nil {
+		return fmt.Errorf("create tracer: %w", err)
+	}
+
 	storeProviders, err := createStoreProviders(parameters, metrics)
 	if err != nil {
 		return err
@@ -510,7 +519,7 @@ func startOrbServices(parameters *orbParameters) error {
 		}
 	}
 
-	httpTransport := &http.Transport{
+	var httpTransport http.RoundTripper = &http.Transport{
 		TLSClientConfig: tlsConfig,
 		DialContext: (&net.Dialer{
 			Timeout:   parameters.httpDialTimeout,
@@ -522,6 +531,10 @@ func startOrbServices(parameters *orbParameters) error {
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   5 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
+	}
+
+	if parameters.tracingParams.enabled {
+		httpTransport = otelhttp.NewTransport(httpTransport)
 	}
 
 	httpClient := &http.Client{
@@ -822,6 +835,10 @@ func startOrbServices(parameters *orbParameters) error {
 			RedeliveryInitialInterval: mqParams.redeliveryInitialInterval,
 			MaxRedeliveryInterval:     mqParams.maxRedeliveryInterval,
 		})
+
+		if parameters.tracingParams.enabled {
+			pubSub = otelamqp.New(pubSub)
+		}
 	} else {
 		pubSub = mempubsub.New(mempubsub.DefaultConfig())
 	}
@@ -1341,15 +1358,17 @@ func startOrbServices(parameters *orbParameters) error {
 
 	httpServer := httpserver.New(
 		parameters.hostURL,
-		parameters.tlsParams.serveCertPath,
-		parameters.tlsParams.serveKeyPath,
-		parameters.serverIdleTimeout,
-		parameters.serverReadHeaderTimeout,
-		handlers...,
+		httpserver.WithCertFile(parameters.tlsParams.serveCertPath),
+		httpserver.WithKeyFile(parameters.tlsParams.serveKeyPath),
+		httpserver.WithServerIdleTimeout(parameters.serverIdleTimeout),
+		httpserver.WithServerReadHeaderTimeout(parameters.serverReadHeaderTimeout),
+		httpserver.WithTracingEnabled(parameters.tracingParams.enabled),
+		httpserver.WithTracingServiceName(parameters.tracingParams.serviceName),
+		httpserver.WithHandlers(handlers...),
 	)
 
 	err = run(httpServer, activityPubService, opQueue, observer, batchWriter, taskMgr,
-		nodeInfoService, newMPLifecycleWrapper(mp))
+		nodeInfoService, newMPLifecycleWrapper(mp), tracerProvider)
 	if err != nil {
 		return err
 	}
@@ -1828,8 +1847,7 @@ func newMetricsProvider(parameters *orbParameters) (metricsProvider.Provider, er
 	switch parameters.metricsProviderName {
 	case "prometheus":
 		metricsHttpServer := httpserver.New(
-			parameters.prometheusMetricsProviderParams.url, "", "", parameters.serverIdleTimeout,
-			parameters.serverReadHeaderTimeout, prometheus.NewHandler(),
+			parameters.prometheusMetricsProviderParams.url, httpserver.WithHandlers(prometheus.NewHandler()),
 		)
 
 		return prometheus.NewProvider(metricsHttpServer), nil

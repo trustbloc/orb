@@ -16,10 +16,12 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
+	"go.opentelemetry.io/otel/trace"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/discovery/endpoint/client/models"
 	"github.com/trustbloc/orb/pkg/document/util"
+	"github.com/trustbloc/orb/pkg/observability/tracing"
 )
 
 var logger = log.New("operation-decorator")
@@ -34,6 +36,7 @@ func New(namespace, domain string, processor operationProcessor,
 		endpointClient: endpointClient,
 		remoteResolver: remoteResolver,
 		metrics:        metrics,
+		tracer:         tracing.Tracer(tracing.SubsystemDocument),
 	}
 
 	return od
@@ -50,6 +53,7 @@ type OperationDecorator struct {
 	endpointClient endpointClient
 
 	metrics metricsProvider
+	tracer  trace.Tracer
 }
 
 // operationProcessor is an interface which resolves the document based on the unique suffix.
@@ -122,9 +126,12 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 
 	resolveFromAnchorOriginTime := time.Now()
 
-	anchorOriginResponse, err := d.resolveDocumentFromAnchorOrigin(context.Background(), canonicalID, localAnchorOrigin)
+	ctx, span := d.tracer.Start(context.Background(), "decorate")
+	defer span.End()
+
+	anchorOriginResponse, err := d.resolveDocumentFromAnchorOrigin(ctx, canonicalID, localAnchorOrigin)
 	if err != nil {
-		logger.Debug("Failed to resolve document from anchor origin", logfields.WithDID(canonicalID), log.WithError(err))
+		logger.Debugc(ctx, "Failed to resolve document from anchor origin", logfields.WithDID(canonicalID), log.WithError(err))
 
 		return op, nil
 	}
@@ -141,7 +148,7 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 		return nil, fmt.Errorf("anchor origin has different anchor origin for this did - please re-submit your request at later time")
 	}
 
-	logger.Debug("Got resolution response from anchor origin", logfields.WithDID(canonicalID),
+	logger.Debugc(ctx, "Got resolution response from anchor origin", logfields.WithDID(canonicalID),
 		logfields.WithResolutionResult(anchorOriginResponse))
 
 	// parse anchor origin response to get unpublished and published operations
@@ -149,7 +156,7 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 
 	if len(anchorOriginPublishedOps) == 0 {
 		// published ops not provided at anchor origin - nothing to do
-		logger.Debug("Published ops not provided at anchor origin - nothing to check", logfields.WithDID(canonicalID))
+		logger.Debugc(ctx, "Published ops not provided at anchor origin - nothing to check", logfields.WithDID(canonicalID))
 
 		return op, nil
 	}

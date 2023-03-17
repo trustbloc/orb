@@ -27,6 +27,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/pubsub"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 	"github.com/trustbloc/orb/pkg/pubsub/wmlogger"
 )
@@ -214,7 +215,7 @@ func (h *Inbox) handle(msg *message.Message) {
 }
 
 func (h *Inbox) handleActivityMsg(msg *message.Message) (*vocab.ActivityType, error) {
-	ctx := context.Background()
+	ctx := pubsub.ContextFromMessage(msg)
 
 	h.logger.Debugc(ctx, "Handling activities message",
 		logfields.WithMessageID(msg.UUID), logfields.WithData(msg.Payload))

@@ -21,6 +21,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/trustbloc/logutil-go/pkg/log"
+	"go.opentelemetry.io/otel/trace"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
@@ -28,6 +29,7 @@ import (
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	docutil "github.com/trustbloc/orb/pkg/document/util"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/observability/tracing"
 	cryptoutil "github.com/trustbloc/orb/pkg/util"
 )
 
@@ -100,6 +102,7 @@ type Client struct {
 	publicKeyCache gcache.Cache
 	fetchPublicKey verifiable.PublicKeyFetcher
 	resolver       serviceResolver
+	tracer         trace.Tracer
 }
 
 // New returns a new ActivityPub client.
@@ -108,6 +111,7 @@ func New(cfg Config, t httpTransport, fetchPublicKey verifiable.PublicKeyFetcher
 		httpTransport:  t,
 		fetchPublicKey: fetchPublicKey,
 		resolver:       resolver,
+		tracer:         tracing.Tracer(tracing.SubsystemActivityPub),
 	}
 
 	cacheSize := cfg.CacheSize
@@ -168,12 +172,15 @@ func (c *Client) loadActor(actorIRI string) (*vocab.ActorType, error) {
 		return nil, fmt.Errorf("parse actor IRI [%s]: %w", resolvedActorIRI, err)
 	}
 
-	respBytes, err := c.get(context.Background(), u)
+	ctx, span := c.tracer.Start(context.Background(), "load actor to cache")
+	defer span.End()
+
+	respBytes, err := c.get(ctx, u)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response from %s: %w", actorIRI, err)
 	}
 
-	logger.Debug("Got response from actor", logfields.WithActorIRI(u), log.WithResponse(respBytes))
+	logger.Debugc(ctx, "Got response from actor", logfields.WithActorIRI(u), log.WithResponse(respBytes))
 
 	actor := &vocab.ActorType{}
 
@@ -211,12 +218,15 @@ func (c *Client) loadPublicKey(keyIRI string) (*vocab.PublicKeyType, error) {
 		return nil, fmt.Errorf("parse key IRI [%s]: %w", keyIRI, err)
 	}
 
-	respBytes, err := c.get(context.Background(), keyURL)
+	ctx, span := c.tracer.Start(context.Background(), "load public key to cache")
+	defer span.End()
+
+	respBytes, err := c.get(ctx, keyURL)
 	if err != nil {
 		return nil, fmt.Errorf("error reading response from %s: %w", keyIRI, err)
 	}
 
-	logger.Debug("Got public key", logfields.WithKeyID(keyIRI), log.WithResponse(respBytes))
+	logger.Debugc(ctx, "Got public key", logfields.WithKeyID(keyIRI), log.WithResponse(respBytes))
 
 	pubKey := &vocab.PublicKeyType{}
 
@@ -236,7 +246,7 @@ func (c *Client) GetReferences(ctx context.Context, iri *url.URL) (ReferenceIter
 		return nil, fmt.Errorf("error reading response from %s: %w", iri, err)
 	}
 
-	logger.Debug("Got references", logfields.WithURI(iri), log.WithResponse(respBytes))
+	logger.Debugc(ctx, "Got references", logfields.WithURI(iri), log.WithResponse(respBytes))
 
 	objProps, firstPage, _, totalItems, err := unmarshalCollection(respBytes)
 	if err != nil {
@@ -260,7 +270,7 @@ func (c *Client) GetActivities(ctx context.Context, iri *url.URL, order Order) (
 		return nil, fmt.Errorf("error reading response from %s: %w", iri, err)
 	}
 
-	logger.Debug("Got activities", logfields.WithURI(iri), log.WithResponse(respBytes))
+	logger.Debugc(ctx, "Got activities", logfields.WithURI(iri), log.WithResponse(respBytes))
 
 	obj := &vocab.ObjectType{}
 
@@ -287,12 +297,12 @@ func (c *Client) activityIteratorFromCollection(ctx context.Context, collBytes [
 
 	switch order {
 	case Forward:
-		logger.Debug("Creating forward activity iterator",
+		logger.Debugc(ctx, "Creating forward activity iterator",
 			logfields.WithNextIRI(first), logfields.WithTotal(totalItems))
 
 		return newForwardActivityIterator(ctx, nil, nil, first, totalItems, c.get), nil
 	case Reverse:
-		logger.Debug("Creating reverse activity iterator",
+		logger.Debugc(ctx, "Creating reverse activity iterator",
 			logfields.WithNextIRI(last), logfields.WithTotal(totalItems))
 
 		return newReverseActivityIterator(ctx, nil, nil, last, totalItems, c.get), nil
@@ -315,12 +325,12 @@ func (c *Client) activityIteratorFromCollectionPage(ctx context.Context, collByt
 
 	switch order {
 	case Forward:
-		logger.Debug("Creating forward activity iterator",
+		logger.Debugc(ctx, "Creating forward activity iterator",
 			logfields.WithCurrentIRI(page.current), logfields.WithSize(len(activities)), logfields.WithTotal(page.totalItems))
 
 		return newForwardActivityIterator(ctx, activities, page.current, page.next, page.totalItems, c.get), nil
 	case Reverse:
-		logger.Debug("Creating reverse activity iterator",
+		logger.Debugc(ctx, "Creating reverse activity iterator",
 			logfields.WithCurrentIRI(page.current), logfields.WithSize(len(activities)), logfields.WithTotal(page.totalItems))
 
 		return newReverseActivityIterator(ctx, activities, page.current, page.prev, page.totalItems, c.get), nil
@@ -343,7 +353,7 @@ func (c *Client) get(ctx context.Context, iri *url.URL) ([]byte, error) {
 		}
 	}()
 
-	logger.Debug("Got response code", logfields.WithRequestURL(iri), log.WithHTTPStatus(resp.StatusCode))
+	logger.Debugc(ctx, "Got response code", logfields.WithRequestURL(iri), log.WithHTTPStatus(resp.StatusCode))
 
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode >= http.StatusInternalServerError {

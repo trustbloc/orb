@@ -20,6 +20,9 @@ services:
       - ORB_HOST_URL=172.20.0.23:443
       - ORB_METRICS_PROVIDER_NAME=prometheus
       - ORB_PROM_HTTP_URL=172.20.0.23:48327
+      - OUTBOX_TRACING_PROVIDER=JAEGER
+      - OUTBOX_TRACING_SERVICE_NAME=orb-domain1
+      - OUTBOX_TRACING_COLLECTOR_URL=http://jaeger.example.com:14268/api/traces
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
@@ -171,6 +174,9 @@ services:
       - ORB_HOST_URL=172.20.0.2:443
       - ORB_METRICS_PROVIDER_NAME=prometheus
       - ORB_PROM_HTTP_URL=172.20.0.2:48527
+      - OUTBOX_TRACING_PROVIDER=JAEGER
+      - OUTBOX_TRACING_SERVICE_NAME=orb2-domain1
+      - OUTBOX_TRACING_COLLECTOR_URL=http://jaeger.example.com:14268/api/traces
       # add delay for starting additional servers within same domain (in seconds)
       - ORB_STARTUP_DELAY=5
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
@@ -321,6 +327,9 @@ services:
       - ORB_HOST_URL=172.20.0.4:80
       - ORB_METRICS_PROVIDER_NAME=prometheus
       - ORB_PROM_HTTP_URL=172.20.0.4:48827
+      - OUTBOX_TRACING_PROVIDER=JAEGER
+      - OUTBOX_TRACING_SERVICE_NAME=orb-domain2.backend
+      - OUTBOX_TRACING_COLLECTOR_URL=http://jaeger.example.com:14268/api/traces
       - ORB_TLS_SYSTEMCERTPOOL=true
       - ORB_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
@@ -426,6 +435,9 @@ services:
       - ORB_HOST_URL=172.20.0.5:80
       - ORB_METRICS_PROVIDER_NAME=prometheus
       - ORB_PROM_HTTP_URL=172.20.0.5:48927
+      - OUTBOX_TRACING_PROVIDER=JAEGER
+      - OUTBOX_TRACING_SERVICE_NAME=orb1-domain2.backend
+      - OUTBOX_TRACING_COLLECTOR_URL=http://jaeger.example.com:14268/api/traces
       - ORB_TLS_SYSTEMCERTPOOL=true
       - ORB_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
@@ -532,6 +544,9 @@ services:
       - ORB_HOST_URL=172.20.0.6:443
       - ORB_METRICS_PROVIDER_NAME=prometheus
       - ORB_PROM_HTTP_URL=172.20.0.6:48627
+      - OUTBOX_TRACING_PROVIDER=JAEGER
+      - OUTBOX_TRACING_SERVICE_NAME=orb-domain3
+      - OUTBOX_TRACING_COLLECTOR_URL=http://jaeger.example.com:14268/api/traces
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
@@ -652,6 +667,9 @@ services:
       - ORB_HOST_URL=172.20.0.7:443
       - ORB_METRICS_PROVIDER_NAME=prometheus
       - ORB_PROM_HTTP_URL=172.20.0.7:48727
+      - OUTBOX_TRACING_PROVIDER=JAEGER
+      - OUTBOX_TRACING_SERVICE_NAME=orb-domain4
+      - OUTBOX_TRACING_COLLECTOR_URL=http://jaeger.example.com:14268/api/traces
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
@@ -767,6 +785,9 @@ services:
       - ORB_HOST_URL=172.20.0.31:443
       - ORB_METRICS_PROVIDER_NAME=prometheus
       - ORB_PROM_HTTP_URL=172.20.0.31:48727
+      - OUTBOX_TRACING_PROVIDER=JAEGER
+      - OUTBOX_TRACING_SERVICE_NAME=orb-domain5
+      - OUTBOX_TRACING_COLLECTOR_URL=http://jaeger.example.com:14268/api/traces
       # ORB_EXTERNAL_ENDPOINT is the endpoint that external clients use to invoke services. This endpoint is used
       # to generate IDs of anchor credentials and ActivityPub objects and should be resolvable by external
       # clients. This endpoint does not (typically) target a single node in the cluster but instead, a load
@@ -1171,6 +1192,17 @@ services:
     networks:
       orb_net:
         ipv4_address: 172.20.0.24
+
+  jaeger.example.com:
+    container_name: jaeger.example.com
+    image: jaegertracing/all-in-one:1.42
+    ports:
+      - 6831:6831/udp
+      - 16686:16686
+      - 14268:14268
+    networks:
+      orb_net:
+        ipv4_address: 172.20.0.28
 
 networks:
   orb_net:
