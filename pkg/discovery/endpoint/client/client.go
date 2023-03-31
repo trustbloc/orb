@@ -299,8 +299,7 @@ func (cs *Client) loadDomainForDID(id string) (string, error) {
 	return "", fmt.Errorf("service endpoint not found in DID document for did [%s]", id)
 }
 
-func (cs *Client) populateAnchorResolutionEndpoint(
-	jrd *restapi.JRD) (*models.Endpoint, error) {
+func (cs *Client) populateAnchorResolutionEndpoint(jrd *restapi.JRD) (*models.Endpoint, error) {
 	endpoint := &models.Endpoint{}
 
 	min, ok := jrd.Properties[minResolvers].(float64)

@@ -192,7 +192,8 @@ func New(namespace string, apServiceIRI, apServiceEndpointURL, casURL *url.URL, 
 	providers *Providers, anchorPublisher anchorPublisher, pubSub pubSub,
 	maxWitnessDelay time.Duration, signWithLocalWitness bool,
 	resourceResolver *resourceresolver.Resolver,
-	metrics metricsProvider) (*Writer, error) {
+	metrics metricsProvider,
+) (*Writer, error) {
 	w := &Writer{
 		Providers:            providers,
 		anchorPublisher:      anchorPublisher,
@@ -220,7 +221,8 @@ func New(namespace string, apServiceIRI, apServiceEndpointURL, casURL *url.URL, 
 
 // WriteAnchor writes Sidetree anchor string to Orb anchor.
 func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocument,
-	refs []*operation.Reference, version uint64) error {
+	refs []*operation.Reference, version uint64,
+) error {
 	startTime := time.Now()
 
 	defer func() { c.metrics.WriteAnchorTime(time.Since(startTime)) }()
@@ -283,7 +285,8 @@ func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocume
 }
 
 func (c *Writer) buildAnchorLink(payload *subject.Payload,
-	witnesses []string) (anchorLink *linkset.Link, vcBytes []byte, err error) {
+	witnesses []string,
+) (anchorLink *linkset.Link, vcBytes []byte, err error) {
 	return c.AnchorLinkBuilder.BuildAnchorLink(payload, c.dataURIMediaType,
 		func(anchorHashlink, coreIndexHashlink string) (*verifiable.Credential, error) {
 			buildCredStartTime := time.Now()
@@ -766,7 +769,8 @@ func (c *Writer) Read(_ int) (bool, *txnapi.SidetreeTxn) {
 }
 
 func (c *Writer) getWitnesses(batchOpsWitnesses []string) (selectedWitnessesIRI []*url.URL,
-	witnesses []*proof.Witness, err error) {
+	witnesses []*proof.Witness, err error,
+) {
 	batchWitnesses, err := c.getBatchWitnesses(batchOpsWitnesses)
 	if err != nil {
 		return nil, nil, err

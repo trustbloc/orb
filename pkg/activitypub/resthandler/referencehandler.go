@@ -70,7 +70,8 @@ type Reference struct {
 // NewReference returns a new reference REST handler.
 func NewReference(path string, refType spi.ReferenceType, sortOrder spi.SortOrder, ordered bool,
 	cfg *Config, activityStore spi.Store, getID getIDFunc,
-	verifier signatureVerifier, tm authTokenManager) *Reference {
+	verifier signatureVerifier, tm authTokenManager,
+) *Reference {
 	h := &Reference{
 		refType:              refType,
 		createCollection:     createCollection(ordered),

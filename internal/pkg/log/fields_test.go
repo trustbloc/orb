@@ -305,8 +305,8 @@ func TestStandardFields(t *testing.T) {
 }
 
 type mockObject struct {
-	Field1 string
-	Field2 int
+	Field1 string `json:"field1"`
+	Field2 int    `json:"field2"`
 }
 
 type logData struct {

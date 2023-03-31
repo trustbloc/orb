@@ -88,7 +88,8 @@ type handler struct {
 }
 
 func newHandler(endpoint string, cfg *Config, s spi.Store, rh common.HTTPRequestHandler,
-	verifier signatureVerifier, sortOrder spi.SortOrder, tm authTokenManager, params ...string) *handler {
+	verifier signatureVerifier, sortOrder spi.SortOrder, tm authTokenManager, params ...string,
+) *handler {
 	h := &handler{
 		Config:  cfg,
 		params:  paramsBuilder(params).build(),
@@ -176,7 +177,8 @@ func (h *handler) getCurrentPrevNext(totalItems int, options *spi.QueryOptions) 
 }
 
 func (h *handler) getIDPrevNextURL(objectIRI fmt.Stringer, totalItems int,
-	options *spi.QueryOptions) (*url.URL, *url.URL, *url.URL, error) {
+	options *spi.QueryOptions,
+) (*url.URL, *url.URL, *url.URL, error) {
 	current, prev, next := h.getCurrentPrevNext(totalItems, options)
 
 	var err error

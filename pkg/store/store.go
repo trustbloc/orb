@@ -61,8 +61,7 @@ func NewTagGroup(tags ...string) TagGroup {
 	return tags
 }
 
-func newVendorStore(provider storage.Provider, store storage.Store,
-	namespace string, tagGroups []TagGroup) (storage.Store, bool, error) {
+func newVendorStore(provider storage.Provider, store storage.Store, namespace string, tagGroups []TagGroup) (storage.Store, bool, error) {
 	// Currently, only MongoDB is supported.
 	mongoDBProvider, ok := provider.(mongoDBProvider)
 	if !ok {

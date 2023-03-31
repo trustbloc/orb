@@ -179,7 +179,8 @@ func ParsePrivateKey(der []byte) (crypto.PrivateKey, error) {
 
 // GetPublicKeyFromKMS get publickey from kms.
 func GetPublicKeyFromKMS(cmd *cobra.Command, keyIDFlagName, keyIDEnvKey string,
-	webKmsClient kms.KeyManager) (interface{}, error) {
+	webKmsClient kms.KeyManager,
+) (interface{}, error) {
 	keyID, err := cmdutil.GetUserSetVarFromString(cmd, keyIDFlagName,
 		keyIDEnvKey, false)
 	if err != nil {
@@ -222,7 +223,8 @@ func GetPublicKeyFromKMS(cmd *cobra.Command, keyIDFlagName, keyIDEnvKey string,
 
 // GetKey get key.
 func GetKey(cmd *cobra.Command, keyFlagName, keyEnvKey, keyFileFlagName, keyFileEnvKey string,
-	password []byte, privateKey bool) (interface{}, error) {
+	password []byte, privateKey bool,
+) (interface{}, error) {
 	keyString := cmdutil.GetUserSetOptionalVarFromString(cmd, keyFlagName,
 		keyEnvKey)
 
@@ -335,7 +337,8 @@ func GetServices(serviceFilePath string) ([]docdid.Service, error) {
 
 // SendRequest send http request.
 func SendRequest(httpClient *http.Client, req []byte, headers map[string]string, method,
-	endpointURL string) ([]byte, error) {
+	endpointURL string,
+) ([]byte, error) {
 	var httpReq *http.Request
 
 	var err error
@@ -446,7 +449,8 @@ func newAuthTokenHeader(cmd *cobra.Command) map[string]string {
 
 // GetDuration get duration.
 func GetDuration(cmd *cobra.Command, flagName, envKey string,
-	defaultDuration time.Duration) (time.Duration, error) {
+	defaultDuration time.Duration,
+) (time.Duration, error) {
 	timeoutStr, err := cmdutil.GetUserSetVarFromString(cmd, flagName, envKey, true)
 	if err != nil {
 		return -1, err
@@ -489,7 +493,8 @@ var headerAlgorithm = map[string]string{
 
 // NewSigner return new signer.
 func NewSigner(signingkey crypto.PrivateKey, signingKeyID string, webKmsCryptoClient webcrypto.Crypto,
-	signingKeyPK crypto.PublicKey) *Signer {
+	signingKeyPK crypto.PublicKey,
+) *Signer {
 	if webKmsCryptoClient == nil {
 		switch key := signingkey.(type) {
 		case *ecdsa.PrivateKey:

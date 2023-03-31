@@ -222,7 +222,8 @@ func (m *mockVCTClient) GetSTH(ctx context.Context) (*command.GetSTHResponse, er
 }
 
 func (m *mockVCTClient) GetProofByHash(ctx context.Context, hash string,
-	treeSize uint64) (*command.GetProofByHashResponse, error) {
+	treeSize uint64,
+) (*command.GetProofByHashResponse, error) {
 	return m.getProofByHashResponse, m.getProofByHashErr
 }
 

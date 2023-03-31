@@ -50,8 +50,7 @@ type Service struct {
 // If this Orb server uses a storage provider that can do queries using 2 tags, then we can take advantage of a
 // feature in the underlying Aries storage provider to update the stats more efficiently.
 // If logger is nil, then a default will be used.
-func NewService(serviceIRI *url.URL, refreshInterval time.Duration, apStore apstore.Store,
-	multipleTagQueryCapable bool) *Service {
+func NewService(serviceIRI *url.URL, refreshInterval time.Duration, apStore apstore.Store, multipleTagQueryCapable bool) *Service {
 	r := &Service{
 		apStore:                 apStore,
 		serviceIRI:              serviceIRI,

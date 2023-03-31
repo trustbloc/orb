@@ -3187,7 +3187,8 @@ func (l *mockActivitySubscriber) Activity(iri fmt.Stringer) *vocab.ActivityType 
 type stopFunc func()
 
 func startInboxOutboxWithMocks(t *testing.T, inboxServiceIRI,
-	outboxServiceIRI *url.URL) (*Inbox, *Outbox, *mockActivitySubscriber, *mockActivitySubscriber, stopFunc) {
+	outboxServiceIRI *url.URL,
+) (*Inbox, *Outbox, *mockActivitySubscriber, *mockActivitySubscriber, stopFunc) {
 	t.Helper()
 
 	inboxCfg := &Config{

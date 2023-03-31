@@ -80,8 +80,7 @@ func (m *MockPubSub) Subscribe(_ context.Context, topic string) (<-chan *message
 }
 
 // SubscribeWithOpts subscribes to the given topic.
-func (m *MockPubSub) SubscribeWithOpts(ctx context.Context,
-	topic string, _ ...spi.Option) (<-chan *message.Message, error) {
+func (m *MockPubSub) SubscribeWithOpts(ctx context.Context, topic string, _ ...spi.Option) (<-chan *message.Message, error) {
 	return m.Subscribe(ctx, topic)
 }
 

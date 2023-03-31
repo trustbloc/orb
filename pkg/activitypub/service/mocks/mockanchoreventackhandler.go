@@ -31,8 +31,7 @@ func (m *AnchorEventAcknowledgementHandler) WithError(err error) *AnchorEventAck
 }
 
 // AnchorEventAcknowledged handles the acknowledgement of a successful anchor event processed from an Orb server.
-func (m *AnchorEventAcknowledgementHandler) AnchorEventAcknowledged(actor, anchorRef *url.URL,
-	additionalAnchorRefs []*url.URL) error {
+func (m *AnchorEventAcknowledgementHandler) AnchorEventAcknowledged(_, anchorRef *url.URL, _ []*url.URL) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
@@ -42,8 +41,7 @@ func (m *AnchorEventAcknowledgementHandler) AnchorEventAcknowledged(actor, ancho
 }
 
 // UndoAnchorEventAcknowledgement undoes the acknowledgement of an anchor event processed from an Orb server.
-func (m *AnchorEventAcknowledgementHandler) UndoAnchorEventAcknowledgement(actor, anchorRef *url.URL,
-	additionalAnchorRefs []*url.URL) error {
+func (m *AnchorEventAcknowledgementHandler) UndoAnchorEventAcknowledgement(_, anchorRef *url.URL, _ []*url.URL) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 

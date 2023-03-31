@@ -47,8 +47,7 @@ type metricsProvider interface {
 }
 
 // New creates new proof handler.
-func New(providers *Providers, pubSub pubSub, dataURIMediaType datauri.MediaType,
-	maxClockSkew time.Duration) *WitnessProofHandler {
+func New(providers *Providers, pubSub pubSub, dataURIMediaType datauri.MediaType, maxClockSkew time.Duration) *WitnessProofHandler {
 	return &WitnessProofHandler{
 		Providers:        providers,
 		publisher:        vcpubsub.NewPublisher(pubSub),
@@ -182,8 +181,8 @@ func getCreatedTime(wp vct.Proof) (time.Time, error) {
 	return createdTime, nil
 }
 
-func (h *WitnessProofHandler) handleWitnessPolicy(ctx context.Context, anchorLink *linkset.Link,
-	vc *verifiable.Credential) error { //nolint:cyclop
+//nolint:cyclop
+func (h *WitnessProofHandler) handleWitnessPolicy(ctx context.Context, anchorLink *linkset.Link, vc *verifiable.Credential) error {
 	anchorID := anchorLink.Anchor().String()
 
 	logger.Debug("Handling witness policy for anchor link", logfields.WithAnchorURIString(anchorID))

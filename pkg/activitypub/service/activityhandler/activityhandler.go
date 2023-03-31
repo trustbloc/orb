@@ -72,7 +72,8 @@ type handler struct {
 }
 
 func newHandler(cfg *Config, s store.Store, activityPubClient activityPubClient,
-	undoFollow, undoInviteWitness, undoLike undoFunc) *handler {
+	undoFollow, undoInviteWitness, undoLike undoFunc,
+) *handler {
 	if cfg.BufferSize == 0 {
 		cfg.BufferSize = defaultBufferSize
 	}

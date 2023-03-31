@@ -25,8 +25,9 @@ type publisherPool struct {
 	publish    publishFunc
 }
 
-func newPublisherPool(connMgr connMgr, maxChannelsPerConn int, cfg *amqp.Config,
-	createPublisher createPublisherFunc) (*publisherPool, error) {
+func newPublisherPool(connMgr connMgr, maxChannelsPerConn int,
+	cfg *amqp.Config, createPublisher createPublisherFunc,
+) (*publisherPool, error) {
 	publishers, err := createPublishers(connMgr, maxChannelsPerConn, cfg, createPublisher)
 	if err != nil {
 		return nil, fmt.Errorf("create publishers: %w", err)
@@ -72,8 +73,7 @@ func (p *publisherPool) Close() error {
 	return lastErr
 }
 
-func createPublishers(connMgr connMgr, maxChannelsPerConn int, cfg *amqp.Config,
-	createPublisher createPublisherFunc) ([]publisher, error) {
+func createPublishers(connMgr connMgr, maxChannelsPerConn int, cfg *amqp.Config, createPublisher createPublisherFunc) ([]publisher, error) {
 	var numPublishers int
 
 	if cfg.Publish.ChannelPoolSize == 0 {

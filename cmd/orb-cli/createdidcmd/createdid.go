@@ -266,9 +266,7 @@ func getServices(cmd *cobra.Command) ([]did.Service, error) {
 			return nil, fmt.Errorf("failed to get services from file %w", err)
 		}
 
-		for i := range services {
-			svc = append(svc, services[i])
-		}
+		svc = append(svc, services...)
 	}
 
 	return svc, nil

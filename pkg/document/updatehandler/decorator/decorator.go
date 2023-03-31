@@ -27,8 +27,9 @@ import (
 var logger = log.New("operation-decorator")
 
 // New creates operation decorator that will verify that local domain has latest operations from anchor origin.
-func New(namespace, domain string, processor operationProcessor,
-	endpointClient endpointClient, remoteResolver remoteResolver, metrics metricsProvider) *OperationDecorator {
+func New(namespace, domain string, processor operationProcessor, endpointClient endpointClient,
+	remoteResolver remoteResolver, metrics metricsProvider,
+) *OperationDecorator {
 	od := &OperationDecorator{
 		namespace:      namespace,
 		domain:         domain,
@@ -179,8 +180,9 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 	return op, nil
 }
 
-func (d *OperationDecorator) resolveDocumentFromAnchorOrigin(ctx context.Context, id,
-	anchorOrigin string) (*document.ResolutionResult, error) {
+func (d *OperationDecorator) resolveDocumentFromAnchorOrigin(ctx context.Context,
+	id, anchorOrigin string,
+) (*document.ResolutionResult, error) {
 	endpoint, err := d.endpointClient.GetEndpoint(anchorOrigin)
 	if err != nil {
 		return nil, fmt.Errorf("unable to get endpoint from anchor origin domain[%s]: %w", id, err)

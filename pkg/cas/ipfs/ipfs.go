@@ -56,16 +56,14 @@ type Client struct {
 
 // New creates cas client.
 // If no CID version is specified, then v1 will be used by default.
-func New(url string, timeout time.Duration, cacheSize int, metrics metricsProvider,
-	opts ...extendedcasclient.CIDFormatOption) *Client {
+func New(url string, timeout time.Duration, cacheSize int, metrics metricsProvider, opts ...extendedcasclient.CIDFormatOption) *Client {
 	ipfs := shell.NewShell(url)
 	ipfs.SetTimeout(timeout)
 
 	return newClient(ipfs, cacheSize, metrics, opts...)
 }
 
-func newClient(ipfs ipfsClient, cacheSize int, metrics metricsProvider,
-	opts ...extendedcasclient.CIDFormatOption) *Client {
+func newClient(ipfs ipfsClient, cacheSize int, metrics metricsProvider, opts ...extendedcasclient.CIDFormatOption) *Client {
 	if cacheSize == 0 {
 		cacheSize = defaultCacheSize
 	}
@@ -256,8 +254,7 @@ func (m *Client) getCIDFromHash(hash string) (string, error) {
 	return cid, nil
 }
 
-func getOptions(opts []extendedcasclient.CIDFormatOption) (
-	extendedcasclient.CIDFormatOptions, error) {
+func getOptions(opts []extendedcasclient.CIDFormatOption) (extendedcasclient.CIDFormatOptions, error) {
 	options := extendedcasclient.CIDFormatOptions{CIDVersion: 1}
 
 	for _, option := range opts {

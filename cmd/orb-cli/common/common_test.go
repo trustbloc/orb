@@ -468,7 +468,7 @@ func TestGetVDRPublicKeys(t *testing.T) {
 		file, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
-		_, err = file.WriteString(fmt.Sprintf(publicKeyData, jwk1File.Name(), jwk2File.Name()))
+		_, err = fmt.Fprintf(file, publicKeyData, jwk1File.Name(), jwk2File.Name())
 		require.NoError(t, err)
 
 		defer func() {
@@ -515,7 +515,7 @@ func TestGetVDRPublicKeys(t *testing.T) {
 		file, err := os.CreateTemp("", "*.json")
 		require.NoError(t, err)
 
-		_, err = file.WriteString(fmt.Sprintf(publicKeyData, jwk1File.Name(), jwk2File.Name()))
+		_, err = fmt.Fprintf(file, publicKeyData, jwk1File.Name(), jwk2File.Name())
 		require.NoError(t, err)
 
 		defer func() {

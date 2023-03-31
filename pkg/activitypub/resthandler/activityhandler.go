@@ -23,7 +23,8 @@ import (
 
 // NewActivity returns a new 'activities/{id}' REST handler that retrieves a single activity by ID.
 func NewActivity(cfg *Config, activityStore spi.Store, verifier signatureVerifier,
-	sortOrder spi.SortOrder, tm authTokenManager) *Activity {
+	sortOrder spi.SortOrder, tm authTokenManager,
+) *Activity {
 	h := &Activity{}
 
 	h.handler = newHandler(ActivitiesPath, cfg, activityStore, h.handle, verifier, sortOrder, tm)
@@ -33,7 +34,8 @@ func NewActivity(cfg *Config, activityStore spi.Store, verifier signatureVerifie
 
 // NewOutbox returns a new 'outbox' REST handler that retrieves a service's outbox.
 func NewOutbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier,
-	sortOrder spi.SortOrder, tm authTokenManager) *ReadOutbox {
+	sortOrder spi.SortOrder, tm authTokenManager,
+) *ReadOutbox {
 	h := &ReadOutbox{
 		Activities: &Activities{
 			getObjectIRI: getObjectIRI(cfg.ObjectIRI),
@@ -50,7 +52,8 @@ func NewOutbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier,
 
 // NewInbox returns a new 'inbox' REST handler that retrieves a service's inbox.
 func NewInbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier,
-	sortOrder spi.SortOrder, tm authTokenManager) *Activities {
+	sortOrder spi.SortOrder, tm authTokenManager,
+) *Activities {
 	return NewActivities(InboxPath, spi.Inbox, cfg, activityStore,
 		getObjectIRI(cfg.ObjectIRI),
 		func(*url.URL, *http.Request) (*url.URL, error) {
@@ -61,14 +64,16 @@ func NewInbox(cfg *Config, activityStore spi.Store, verifier signatureVerifier,
 
 // NewShares returns a new 'shares' REST handler that retrieves an object's 'Announce' activities.
 func NewShares(cfg *Config, activityStore spi.Store, verifier signatureVerifier,
-	sortOrder spi.SortOrder, tm authTokenManager) *Activities {
+	sortOrder spi.SortOrder, tm authTokenManager,
+) *Activities {
 	return NewActivities(fmt.Sprintf("%s/{id}", SharesPath), spi.Share, cfg, activityStore,
 		getObjectIRIFromIDParam, getIDFromParam(cfg.ServiceEndpointURL, SharesPath), verifier, sortOrder, tm)
 }
 
 // NewLikes returns a new 'likes' REST handler that retrieves an object's 'Like' activities.
 func NewLikes(cfg *Config, activityStore spi.Store, verifier signatureVerifier,
-	sortOrder spi.SortOrder, tm authTokenManager) *Activities {
+	sortOrder spi.SortOrder, tm authTokenManager,
+) *Activities {
 	return NewActivities(fmt.Sprintf("%s/{id}", LikesPath), spi.Like, cfg, activityStore,
 		getObjectIRIFromIDParam, getIDFromParam(cfg.ServiceEndpointURL, LikesPath), verifier, sortOrder, tm)
 }
@@ -89,7 +94,8 @@ type Activities struct {
 // NewActivities returns a new activities REST handler.
 func NewActivities(path string, refType spi.ReferenceType, cfg *Config, activityStore spi.Store,
 	getObjectIRI getObjectIRIFunc, getID getIDFunc, verifier signatureVerifier,
-	sortOrder spi.SortOrder, tm authTokenManager) *Activities {
+	sortOrder spi.SortOrder, tm authTokenManager,
+) *Activities {
 	h := &Activities{
 		refType:      refType,
 		getID:        getID,
@@ -142,7 +148,8 @@ func (h *Activities) handleActivityRefsOfType(w http.ResponseWriter, req *http.R
 }
 
 func (h *Activities) handleActivities(rw http.ResponseWriter, _ *http.Request, objectIRI, id *url.URL,
-	refType spi.ReferenceType) {
+	refType spi.ReferenceType,
+) {
 	activities, err := h.getActivities(objectIRI, id, refType)
 	if err != nil {
 		h.logger.Error("Error retrieving references of the given type",
@@ -167,7 +174,8 @@ func (h *Activities) handleActivities(rw http.ResponseWriter, _ *http.Request, o
 }
 
 func (h *Activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Request, objectIRI, id *url.URL,
-	refType spi.ReferenceType) {
+	refType spi.ReferenceType,
+) {
 	var page *vocab.OrderedCollectionPageType
 
 	var err error
@@ -209,7 +217,8 @@ func (h *Activities) handleActivitiesPage(rw http.ResponseWriter, req *http.Requ
 }
 
 func (h *Activities) getActivities(objectIRI, id *url.URL,
-	refType spi.ReferenceType) (*vocab.OrderedCollectionType, error) {
+	refType spi.ReferenceType,
+) (*vocab.OrderedCollectionType, error) {
 	it, err := h.activityStore.QueryReferences(refType,
 		spi.NewCriteria(
 			spi.WithObjectIRI(objectIRI),
@@ -251,7 +260,8 @@ func (h *Activities) getActivities(objectIRI, id *url.URL,
 }
 
 func (h *Activities) getPage(objectIRI, id *url.URL, refType spi.ReferenceType,
-	opts ...spi.QueryOpt) (*vocab.OrderedCollectionPageType, error) {
+	opts ...spi.QueryOpt,
+) (*vocab.OrderedCollectionPageType, error) {
 	it, err := h.activityStore.QueryActivities(
 		spi.NewCriteria(
 			spi.WithReferenceType(refType),

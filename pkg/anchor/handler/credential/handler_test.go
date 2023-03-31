@@ -357,8 +357,7 @@ func TestAnchorEventHandler_processAnchorEvent(t *testing.T) {
 	})
 }
 
-func newAnchorEventHandler(t *testing.T,
-	client extendedcasclient.Client) *AnchorEventHandler {
+func newAnchorEventHandler(t *testing.T, client extendedcasclient.Client) *AnchorEventHandler {
 	t.Helper()
 
 	casResolver := casresolver.New(client, nil,

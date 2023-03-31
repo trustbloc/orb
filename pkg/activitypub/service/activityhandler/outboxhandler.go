@@ -122,8 +122,7 @@ func (h *handler) handleCreateActivity(ctx context.Context, create *vocab.Activi
 	return nil
 }
 
-func (h *Outbox) undoAddReference(activity *vocab.ActivityType, refType store.ReferenceType,
-	getTargetIRI func() *url.URL) error {
+func (h *Outbox) undoAddReference(activity *vocab.ActivityType, refType store.ReferenceType, getTargetIRI func() *url.URL) error {
 	if activity.Actor().String() != h.ServiceIRI.String() {
 		return fmt.Errorf("this service is not the actor for the 'Undo'")
 	}

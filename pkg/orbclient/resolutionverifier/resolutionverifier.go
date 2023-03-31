@@ -171,8 +171,7 @@ func (r *ResolutionVerifier) Verify(input *document.ResolutionResult) error {
 	return nil
 }
 
-func (r *ResolutionVerifier) resolveDocument(id string,
-	ops ...*operation.AnchoredOperation) (*document.ResolutionResult, error) {
+func (r *ResolutionVerifier) resolveDocument(id string, ops ...*operation.AnchoredOperation) (*document.ResolutionResult, error) {
 	pv, err := r.protocol.Current()
 	if err != nil {
 		return nil, err

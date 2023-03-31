@@ -240,8 +240,7 @@ type kmsSigner struct {
 	metrics   metricsProvider
 }
 
-func newKMSSigner(keyManager keyManager, c crypto, verificationMethod string,
-	metrics metricsProvider) (*kmsSigner, error) {
+func newKMSSigner(keyManager keyManager, c crypto, verificationMethod string, metrics metricsProvider) (*kmsSigner, error) {
 	// verification will contain did key ID
 	keyID, err := getKeyIDFromVerificationMethod(verificationMethod)
 	if err != nil {

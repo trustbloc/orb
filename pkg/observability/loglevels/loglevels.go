@@ -38,14 +38,17 @@ func NewWriteHandler() *WriteHandler {
 	}
 }
 
+// Method returns the HTTP method.
 func (h *WriteHandler) Method() string {
 	return http.MethodPost
 }
 
+// Path returns the HTTP path.
 func (h *WriteHandler) Path() string {
 	return logLevelsPath
 }
 
+// Handler returns the HTTP handler.
 func (h *WriteHandler) Handler() common.HTTPRequestHandler {
 	return h.handlePost
 }
@@ -90,14 +93,17 @@ func NewReadHandler() *ReadHandler {
 	}
 }
 
+// Method returns the HTTP methods.
 func (h *ReadHandler) Method() string {
 	return http.MethodGet
 }
 
+// Path returns the HTTP path.
 func (h *ReadHandler) Path() string {
 	return logLevelsPath
 }
 
+// Handler returns the HTTP handler.
 func (h *ReadHandler) Handler() common.HTTPRequestHandler {
 	return h.handleGet
 }

@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// Correct behaviour is for main to finish with exit code 0.
+// Correct behavior is for main to finish with exit code 0.
 // This test fails otherwise. However, this can't be checked by the unit test framework. The *testing.T argument is
 // only there so that this test gets picked up by the framework but otherwise we don't need it.
 func TestWithoutUserAgs(_ *testing.T) {

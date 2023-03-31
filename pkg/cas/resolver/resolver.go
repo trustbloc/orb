@@ -62,8 +62,7 @@ type ipfsReader interface {
 
 // New returns a new Resolver.
 // ipfsReader is optional. If not provided (is nil), CIDs with IPFS hints won't be resolvable.
-func New(casClient extendedcasclient.Client, ipfsReader ipfsReader, webCASResolver WebCASResolver,
-	metrics metricsProvider) *Resolver {
+func New(casClient extendedcasclient.Client, ipfsReader ipfsReader, webCASResolver WebCASResolver, metrics metricsProvider) *Resolver {
 	return &Resolver{
 		localCAS:       casClient,
 		ipfsReader:     ipfsReader,
@@ -334,8 +333,7 @@ type WebCASResolver struct {
 }
 
 // NewWebCASResolver returns a new WebCASResolver.
-func NewWebCASResolver(httpClient httpClient, webFingerClient *webfingerclient.Client,
-	webFingerURIScheme string) WebCASResolver {
+func NewWebCASResolver(httpClient httpClient, webFingerClient *webfingerclient.Client, webFingerURIScheme string) WebCASResolver {
 	return WebCASResolver{
 		httpClient: httpClient, webFingerClient: webFingerClient, webFingerURIScheme: webFingerURIScheme,
 	}

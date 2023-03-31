@@ -184,8 +184,7 @@ func (p *PubSub) IsConnected() bool {
 
 // SubscribeWithOpts subscribes to a topic using the given options, and returns the Go channel over which messages
 // are sent. The returned channel will be closed when Close() is called on this struct.
-func (p *PubSub) SubscribeWithOpts(ctx context.Context, topic string,
-	opts ...spi.Option) (<-chan *message.Message, error) {
+func (p *PubSub) SubscribeWithOpts(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error) {
 	if p.State() != lifecycle.StateStarted {
 		return nil, lifecycle.ErrNotStarted
 	}

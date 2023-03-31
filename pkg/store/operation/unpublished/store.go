@@ -39,7 +39,8 @@ var logger = log.New("unpublished-operation-store")
 // unpublishedOperationLifespan defines how long unpublished operations can stay in the store before being flagged
 // for deletion.
 func New(provider storage.Provider, unpublishedOperationLifespan time.Duration,
-	expiryService *expiry.Service, metrics metricsProvider) (*Store, error) {
+	expiryService *expiry.Service, metrics metricsProvider,
+) (*Store, error) {
 	s, err := store.Open(provider, nameSpace,
 		store.NewTagGroup(index),
 		store.NewTagGroup(expiryTagName),

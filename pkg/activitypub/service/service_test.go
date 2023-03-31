@@ -922,8 +922,7 @@ type mockProviders struct {
 	undoFollowHandler     *mocks.UndoFollowHandler
 }
 
-func newServiceWithMocks(t *testing.T, endpoint string,
-	serviceIRI *url.URL) (*Service, spi.Store, *vocab.PublicKeyType, *mockProviders) {
+func newServiceWithMocks(t *testing.T, endpoint string, serviceIRI *url.URL) (*Service, spi.Store, *vocab.PublicKeyType, *mockProviders) {
 	t.Helper()
 
 	const kmsKey1 = "123456"

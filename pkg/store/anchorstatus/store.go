@@ -68,8 +68,7 @@ func (s *noopPolicyHandler) CheckPolicy(_ string) error {
 }
 
 // New creates new anchor event status store.
-func New(provider storage.Provider, expiryService *expiry.Service, maxWitnessDelay time.Duration,
-	opts ...Option) (*Store, error) {
+func New(provider storage.Provider, expiryService *expiry.Service, maxWitnessDelay time.Duration, opts ...Option) (*Store, error) {
 	s, err := store.Open(provider, namespace,
 		store.NewTagGroup(anchorIDTagName, statusTagName),
 		store.NewTagGroup(expiryTimeTagName),
@@ -139,8 +138,7 @@ func (s *Store) AddStatus(anchorID string, status proof.AnchorIndexStatus) error
 	return nil
 }
 
-func (s *Store) getAnchorStatusWithTags(anchorID string,
-	status proof.AnchorIndexStatus) (*anchorStatus, []storage.Tag) {
+func (s *Store) getAnchorStatusWithTags(anchorID string, status proof.AnchorIndexStatus) (*anchorStatus, []storage.Tag) {
 	anchorIDEncoded := base64.RawURLEncoding.EncodeToString([]byte(anchorID))
 
 	indexTag := storage.Tag{

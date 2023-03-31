@@ -896,8 +896,7 @@ func handleMockCollection(t *testing.T, collID *url.URL, uris []*url.URL, w http
 	require.NoError(t, err)
 }
 
-func handleMockCollectionPage(t *testing.T, collID *url.URL, uris []*url.URL,
-	w http.ResponseWriter, req *http.Request) {
+func handleMockCollectionPage(t *testing.T, collID *url.URL, uris []*url.URL, w http.ResponseWriter, req *http.Request) {
 	t.Helper()
 
 	pageNum, ok := paramAsInt(t, req, "page-num")

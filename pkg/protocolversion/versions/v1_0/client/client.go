@@ -33,8 +33,7 @@ func New() *Factory {
 }
 
 // Create returns a 1.0 client version.
-func (v *Factory) Create(version string, casClient common.CASReader,
-	sidetreeCfg *config.Sidetree) (protocol.Version, error) {
+func (v *Factory) Create(version string, casClient common.CASReader, sidetreeCfg *config.Sidetree) (protocol.Version, error) {
 	p := protocolcfg.GetProtocolConfig()
 
 	var parserOpts []operationparser.Option

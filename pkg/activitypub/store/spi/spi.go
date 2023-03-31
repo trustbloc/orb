@@ -126,6 +126,8 @@ func WithActivityType(activityType vocab.Type) RefMetadataOpt {
 }
 
 // Criteria holds the search criteria for a query.
+//
+//nolint:musttag
 type Criteria struct {
 	Types         []vocab.Type
 	ReferenceType ReferenceType

@@ -103,8 +103,7 @@ func NewMockOrderedCollection(id, first, last *url.URL, totalItems int) *vocab.O
 }
 
 // NewMockCollectionPage returns a mock 'CollectionPage' with the given ID and items.
-func NewMockCollectionPage(id, next, prev, collID *url.URL, totalItems int,
-	items ...*vocab.ObjectProperty) *vocab.CollectionPageType {
+func NewMockCollectionPage(id, next, prev, collID *url.URL, totalItems int, items ...*vocab.ObjectProperty) *vocab.CollectionPageType {
 	return vocab.NewCollectionPage(items,
 		vocab.WithContext(vocab.ContextActivityStreams),
 		vocab.WithID(id),
@@ -116,8 +115,9 @@ func NewMockCollectionPage(id, next, prev, collID *url.URL, totalItems int,
 }
 
 // NewMockOrderedCollectionPage returns a mock 'OrderedCollectionPage' with the given ID and items.
-func NewMockOrderedCollectionPage(id, next, prev, collID *url.URL, totalItems int,
-	items ...*vocab.ObjectProperty) *vocab.OrderedCollectionPageType {
+func NewMockOrderedCollectionPage(id, next, prev, collID *url.URL,
+	totalItems int, items ...*vocab.ObjectProperty,
+) *vocab.OrderedCollectionPageType {
 	return vocab.NewOrderedCollectionPage(items,
 		vocab.WithContext(vocab.ContextActivityStreams),
 		vocab.WithID(id),
@@ -310,7 +310,7 @@ func NewActivityID(id fmt.Stringer) *url.URL {
 	return testutil.NewMockID(id, uuid.New().String())
 }
 
-//nolint: gosec,goimports
+//nolint:gosec
 const verifiableCred = `{
   "@context": [
     "https://www.w3.org/2018/credentials/v1",

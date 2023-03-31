@@ -53,8 +53,7 @@ type PubSub struct {
 }
 
 // NewPubSub returns a new publisher/subscriber.
-func NewPubSub(pubSub pubSub, anchorProcessor anchorProcessor, didProcessor didProcessor,
-	poolSize int) (*PubSub, error) {
+func NewPubSub(pubSub pubSub, anchorProcessor anchorProcessor, didProcessor didProcessor, poolSize int) (*PubSub, error) {
 	h := &PubSub{
 		publisher:      pubSub,
 		processAnchors: anchorProcessor,

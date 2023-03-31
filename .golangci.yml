@@ -12,6 +12,7 @@ run:
   tests: true
   build-tags: [""]
   skip-dirs:  [""]
+  go: '1.19'
 
 output:
   format: colored-line-number
@@ -80,61 +81,60 @@ linters-settings:
     line-length: 140
   misspell:
     locale: US
+    ignore-words:
+      - marshaller
+      - marshalling
+      - unmarshalling
   nolintlint:
     allow-unused: false # report any unused nolint directives
     require-explanation: false # don't require an explanation for nolint directives
     require-specific: false # don't require nolint directives to be specific about which linter is being skipped
     machine: false # don't require //nolint instead of // nolint
     explain: false # don't require //nolint // my explanation instead of just //nolint
+  revive:
+    rules:
+      - name: exported
+        arguments:
+          - disableStutteringCheck
 
 linters:
-  disable-all: true
-  enable:
-    - bodyclose
-    - depguard
-    - dogsled
-    - dupl
-    - errcheck
-    - exportloopref
-    - funlen
-    - gochecknoinits
-    - goconst
-    - gocritic
-    - gocyclo
-    - goimports
-    - gomnd
-    - goprintffuncname
-    - gosec
-    - gosimple
-    - govet
-    - ineffassign
-    - lll
-    - nakedret
-    - noctx
-    - nolintlint
-    - staticcheck
-    - stylecheck
-    - typecheck
-    - unconvert
-    - unparam
-    - unused
-    - whitespace
-
-  # don't enable:
-  # - asciicheck
-  # - scopelint
-  # - gochecknoglobals
-  # - gocognit
-  # - godot
-  # - godox
-  # - goerr113
-  # - interfacer
-  # - maligned
-  # - nestif
-  # - prealloc
-  # - testpackage
-  # - revive
-  # - wsl
+  enable-all: true
+  disable:
+   - asciicheck
+   - gochecknoglobals
+   - gocognit
+   - godot
+   - godox
+   - goerr113
+   - prealloc
+   - testpackage
+   - wsl
+   - exhaustive
+   - exhaustruct
+   - gomoddirectives
+   - cyclop
+   - ireturn
+   - nonamedreturns
+   - paralleltest
+   - varnamelen
+   - wrapcheck
+   - tagliatelle
+   - maintidx
+   - gci
+   - containedctx
+   - forbidigo
+   - musttag
+   # The following linters are deprecated:
+   - scopelint
+   - varcheck
+   - deadcode
+   - exhaustivestruct
+   - maligned
+   - structcheck
+   - ifshort
+   - nosnakecase
+   - interfacer
+   - golint
 
 issues:
   # Excluding configuration per-path, per-linter, per-text and per-source
@@ -173,3 +173,7 @@ issues:
     -  at least one file in a package should have a package comment
     # Allow package logger variables (for now)
     - logger is a global variable
+
+  include:
+    - EXC0012  # EXC0012 revive: Annoying issue about not having a comment. The rare codebase has such comments
+    - EXC0014  # EXC0014 revive: Annoying issue about not having a comment. The rare codebase has such comments

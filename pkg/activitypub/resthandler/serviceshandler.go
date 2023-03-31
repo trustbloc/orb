@@ -30,7 +30,8 @@ type Services struct {
 
 // NewServices returns a new 'services' REST handler.
 func NewServices(cfg *Config, activityStore spi.Store, publicKey *vocab.PublicKeyType,
-	tm authTokenManager) *Services {
+	tm authTokenManager,
+) *Services {
 	h := &Services{
 		publicKey: publicKey,
 	}
@@ -42,7 +43,8 @@ func NewServices(cfg *Config, activityStore spi.Store, publicKey *vocab.PublicKe
 
 // NewPublicKeys returns a new public keys REST handler.
 func NewPublicKeys(cfg *Config, activityStore spi.Store, publicKey *vocab.PublicKeyType,
-	tm authTokenManager) *Services {
+	tm authTokenManager,
+) *Services {
 	h := &Services{
 		publicKey: publicKey,
 	}

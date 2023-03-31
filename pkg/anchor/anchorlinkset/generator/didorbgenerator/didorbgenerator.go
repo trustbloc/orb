@@ -200,8 +200,7 @@ func newItem(value *subject.SuffixAnchor) (*linkset.Item, error) {
 }
 
 // CreatePayload creates a payload from the given document.
-func (g *Generator) CreatePayload(doc vocab.Document, coreIndexURI *url.URL,
-	anchors []*url.URL) (*subject.Payload, error) {
+func (g *Generator) CreatePayload(doc vocab.Document, coreIndexURI *url.URL, anchors []*url.URL) (*subject.Payload, error) {
 	anchorLinkset := &linkset.Linkset{}
 
 	err := vocab.UnmarshalFromDoc(doc, anchorLinkset)

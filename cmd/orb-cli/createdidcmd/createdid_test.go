@@ -194,7 +194,7 @@ func TestCreateDID(t *testing.T) {
 	publicKeyFile, err := os.CreateTemp("", "*.json")
 	require.NoError(t, err)
 
-	_, err = publicKeyFile.WriteString(fmt.Sprintf(publickeyData, jwk1File.Name(), jwk2File.Name()))
+	_, err = fmt.Fprintf(publicKeyFile, publickeyData, jwk1File.Name(), jwk2File.Name())
 	require.NoError(t, err)
 
 	defer func() { require.NoError(t, os.Remove(publicKeyFile.Name())) }()

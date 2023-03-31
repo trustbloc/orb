@@ -167,8 +167,7 @@ func (store *MongoDBStoreWrapper) GetBulkAsRawMap(keys ...string) ([]map[string]
 // QueryCustom queries for data using the MongoDB find command. The given filter and options are passed directly to the
 // driver. Intended for use alongside the Provider.CreateCustomIndex, Store.PutAsJSON, and
 // Iterator.ValueAsRawMap methods.
-func (store *MongoDBStoreWrapper) QueryCustom(filter interface{},
-	options ...*mongoopts.FindOptions) (mongodb.Iterator, error) {
+func (store *MongoDBStoreWrapper) QueryCustom(filter interface{}, options ...*mongoopts.FindOptions) (mongodb.Iterator, error) {
 	start := time.Now()
 	defer func() { store.m.DBQueryTime(store.dbType, time.Since(start)) }()
 
@@ -176,7 +175,6 @@ func (store *MongoDBStoreWrapper) QueryCustom(filter interface{},
 }
 
 // CreateMongoDBFindOptions converts the given storage options to MongoDB options.
-func (store *MongoDBStoreWrapper) CreateMongoDBFindOptions(options []storage.QueryOption,
-	isJSONQuery bool) *mongoopts.FindOptions {
+func (store *MongoDBStoreWrapper) CreateMongoDBFindOptions(options []storage.QueryOption, isJSONQuery bool) *mongoopts.FindOptions {
 	return store.ms.CreateMongoDBFindOptions(options, isJSONQuery)
 }

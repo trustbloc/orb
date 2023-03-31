@@ -39,7 +39,8 @@ type authTokenManager interface {
 
 // NewHandlerWrapper returns a new 'authenticated' handler. It verifies both tokens and signatures before proceeding.
 func NewHandlerWrapper(handler common.HTTPHandler, authCfg *resthandler.Config, s spi.Store,
-	verifier signatureVerifier, tm authTokenManager) *HandlerWrapper {
+	verifier signatureVerifier, tm authTokenManager,
+) *HandlerWrapper {
 	logger := log.New(loggerModule, log.WithFields(logfields.WithServiceEndpoint(handler.Path())))
 
 	ah := &HandlerWrapper{
