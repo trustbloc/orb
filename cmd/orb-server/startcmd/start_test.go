@@ -29,7 +29,7 @@ func TestCreateProviders(t *testing.T) {
 	t.Run("test error from create new couchdb", func(t *testing.T) {
 		err := startOrbServices(&orbParameters{
 			dbParameters:  &dbParameters{databaseType: databaseTypeCouchDBOption},
-			tracingParams: &tracingParams{},
+			observability: &observabilityParams{},
 		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to ping couchDB: url can't be blank")
@@ -43,13 +43,18 @@ func TestCreateProviders(t *testing.T) {
 			dbParameters: &dbParameters{
 				databaseType: databaseTypeMemOption,
 			},
-			tracingParams: &tracingParams{},
+			observability: &observabilityParams{},
 		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "failed to ping couchDB: url can't be blank")
 	})
 	t.Run("test invalid database type", func(t *testing.T) {
-		err := startOrbServices(&orbParameters{dbParameters: &dbParameters{databaseType: "data1"}, tracingParams: &tracingParams{}})
+		err := startOrbServices(
+			&orbParameters{
+				dbParameters:  &dbParameters{databaseType: "data1"},
+				observability: &observabilityParams{},
+			},
+		)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "database type not set to a valid type")
 	})
@@ -62,7 +67,7 @@ func TestCreateProviders(t *testing.T) {
 			dbParameters: &dbParameters{
 				databaseType: databaseTypeMemOption,
 			},
-			tracingParams: &tracingParams{},
+			observability: &observabilityParams{},
 		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "database type not set to a valid type")
@@ -125,26 +130,19 @@ func TestCreateLocalKMS(t *testing.T) {
 	})
 }
 
-type mockMetricsProvider struct {
-}
+type mockMetricsProvider struct{}
 
-func (m *mockMetricsProvider) SignCount() {
-}
+func (m *mockMetricsProvider) SignCount() {}
 
-func (m *mockMetricsProvider) SignTime(time.Duration) {
-}
+func (m *mockMetricsProvider) SignTime(time.Duration) {}
 
-func (m *mockMetricsProvider) ExportPublicKeyCount() {
-}
+func (m *mockMetricsProvider) ExportPublicKeyCount() {}
 
-func (m *mockMetricsProvider) ExportPublicKeyTime(time.Duration) {
-}
+func (m *mockMetricsProvider) ExportPublicKeyTime(time.Duration) {}
 
-func (m *mockMetricsProvider) VerifyCount() {
-}
+func (m *mockMetricsProvider) VerifyCount() {}
 
-func (m *mockMetricsProvider) VerifyTime(time.Duration) {
-}
+func (m *mockMetricsProvider) VerifyTime(time.Duration) {}
 
 func TestAWSKMSWrapper(t *testing.T) {
 	endpoint := "http://localhost"
@@ -153,6 +151,8 @@ func TestAWSKMSWrapper(t *testing.T) {
 		Region:                        aws.String("ca"),
 		CredentialsChainVerboseErrors: aws.Bool(true),
 	})
+	require.NoError(t, err)
+
 	awsService := awssvc.New(awsSession, &mockMetricsProvider{}, "")
 
 	wrapper := awsKMSWrapper{service: awsService}
@@ -184,7 +184,7 @@ func TestGetOrInit(t *testing.T) {
 	require.True(t, errors.Is(getOrInit(
 		&ariesmockstorage.Store{ErrGet: ariesspi.ErrDataNotFound, ErrPut: testErr}, "key", nil,
 		func() (interface{}, error) {
-			return nil, nil
+			return nil, nil //nolint:nilnil
 		}, 1,
 	), testErr))
 
@@ -205,7 +205,7 @@ func TestPrivateKeys(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8081",
+			"--" + promHTTPURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "local",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -229,7 +229,7 @@ func TestPrivateKeys(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8081",
+			"--" + promHTTPURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "local",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -253,7 +253,7 @@ func TestPrivateKeys(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8081",
+			"--" + promHTTPURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "local",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -286,7 +286,7 @@ func TestPrepareMasterKeyReader(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8081",
+			"--" + promHTTPURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "local",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -352,7 +352,7 @@ func (m *mockActivityLogger) Warn(msg string, fields ...zap.Field) {
 		w += fmt.Sprintf(" %s=%s", f.Key, value)
 	}
 
-	m.warns = append(m.infos, w)
+	m.warns = append(m.infos, w) //nolint:gocritic
 
 	m.mutex.Unlock()
 }

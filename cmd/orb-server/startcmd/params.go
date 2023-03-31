@@ -31,7 +31,9 @@ import (
 // kmsMode kms mode
 type kmsMode string
 
-// kms params
+// KMS params
+//
+//nolint:gosec
 const (
 	kmsLocal kmsMode = "local"
 	kmsWeb   kmsMode = "web"
@@ -103,6 +105,7 @@ const (
 		"the underlying KMS secrets database. " + commonEnvVarUsageText + kmsSecretsDatabasePrefixEnvKey
 )
 
+//nolint:gosec,lll
 const (
 	defaultBatchWriterTimeout               = 60000 * time.Millisecond
 	defaultDiscoveryMinimumResolvers        = 1
@@ -176,7 +179,8 @@ const (
 
 	vctProofMonitoringExpiryPeriodFlagName  = "vct-proof-monitoring-expiry-period"
 	vctProofMonitoringExpiryPeriodEnvKey    = "VCT_PROOF_MONITORING_EXPIRY_PERIOD"
-	vctProofMonitoringExpiryPeriodFlagUsage = "Monitoring service will keep checking for this period of time for proof to be included(default 1h). " + commonEnvVarUsageText + vctProofMonitoringExpiryPeriodEnvKey
+	vctProofMonitoringExpiryPeriodFlagUsage = "Monitoring service will keep checking for this period of time for proof to be included(default 1h). " +
+		commonEnvVarUsageText + vctProofMonitoringExpiryPeriodEnvKey
 
 	vctLogMonitoringIntervalFlagName  = "vct-log-monitoring-interval"
 	vctLogMonitoringIntervalEnvKey    = "VCT_LOG_MONITORING_INTERVAL"
@@ -204,8 +208,8 @@ const (
 
 	anchorStatusMonitoringIntervalFlagName  = "anchor-status-monitoring-interval"
 	anchorStatusMonitoringIntervalEnvKey    = "ANCHOR_STATUS_MONITORING_INTERVAL"
-	anchorStatusMonitoringIntervalFlagUsage = "The interval in which 'in-process' anchors are monitored to ensure that they will be witnessed(completed) as per policy." +
-		"Defaults to 5s if not set. " +
+	anchorStatusMonitoringIntervalFlagUsage = "The interval in which 'in-process' anchors are monitored to ensure that they will be " +
+		"witnessed(completed) as per policy. Defaults to 5s if not set. " +
 		commonEnvVarUsageText + anchorStatusMonitoringIntervalEnvKey
 
 	anchorStatusInProcessGracePeriodFlagName  = "anchor-status-in-process-grace-period"
@@ -446,7 +450,8 @@ const (
 	signWithLocalWitnessFlagName      = "sign-with-local-witness"
 	signWithLocalWitnessEnvKey        = "SIGN_WITH_LOCAL_WITNESS"
 	signWithLocalWitnessFlagShorthand = "f"
-	signWithLocalWitnessFlagUsage     = "Always sign with local witness flag (default true). " + commonEnvVarUsageText + signWithLocalWitnessEnvKey
+	signWithLocalWitnessFlagUsage     = "Always sign with local witness flag (default true). " +
+		commonEnvVarUsageText + signWithLocalWitnessEnvKey
 
 	discoveryDomainsFlagName  = "discovery-domains"
 	discoveryDomainsEnvKey    = "DISCOVERY_DOMAINS"
@@ -678,9 +683,9 @@ const (
 	allowedMetricsProviderFlagUsage = "The metrics provider name (for example: 'prometheus' etc.). " +
 		commonEnvVarUsageText + metricsProviderEnvKey
 
-	promHttpUrlFlagName             = "prom-http-url"
-	promHttpUrlEnvKey               = "ORB_PROM_HTTP_URL"
-	allowedPromHttpUrlFlagNameUsage = "URL that exposes the prometheus metrics endpoint. Format: HostName:Port. "
+	promHTTPURLFlagName             = "prom-http-url"
+	promHTTPURLEnvKey               = "ORB_PROM_HTTP_URL"
+	allowedPromHTTPURLFlagNameUsage = "URL that exposes the prometheus metrics endpoint. Format: HostName:Port. "
 
 	tracingProviderFlagName  = "tracing-provider"
 	tracingProviderEnvKey    = "ORB_TRACING_PROVIDER"
@@ -713,92 +718,56 @@ type tlsParameters struct {
 }
 
 type orbParameters struct {
-	hostURL                                 string
-	externalEndpoint                        string
-	apServiceParams                         *apServiceParams
-	discoveryDomain                         string
-	didNamespace                            string
-	didAliases                              []string
-	dataURIMediaType                        datauri.MediaType
-	batchWriterTimeout                      time.Duration
-	casType                                 string
-	ipfsURL                                 string
-	localCASReplicateInIPFSEnabled          bool
-	cidVersion                              int
-	mqParams                                *mqParams
-	opQueueParams                           *opqueue.Config
-	dbParameters                            *dbParameters
-	logLevel                                string
-	methodContext                           []string
-	baseEnabled                             bool
-	allowedOrigins                          []string
-	allowedDomains                          []string
-	allowedOriginsCacheExpiration           time.Duration
-	tlsParams                               *tlsParameters
-	anchorCredentialParams                  *anchorCredentialParams
-	discoveryDomains                        []string
-	discoveryMinimumResolvers               int
-	maxWitnessDelay                         time.Duration
-	maxClockSkew                            time.Duration
-	witnessStoreExpiryPeriod                time.Duration
-	proofMonitoringExpiryPeriod             time.Duration
-	syncTimeout                             uint64
-	signWithLocalWitness                    bool
-	httpSignaturesEnabled                   bool
-	didDiscoveryEnabled                     bool
-	unpublishedOperationStoreEnabled        bool
-	unpublishedOperationStoreOperationTypes []operation.Type
-	includeUnpublishedOperations            bool
-	includePublishedOperations              bool
-	resolveFromAnchorOrigin                 bool
-	verifyLatestFromAnchorOrigin            bool
-	authTokenDefinitions                    []*auth.TokenDef
-	authTokens                              map[string]string
-	clientAuthTokenDefinitions              []*auth.TokenDef
-	clientAuthTokens                        map[string]string
-	activityPubPageSize                     int
-	enableDevMode                           bool
-	enableMaintenanceMode                   bool
-	enableVCT                               bool
-	nodeInfoRefreshInterval                 time.Duration
-	ipfsTimeout                             time.Duration
-	databaseTimeout                         time.Duration
-	httpTimeout                             time.Duration
-	httpDialTimeout                         time.Duration
-	serverIdleTimeout                       time.Duration
-	serverReadHeaderTimeout                 time.Duration
-	contextProviderURLs                     []string
-	unpublishedOperationLifespan            time.Duration
-	dataExpiryCheckInterval                 time.Duration
-	inviteWitnessAuthPolicy                 acceptRejectPolicy
-	followAuthPolicy                        acceptRejectPolicy
-	taskMgrCheckInterval                    time.Duration
-	anchorSyncPeriod                        time.Duration
-	anchorSyncMinActivityAge                time.Duration
-	vctProofMonitoringInterval              time.Duration
-	vctLogMonitoringInterval                time.Duration
-	vctLogMonitoringTreeSize                uint64
-	vctLogMonitoringGetEntriesRange         int
-	vctLogEntriesStoreEnabled               bool
-	anchorStatusMonitoringInterval          time.Duration
-	anchorStatusInProcessGracePeriod        time.Duration
-	apClientCacheSize                       int
-	apClientCacheExpiration                 time.Duration
-	apIRICacheSize                          int
-	apIRICacheExpiration                    time.Duration
-	witnessPolicyCacheExpiration            time.Duration
-	sidetreeProtocolVersions                []string
-	currentSidetreeProtocolVersion          string
-	kmsParams                               *kmsParameters
-	requestTokens                           map[string]string
-	allowedDIDWebDomains                    []*url.URL
-	metricsProviderName                     string
-	prometheusMetricsProviderParams         *prometheusMetricsProviderParams
-	tracingParams                           *tracingParams
+	http                             *httpParams
+	sidetree                         *sidetreeParams
+	apServiceParams                  *apServiceParams
+	discoveryDomain                  string
+	dataURIMediaType                 datauri.MediaType
+	batchWriterTimeout               time.Duration
+	cas                              *casParams
+	mqParams                         *mqParams
+	opQueueParams                    *opqueue.Config
+	dbParameters                     *dbParameters
+	logLevel                         string
+	methodContext                    []string
+	baseEnabled                      bool
+	allowedOrigins                   []string
+	allowedOriginsCacheExpiration    time.Duration
+	anchorCredentialParams           *anchorCredentialParams
+	discovery                        *discoveryParams
+	witnessProof                     *witnessProofParams
+	syncTimeout                      uint64
+	didDiscoveryEnabled              bool
+	unpublishedOperations            *unpublishedOperationsStoreParams
+	resolveFromAnchorOrigin          bool
+	verifyLatestFromAnchorOrigin     bool
+	activityPub                      *activityPubParams
+	auth                             *authParams
+	enableDevMode                    bool
+	enableMaintenanceMode            bool
+	enableVCT                        bool
+	nodeInfoRefreshInterval          time.Duration
+	contextProviderURLs              []string
+	dataExpiryCheckInterval          time.Duration
+	taskMgrCheckInterval             time.Duration
+	vct                              *vctParams
+	anchorStatusMonitoringInterval   time.Duration
+	anchorStatusInProcessGracePeriod time.Duration
+	witnessPolicyCacheExpiration     time.Duration
+	kmsParams                        *kmsParameters
+	requestTokens                    map[string]string
+	allowedDIDWebDomains             []*url.URL
+	observability                    *observabilityParams
 }
 
-type prometheusMetricsProviderParams struct {
-	url string
+type observabilityParams struct {
+	metrics metricsParams
+	tracing tracingParams
+}
+
+type metricsParams struct {
+	providerName string
+	url          string
 }
 
 type tracingParams struct {
@@ -817,16 +786,16 @@ type apServiceParams struct {
 }
 
 type anchorCredentialParams struct {
-	verificationMethod string
-	domain             string
-	issuer             string
-	url                string
+	domain string
+	issuer string
+	url    string
 }
 
 type dbParameters struct {
-	databaseType   string
-	databaseURL    string
-	databasePrefix string
+	databaseType    string
+	databaseURL     string
+	databasePrefix  string
+	databaseTimeout time.Duration
 }
 
 type kmsParameters struct {
@@ -922,27 +891,276 @@ func supportedKmsType(kmsType kmsMode) bool {
 	return true
 }
 
-// nolint: funlen
+//nolint:funlen,gocyclo
 func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
+	httpParams, err := getHTTPParams(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	observabilityParams, err := getObservabilityParams(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	serviceID, err := cmdutil.GetUserSetVarFromString(cmd, serviceIDFlagName, serviceIDEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	discoveryDomain, err := cmdutil.GetUserSetVarFromString(cmd, discoveryDomainFlagName, discoveryDomainEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	casParams, err := getCASParams(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	mqParams, err := getMQParameters(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	batchWriterTimeoutStr, err := cmdutil.GetUserSetVarFromString(cmd, batchWriterTimeoutFlagName, batchWriterTimeoutEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	batchWriterTimeout := defaultBatchWriterTimeout
+	if batchWriterTimeoutStr != "" {
+		timeout, parseErr := strconv.ParseUint(batchWriterTimeoutStr, 10, 32)
+		if parseErr != nil {
+			return nil, fmt.Errorf("invalid batch writer timeout format: %s", parseErr.Error())
+		}
+
+		batchWriterTimeout = time.Duration(timeout) * time.Millisecond
+	}
+
+	opQueueParams, err := getOpQueueParameters(cmd, mqParams)
+	if err != nil {
+		return nil, err
+	}
+
+	witnessProofParams, err := getWitnessProofParams(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	syncTimeout, err := cmdutil.GetUInt64(cmd, syncTimeoutFlagName, syncTimeoutEnvKey, defaultSyncTimeout)
+	if err != nil {
+		return nil, err
+	}
+
+	didDiscoveryEnabled, err := cmdutil.GetBool(cmd, enableDidDiscoveryFlagName, enableDidDiscoveryEnvKey,
+		defaultDidDiscoveryEnabled)
+	if err != nil {
+		return nil, err
+	}
+
+	enableVCT, err := cmdutil.GetBool(cmd, enableVCTFlagName, enabledVCTEnvKey, defaultVCTEnabled)
+	if err != nil {
+		return nil, err
+	}
+
+	enableDevMode, err := cmdutil.GetBool(cmd, devModeEnabledFlagName, devModeEnabledEnvKey, defaultDevModeEnabled)
+	if err != nil {
+		return nil, err
+	}
+
+	enableMaintenanceMode, err := cmdutil.GetBool(cmd, maintenanceModeEnabledFlagName, maintenanceModeEnabledEnvKey,
+		defaultMaintenanceModeEnabled)
+	if err != nil {
+		return nil, err
+	}
+
+	unpublishedOperationsParams, err := getUnpublishedOperationsParams(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	resolveFromAnchorOrigin, err := cmdutil.GetBool(cmd, resolveFromAnchorOriginFlagName, resolveFromAnchorOriginEnvKey,
+		defaultResolveFromAnchorOrigin)
+	if err != nil {
+		return nil, err
+	}
+
+	verifyLatestFromAnchorOrigin, err := cmdutil.GetBool(cmd, verifyLatestFromAnchorOriginFlagName, verifyLatestFromAnchorOriginEnvKey,
+		defaultVerifyLatestFromAnchorOrigin)
+	if err != nil {
+		return nil, err
+	}
+
+	sidetreeParams, err := getSidetreeParams(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	kmsParams, err := getKmsParameters(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	dbParams, err := getDBParameters(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	loggingLevel, err := cmdutil.GetUserSetVarFromString(cmd, LogLevelFlagName, LogLevelEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	allowedOrigins, err := cmdutil.GetUserSetVarFromArrayString(cmd, allowedOriginsFlagName, allowedOriginsEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	allowedOriginsCacheExpiration, err := cmdutil.GetDuration(cmd, allowedOriginsCacheExpirationFlagName,
+		allowedOriginsCacheExpirationEnvKey, defaultAllowedOriginsCacheExpiration)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", allowedOriginsCacheExpirationFlagName, err)
+	}
+
+	allowedDIDWebDomains, err := getAllowedDIDWebDomains(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	dataURIMediaType, err := cmdutil.GetUserSetVarFromString(cmd, dataURIMediaTypeFlagName, dataURIMediaTypeEnvKey, true)
+	if err != nil {
+		return nil, err
+	}
+
+	if dataURIMediaType == "" {
+		dataURIMediaType = defaultDataURIMediaType
+	}
+
+	discoveryParams, err := getDiscoveryParams(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	authParams, err := getAuthParams(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	activityPubParams, err := getActivityPubParams(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	nodeInfoRefreshInterval, err := cmdutil.GetDuration(cmd, nodeInfoRefreshIntervalFlagName,
+		nodeInfoRefreshIntervalEnvKey, defaultNodeInfoRefreshInterval)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", nodeInfoRefreshIntervalFlagName, err)
+	}
+
+	contextProviderURLs, err := cmdutil.GetUserSetVarFromArrayString(cmd, contextProviderFlagName, contextProviderEnvKey, true)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", contextProviderFlagName, err)
+	}
+
+	dataExpiryCheckInterval, err := cmdutil.GetDuration(cmd, dataExpiryCheckIntervalFlagName,
+		dataExpiryCheckIntervalEnvKey, defaultDataExpiryCheckInterval)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", dataExpiryCheckIntervalFlagName, err)
+	}
+
+	taskMgrCheckInterval, err := cmdutil.GetDuration(cmd, taskMgrCheckIntervalFlagName,
+		taskMgrCheckIntervalEnvKey, defaultTaskMgrCheckInterval)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", taskMgrCheckIntervalFlagName, err)
+	}
+
+	vctParams, err := getVCTParams(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	anchorStatusMonitoringInterval, err := cmdutil.GetDuration(cmd, anchorStatusMonitoringIntervalFlagName,
+		anchorStatusMonitoringIntervalEnvKey, defaultAnchorStatusMonitoringInterval)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", anchorStatusMonitoringIntervalFlagName, err)
+	}
+
+	anchorStatusInProcessGracePeriod, err := cmdutil.GetDuration(cmd, anchorStatusInProcessGracePeriodFlagName,
+		anchorStatusInProcessGracePeriodEnvKey, defaultAnchorStatusInProcessGracePeriod)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", anchorStatusInProcessGracePeriodFlagName, err)
+	}
+
+	witnessPolicyCacheExpiration, err := cmdutil.GetDuration(cmd, witnessPolicyCacheExpirationFlagName,
+		witnessPolicyCacheExpirationEnvKey, defaultWitnessPolicyCacheExpiration)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", witnessPolicyCacheExpirationFlagName, err)
+	}
+
+	requestTokens := getRequestTokens(cmd)
+
+	apServiceParams, err := newAPServiceParams(serviceID, httpParams.externalEndpoint, kmsParams, enableDevMode)
+	if err != nil {
+		return nil, err
+	}
+
+	anchorCredentialParams := getAnchorCredentialParameters(cmd, httpParams.externalEndpoint, apServiceParams.serviceIRI().String())
+
+	return &orbParameters{
+		http:                             httpParams,
+		sidetree:                         sidetreeParams,
+		discoveryDomain:                  discoveryDomain,
+		apServiceParams:                  apServiceParams,
+		allowedOrigins:                   allowedOrigins,
+		allowedOriginsCacheExpiration:    allowedOriginsCacheExpiration,
+		allowedDIDWebDomains:             allowedDIDWebDomains,
+		cas:                              casParams,
+		mqParams:                         mqParams,
+		opQueueParams:                    opQueueParams,
+		batchWriterTimeout:               batchWriterTimeout,
+		anchorCredentialParams:           anchorCredentialParams,
+		logLevel:                         loggingLevel,
+		dbParameters:                     dbParams,
+		discovery:                        discoveryParams,
+		witnessProof:                     witnessProofParams,
+		syncTimeout:                      syncTimeout,
+		didDiscoveryEnabled:              didDiscoveryEnabled,
+		unpublishedOperations:            unpublishedOperationsParams,
+		resolveFromAnchorOrigin:          resolveFromAnchorOrigin,
+		verifyLatestFromAnchorOrigin:     verifyLatestFromAnchorOrigin,
+		auth:                             authParams,
+		activityPub:                      activityPubParams,
+		enableDevMode:                    enableDevMode,
+		enableMaintenanceMode:            enableMaintenanceMode,
+		enableVCT:                        enableVCT,
+		nodeInfoRefreshInterval:          nodeInfoRefreshInterval,
+		contextProviderURLs:              contextProviderURLs,
+		dataExpiryCheckInterval:          dataExpiryCheckInterval,
+		taskMgrCheckInterval:             taskMgrCheckInterval,
+		vct:                              vctParams,
+		anchorStatusMonitoringInterval:   anchorStatusMonitoringInterval,
+		anchorStatusInProcessGracePeriod: anchorStatusInProcessGracePeriod,
+		witnessPolicyCacheExpiration:     witnessPolicyCacheExpiration,
+		dataURIMediaType:                 dataURIMediaType,
+		kmsParams:                        kmsParams,
+		requestTokens:                    requestTokens,
+		observability:                    observabilityParams,
+	}, nil
+}
+
+type httpParams struct {
+	hostURL                 string
+	externalEndpoint        string
+	tls                     *tlsParameters
+	timeout                 time.Duration
+	dialTimeout             time.Duration
+	serverIdleTimeout       time.Duration
+	serverReadHeaderTimeout time.Duration
+}
+
+func getHTTPParams(cmd *cobra.Command) (*httpParams, error) {
 	hostURL, err := cmdutil.GetUserSetVarFromString(cmd, hostURLFlagName, hostURLEnvKey, false)
-	if err != nil {
-		return nil, err
-	}
-
-	metricsProviderName, err := getMetricsProviderName(cmd)
-	if err != nil {
-		return nil, err
-	}
-
-	var prometheusMetricsProviderParams *prometheusMetricsProviderParams
-	if metricsProviderName == "prometheus" {
-		prometheusMetricsProviderParams, err = getPrometheusMetricsProviderParams(cmd)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	tracingParams, err := getTracingParams(cmd)
 	if err != nil {
 		return nil, err
 	}
@@ -956,21 +1174,89 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		externalEndpoint = hostURL
 	}
 
-	serviceID, err := cmdutil.GetUserSetVarFromString(cmd, serviceIDFlagName, serviceIDEnvKey, true)
-	if err != nil {
-		return nil, err
-	}
-
-	discoveryDomain, err := cmdutil.GetUserSetVarFromString(cmd, discoveryDomainFlagName, discoveryDomainEnvKey, true)
-	if err != nil {
-		return nil, err
-	}
-
 	tlsParams, err := getTLS(cmd)
 	if err != nil {
 		return nil, err
 	}
 
+	httpDialTimeout, err := cmdutil.GetDuration(cmd, httpDialTimeoutFlagName, httpDialTimeoutEnvKey, defaultHTTPDialTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", httpDialTimeoutFlagName, err)
+	}
+
+	serverIdleTimeout, err := cmdutil.GetDuration(cmd, serverIdleTimeoutFlagName, serverIdleTimeoutEnvKey, defaultServerIdleTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", serverIdleTimeoutFlagName, err)
+	}
+
+	serverReadHeaderTimeout, err := cmdutil.GetDuration(cmd, serverReadHeaderTimeoutFlagName, serverReadHeaderTimeoutEnvKey,
+		defaultServerReadHeaderTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", serverReadHeaderTimeoutFlagName, err)
+	}
+
+	httpTimeout, err := cmdutil.GetDuration(cmd, httpTimeoutFlagName, httpTimeoutEnvKey, defaultHTTPTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", httpTimeoutFlagName, err)
+	}
+
+	return &httpParams{
+		hostURL:                 hostURL,
+		externalEndpoint:        externalEndpoint,
+		tls:                     tlsParams,
+		timeout:                 httpTimeout,
+		dialTimeout:             httpDialTimeout,
+		serverIdleTimeout:       serverIdleTimeout,
+		serverReadHeaderTimeout: serverReadHeaderTimeout,
+	}, nil
+}
+
+type sidetreeParams struct {
+	didNamespace           string
+	didAliases             []string
+	protocolVersions       []string
+	currentProtocolVersion string
+}
+
+func getSidetreeParams(cmd *cobra.Command) (*sidetreeParams, error) {
+	didNamespace, err := cmdutil.GetUserSetVarFromString(cmd, didNamespaceFlagName, didNamespaceEnvKey, false)
+	if err != nil {
+		return nil, err
+	}
+
+	didAliases := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, didAliasesFlagName, didAliasesEnvKey)
+
+	protocolVersionsArr := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, sidetreeProtocolVersionsFlagName,
+		sidetreeProtocolVersionsEnvKey)
+
+	defaultProtocolVersions := []string{"1.0"}
+
+	protocolVersions := defaultProtocolVersions
+
+	if len(protocolVersionsArr) > 0 {
+		protocolVersions = protocolVersionsArr
+	}
+
+	currentProtocolVersion := cmdutil.GetUserSetOptionalVarFromString(cmd, currentSidetreeProtocolVersionFlagName,
+		currentSidetreeProtocolVersionEnvKey)
+
+	return &sidetreeParams{
+		didNamespace:           didNamespace,
+		didAliases:             didAliases,
+		protocolVersions:       protocolVersions,
+		currentProtocolVersion: currentProtocolVersion,
+	}, nil
+}
+
+type casParams struct {
+	casType                        string
+	ipfsURL                        string
+	localCASReplicateInIPFSEnabled bool
+	cidVersion                     int
+	ipfsTimeout                    time.Duration
+}
+
+func getCASParams(cmd *cobra.Command) (*casParams, error) {
 	casType, err := cmdutil.GetUserSetVarFromString(cmd, casTypeFlagName, casTypeEnvKey, false)
 	if err != nil {
 		return nil, err
@@ -992,23 +1278,13 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 			"change the CAS type to local")
 	}
 
-	localCASReplicateInIPFSEnabledString, err := cmdutil.GetUserSetVarFromString(cmd, localCASReplicateInIPFSFlagName,
-		localCASReplicateInIPFSEnvKey, true)
+	ipfsTimeout, err := cmdutil.GetDuration(cmd, ipfsTimeoutFlagName, ipfsTimeoutEnvKey, defaultIPFSTimeout)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%s: %w", ipfsTimeoutFlagName, err)
 	}
 
-	localCASReplicateInIPFSEnabled := defaultLocalCASReplicateInIPFSEnabled
-	if localCASReplicateInIPFSEnabledString != "" && ipfsURLParsed.Hostname() != "ipfs.io" {
-		enable, parseErr := strconv.ParseBool(localCASReplicateInIPFSEnabledString)
-		if parseErr != nil {
-			return nil, fmt.Errorf("invalid value for %s: %s", localCASReplicateInIPFSFlagName, parseErr)
-		}
-
-		localCASReplicateInIPFSEnabled = enable
-	}
-
-	mqParams, err := getMQParameters(cmd)
+	localCASReplicateInIPFSEnabled, err := cmdutil.GetBool(cmd, localCASReplicateInIPFSFlagName, localCASReplicateInIPFSEnvKey,
+		defaultLocalCASReplicateInIPFSEnabled)
 	if err != nil {
 		return nil, err
 	}
@@ -1032,37 +1308,36 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		}
 	}
 
-	batchWriterTimeoutStr, err := cmdutil.GetUserSetVarFromString(cmd, batchWriterTimeoutFlagName, batchWriterTimeoutEnvKey, true)
+	return &casParams{
+		casType:                        casType,
+		ipfsURL:                        ipfsURL,
+		ipfsTimeout:                    ipfsTimeout,
+		localCASReplicateInIPFSEnabled: localCASReplicateInIPFSEnabled,
+		cidVersion:                     cidVersion,
+	}, nil
+}
+
+type witnessProofParams struct {
+	maxWitnessDelay             time.Duration
+	maxClockSkew                time.Duration
+	witnessStoreExpiryPeriod    time.Duration
+	proofMonitoringExpiryPeriod time.Duration
+	signWithLocalWitness        bool
+}
+
+func getWitnessProofParams(cmd *cobra.Command) (*witnessProofParams, error) {
+	maxWitnessDelay, err := cmdutil.GetDuration(cmd, maxWitnessDelayFlagName, maxWitnessDelayEnvKey, defaultMaxWitnessDelay)
 	if err != nil {
 		return nil, err
 	}
 
-	batchWriterTimeout := defaultBatchWriterTimeout
-	if batchWriterTimeoutStr != "" {
-		timeout, parseErr := strconv.ParseUint(batchWriterTimeoutStr, 10, 32)
-		if parseErr != nil {
-			return nil, fmt.Errorf("invalid batch writer timeout format: %s", parseErr.Error())
-		}
-
-		batchWriterTimeout = time.Duration(timeout) * time.Millisecond
-	}
-
-	opQueueParams, err := getOpQueueParameters(cmd, batchWriterTimeout, mqParams)
+	maxClockSkew, err := cmdutil.GetDuration(cmd, maxClockSkewFlagName, maxClockSkewEnvKey, defaultMaxClockSkew)
 	if err != nil {
 		return nil, err
 	}
 
-	maxWitnessDelay, err := getDuration(cmd, maxWitnessDelayFlagName, maxWitnessDelayEnvKey, defaultMaxWitnessDelay)
-	if err != nil {
-		return nil, err
-	}
-
-	maxClockSkew, err := getDuration(cmd, maxClockSkewFlagName, maxClockSkewEnvKey, defaultMaxClockSkew)
-	if err != nil {
-		return nil, err
-	}
-
-	witnessStoreExpiryPeriod, err := getDuration(cmd, witnessStoreExpiryPeriodFlagName, witnessStoreExpiryPeriodEnvKey, defaultWitnessStoreExpiryDelta)
+	witnessStoreExpiryPeriod, err := cmdutil.GetDuration(cmd, witnessStoreExpiryPeriodFlagName, witnessStoreExpiryPeriodEnvKey,
+		defaultWitnessStoreExpiryDelta)
 	if err != nil {
 		return nil, err
 	}
@@ -1071,113 +1346,44 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("witness store expiry period must me greater than maximum witness delay + max clock skew")
 	}
 
-	signWithLocalWitnessStr, err := cmdutil.GetUserSetVarFromString(cmd, signWithLocalWitnessFlagName, signWithLocalWitnessEnvKey, true)
+	// default behavior is to always sign with local witness
+	signWithLocalWitness, err := cmdutil.GetBool(cmd, signWithLocalWitnessFlagName, signWithLocalWitnessEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
 
-	// default behaviour is to always sign with local witness
-	signWithLocalWitness := true
-	if signWithLocalWitnessStr != "" {
-		signWithLocalWitness, err = strconv.ParseBool(signWithLocalWitnessStr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid sign with local witness flag value: %s", err.Error())
-		}
+	proofMonitoringExpiryPeriod, err := cmdutil.GetDuration(cmd, vctProofMonitoringExpiryPeriodFlagName,
+		vctProofMonitoringExpiryPeriodEnvKey, defaultProofMonitoringExpiryPeriod)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", vctProofMonitoringExpiryPeriodFlagName, err)
 	}
 
-	syncTimeoutStr := cmdutil.GetUserSetOptionalVarFromString(cmd, syncTimeoutFlagName, syncTimeoutEnvKey)
+	return &witnessProofParams{
+		maxWitnessDelay:             maxWitnessDelay,
+		maxClockSkew:                maxClockSkew,
+		witnessStoreExpiryPeriod:    witnessStoreExpiryPeriod,
+		proofMonitoringExpiryPeriod: proofMonitoringExpiryPeriod,
+		signWithLocalWitness:        signWithLocalWitness,
+	}, nil
+}
 
-	syncTimeout := uint64(defaultSyncTimeout)
+type unpublishedOperationsStoreParams struct {
+	enabled            bool
+	operationTypes     []operation.Type
+	includeUnpublished bool
+	includePublished   bool
+	lifespan           time.Duration
+}
 
-	if syncTimeoutStr != "" {
-		syncTimeout, err = strconv.ParseUint(syncTimeoutStr, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("sync timeout is not a number(positive): %w", err)
-		}
-	}
-
-	httpSignaturesEnabledStr, err := cmdutil.GetUserSetVarFromString(cmd, httpSignaturesEnabledFlagName, httpSignaturesEnabledEnvKey, true)
+func getUnpublishedOperationsParams(cmd *cobra.Command) (*unpublishedOperationsStoreParams, error) {
+	unpublishedOperationStoreEnabled, err := cmdutil.GetBool(cmd, enableUnpublishedOperationStoreFlagName,
+		enableUnpublishedOperationStoreEnvKey, defaultUnpublishedOperationStoreEnabled)
 	if err != nil {
 		return nil, err
 	}
 
-	httpSignaturesEnabled := defaulthttpSignaturesEnabled
-	if httpSignaturesEnabledStr != "" {
-		enable, parseErr := strconv.ParseBool(httpSignaturesEnabledStr)
-		if parseErr != nil {
-			return nil, fmt.Errorf("invalid value for %s: %s", httpSignaturesEnabledFlagName, parseErr)
-		}
-
-		httpSignaturesEnabled = enable
-	}
-
-	enableDidDiscoveryStr, err := cmdutil.GetUserSetVarFromString(cmd, enableDidDiscoveryFlagName, enableDidDiscoveryEnvKey, true)
-	if err != nil {
-		return nil, err
-	}
-
-	didDiscoveryEnabled := defaultDidDiscoveryEnabled
-	if enableDidDiscoveryStr != "" {
-		enable, parseErr := strconv.ParseBool(enableDidDiscoveryStr)
-		if parseErr != nil {
-			return nil, fmt.Errorf("invalid value for %s: %s", enableDidDiscoveryFlagName, parseErr)
-		}
-
-		didDiscoveryEnabled = enable
-	}
-
-	enableVCTStr := cmdutil.GetUserSetOptionalVarFromString(cmd, enableVCTFlagName, enabledVCTEnvKey)
-
-	enableVCT := defaultVCTEnabled
-	if enableVCTStr != "" {
-		enable, parseErr := strconv.ParseBool(enableVCTStr)
-		if parseErr != nil {
-			return nil, fmt.Errorf("invalid value for %s: %s", enableVCTFlagName, parseErr)
-		}
-
-		enableVCT = enable
-	}
-
-	enableDevModeStr := cmdutil.GetUserSetOptionalVarFromString(cmd, devModeEnabledFlagName, devModeEnabledEnvKey)
-
-	enableDevMode := defaultDevModeEnabled
-	if enableDevModeStr != "" {
-		enable, parseErr := strconv.ParseBool(enableDevModeStr)
-		if parseErr != nil {
-			return nil, fmt.Errorf("invalid value for %s: %s", devModeEnabledFlagName, parseErr)
-		}
-
-		enableDevMode = enable
-	}
-
-	enableMaintenanceModeStr := cmdutil.GetUserSetOptionalVarFromString(cmd, maintenanceModeEnabledFlagName, maintenanceModeEnabledEnvKey)
-
-	enableMaintenanceMode := defaultMaintenanceModeEnabled
-	if enableMaintenanceModeStr != "" {
-		enable, parseErr := strconv.ParseBool(enableMaintenanceModeStr)
-		if parseErr != nil {
-			return nil, fmt.Errorf("invalid value for %s: %s", maintenanceModeEnabledFlagName, parseErr)
-		}
-
-		enableMaintenanceMode = enable
-	}
-
-	enableUnpublishedOperationStoreStr, err := cmdutil.GetUserSetVarFromString(cmd, enableUnpublishedOperationStoreFlagName, enableUnpublishedOperationStoreEnvKey, true)
-	if err != nil {
-		return nil, err
-	}
-
-	unpublishedOperationStoreEnabled := defaultUnpublishedOperationStoreEnabled
-	if enableUnpublishedOperationStoreStr != "" {
-		enable, parseErr := strconv.ParseBool(enableUnpublishedOperationStoreStr)
-		if parseErr != nil {
-			return nil, fmt.Errorf("invalid value for %s: %s", enableUnpublishedOperationStoreFlagName, parseErr)
-		}
-
-		unpublishedOperationStoreEnabled = enable
-	}
-
-	unpublishedOperationStoreOperationTypesArr := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, unpublishedOperationStoreOperationTypesFlagName, unpublishedOperationStoreOperationTypesEnvKey)
+	unpublishedOperationStoreOperationTypesArr := cmdutil.GetUserSetOptionalVarFromArrayString(cmd,
+		unpublishedOperationStoreOperationTypesFlagName, unpublishedOperationStoreOperationTypesEnvKey)
 
 	defaultOperationTypes := []operation.Type{operation.TypeCreate, operation.TypeUpdate}
 
@@ -1193,135 +1399,68 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		unpublishedOperationStoreOperationTypes = configuredOpTypes
 	}
 
-	includeUnpublishedOperationsStr, err := cmdutil.GetUserSetVarFromString(cmd, includeUnpublishedOperationsFlagName, includeUnpublishedOperationsEnvKey, true)
+	includeUnpublishedOperations, err := cmdutil.GetBool(cmd, includeUnpublishedOperationsFlagName, includeUnpublishedOperationsEnvKey,
+		defaultIncludeUnpublishedOperations)
 	if err != nil {
 		return nil, err
 	}
 
-	includeUnpublishedOperations := defaultIncludeUnpublishedOperations
-	if includeUnpublishedOperationsStr != "" {
-		enable, parseErr := strconv.ParseBool(includeUnpublishedOperationsStr)
-		if parseErr != nil {
-			return nil, fmt.Errorf("invalid value for %s: %s", includeUnpublishedOperationsFlagName, parseErr)
-		}
-
-		includeUnpublishedOperations = enable
-	}
-
-	includePublishedOperationsStr, err := cmdutil.GetUserSetVarFromString(cmd, includePublishedOperationsFlagName, includePublishedOperationsEnvKey, true)
+	includePublishedOperations, err := cmdutil.GetBool(cmd, includePublishedOperationsFlagName, includePublishedOperationsEnvKey,
+		defaultIncludePublishedOperations)
 	if err != nil {
 		return nil, err
 	}
 
-	includePublishedOperations := defaultIncludePublishedOperations
-	if includePublishedOperationsStr != "" {
-		enable, parseErr := strconv.ParseBool(includePublishedOperationsStr)
-		if parseErr != nil {
-			return nil, fmt.Errorf("invalid value for %s: %s", includePublishedOperationsFlagName, parseErr)
-		}
-
-		includePublishedOperations = enable
+	unpublishedOperationLifespan, err := cmdutil.GetDuration(cmd, unpublishedOperationLifespanFlagName,
+		unpublishedOperationLifespanEnvKey, defaultUnpublishedOperationLifespan)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", unpublishedOperationLifespanFlagName, err)
 	}
 
-	resolveFromAnchorOriginStr, err := cmdutil.GetUserSetVarFromString(cmd, resolveFromAnchorOriginFlagName, resolveFromAnchorOriginEnvKey, true)
+	return &unpublishedOperationsStoreParams{
+		enabled:            unpublishedOperationStoreEnabled,
+		operationTypes:     unpublishedOperationStoreOperationTypes,
+		includeUnpublished: includeUnpublishedOperations,
+		includePublished:   includePublishedOperations,
+		lifespan:           unpublishedOperationLifespan,
+	}, nil
+}
+
+type discoveryParams struct {
+	domains          []string
+	minimumResolvers int
+}
+
+func getDiscoveryParams(cmd *cobra.Command) (*discoveryParams, error) {
+	domains := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, discoveryDomainsFlagName, discoveryDomainsEnvKey)
+
+	minimumResolvers, err := cmdutil.GetInt(cmd, discoveryMinimumResolversFlagName, discoveryMinimumResolversEnvKey,
+		defaultDiscoveryMinimumResolvers)
 	if err != nil {
 		return nil, err
 	}
 
-	resolveFromAnchorOrigin := defaultResolveFromAnchorOrigin
-	if resolveFromAnchorOriginStr != "" {
-		enable, parseErr := strconv.ParseBool(resolveFromAnchorOriginStr)
-		if parseErr != nil {
-			return nil, fmt.Errorf("invalid value for %s: %s", resolveFromAnchorOriginFlagName, parseErr)
-		}
+	return &discoveryParams{
+		domains:          domains,
+		minimumResolvers: minimumResolvers,
+	}, nil
+}
 
-		resolveFromAnchorOrigin = enable
-	}
+type authParams struct {
+	httpSignaturesEnabled  bool
+	tokenDefinitions       []*auth.TokenDef
+	tokens                 map[string]string
+	clientTokenDefinitions []*auth.TokenDef
+	clientTokens           map[string]string
+	inviteWitnessPolicy    acceptRejectPolicy
+	followPolicy           acceptRejectPolicy
+}
 
-	verifyLatestFromAnchorOriginStr, err := cmdutil.GetUserSetVarFromString(cmd, verifyLatestFromAnchorOriginFlagName, verifyLatestFromAnchorOriginEnvKey, true)
+func getAuthParams(cmd *cobra.Command) (*authParams, error) {
+	httpSignaturesEnabled, err := cmdutil.GetBool(cmd, httpSignaturesEnabledFlagName, httpSignaturesEnabledEnvKey,
+		defaulthttpSignaturesEnabled)
 	if err != nil {
 		return nil, err
-	}
-
-	verifyLatestFromAnchorOrigin := defaultVerifyLatestFromAnchorOrigin
-	if verifyLatestFromAnchorOriginStr != "" {
-		enable, parseErr := strconv.ParseBool(verifyLatestFromAnchorOriginStr)
-		if parseErr != nil {
-			return nil, fmt.Errorf("invalid value for %s: %s", verifyLatestFromAnchorOriginFlagName, parseErr)
-		}
-
-		verifyLatestFromAnchorOrigin = enable
-	}
-
-	didNamespace, err := cmdutil.GetUserSetVarFromString(cmd, didNamespaceFlagName, didNamespaceEnvKey, false)
-	if err != nil {
-		return nil, err
-	}
-
-	didAliases := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, didAliasesFlagName, didAliasesEnvKey)
-
-	kmsParams, err := getKmsParameters(cmd)
-	if err != nil {
-		return nil, err
-	}
-
-	dbParams, err := getDBParameters(cmd)
-	if err != nil {
-		return nil, err
-	}
-
-	loggingLevel, err := cmdutil.GetUserSetVarFromString(cmd, LogLevelFlagName, LogLevelEnvKey, true)
-	if err != nil {
-		return nil, err
-	}
-
-	allowedOrigins, err := cmdutil.GetUserSetVarFromArrayString(cmd, allowedOriginsFlagName, allowedOriginsEnvKey, true)
-	if err != nil {
-		return nil, err
-	}
-
-	allowedOriginsCacheExpiration, err := getDuration(cmd, allowedOriginsCacheExpirationFlagName,
-		allowedOriginsCacheExpirationEnvKey, defaultAllowedOriginsCacheExpiration)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", allowedOriginsCacheExpirationFlagName, err)
-	}
-
-	allowedDIDWebDomainsArray, err := cmdutil.GetUserSetVarFromArrayString(cmd, allowedDIDWebDomainsFlagName, allowedDIDWebDomainsEnvKey, true)
-	if err != nil {
-		return nil, err
-	}
-
-	var allowedDIDWebDomains []*url.URL
-
-	for _, domain := range allowedDIDWebDomainsArray {
-		domainURL, err := url.Parse(domain)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", allowedDIDWebDomainsFlagName, err)
-		}
-
-		allowedDIDWebDomains = append(allowedDIDWebDomains, domainURL)
-	}
-
-	dataURIMediaType, err := cmdutil.GetUserSetVarFromString(cmd, dataURIMediaTypeFlagName, dataURIMediaTypeEnvKey, true)
-	if err != nil {
-		return nil, err
-	}
-
-	if dataURIMediaType == "" {
-		dataURIMediaType = defaultDataURIMediaType
-	}
-
-	discoveryDomains := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, discoveryDomainsFlagName, discoveryDomainsEnvKey)
-
-	discoveryMinimumResolversStr := cmdutil.GetUserSetOptionalVarFromString(cmd, discoveryMinimumResolversFlagName,
-		discoveryMinimumResolversEnvKey)
-
-	discoveryMinimumResolvers := defaultDiscoveryMinimumResolvers
-	if discoveryMinimumResolversStr != "" {
-		discoveryMinimumResolvers, err = strconv.Atoi(discoveryMinimumResolversStr)
-		if err != nil {
-			return nil, fmt.Errorf("invalid discovery minimum resolvers: %s", err.Error())
-		}
 	}
 
 	authTokenDefs, err := getAuthTokenDefinitions(cmd, authTokensDefFlagName, authTokensDefEnvKey, nil)
@@ -1344,70 +1483,6 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, fmt.Errorf("client authorization tokens: %w", err)
 	}
 
-	activityPubPageSize, err := getActivityPubPageSize(cmd)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", activityPubPageSizeFlagName, err)
-	}
-
-	nodeInfoRefreshInterval, err := getDuration(cmd, nodeInfoRefreshIntervalFlagName,
-		nodeInfoRefreshIntervalEnvKey, defaultNodeInfoRefreshInterval)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", nodeInfoRefreshIntervalFlagName, err)
-	}
-
-	ipfsTimeout, err := getDuration(cmd, ipfsTimeoutFlagName, ipfsTimeoutEnvKey, defaultIPFSTimeout)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", ipfsTimeoutFlagName, err)
-	}
-
-	databaseTimeout, err := getDuration(cmd, databaseTimeoutFlagName, databaseTimeoutEnvKey, defaultDatabaseTimeout)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", databaseTimeoutFlagName, err)
-	}
-
-	httpDialTimeout, err := getDuration(cmd, httpDialTimeoutFlagName, httpDialTimeoutEnvKey, defaultHTTPDialTimeout)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", httpDialTimeoutFlagName, err)
-	}
-
-	serverIdleTimeout, err := getDuration(cmd, serverIdleTimeoutFlagName, serverIdleTimeoutEnvKey, defaultServerIdleTimeout)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", serverIdleTimeoutFlagName, err)
-	}
-
-	serverReadHeaderTimeout, err := getDuration(cmd, serverReadHeaderTimeoutFlagName, serverReadHeaderTimeoutEnvKey, defaultServerReadHeaderTimeout)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", serverReadHeaderTimeoutFlagName, err)
-	}
-
-	httpTimeout, err := getDuration(cmd, httpTimeoutFlagName, httpTimeoutEnvKey, defaultHTTPTimeout)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", httpTimeoutFlagName, err)
-	}
-
-	contextProviderURLs, err := cmdutil.GetUserSetVarFromArrayString(cmd, contextProviderFlagName, contextProviderEnvKey, true)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", contextProviderFlagName, err)
-	}
-
-	unpublishedOperationLifespan, err := getDuration(cmd, unpublishedOperationLifespanFlagName,
-		unpublishedOperationLifespanEnvKey, defaultUnpublishedOperationLifespan)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", unpublishedOperationLifespanFlagName, err)
-	}
-
-	dataExpiryCheckInterval, err := getDuration(cmd, dataExpiryCheckIntervalFlagName,
-		dataExpiryCheckIntervalEnvKey, defaultDataExpiryCheckInterval)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", dataExpiryCheckIntervalFlagName, err)
-	}
-
-	taskMgrCheckInterval, err := getDuration(cmd, taskMgrCheckIntervalFlagName,
-		taskMgrCheckIntervalEnvKey, defaultTaskMgrCheckInterval)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", taskMgrCheckIntervalFlagName, err)
-	}
-
 	followAuthPolicy, err := getFollowAuthPolicy(cmd)
 	if err != nil {
 		return nil, err
@@ -1418,23 +1493,33 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	syncPeriod, minActivityAge, err := getAnchorSyncParameters(cmd)
-	if err != nil {
-		return nil, err
-	}
+	return &authParams{
+		httpSignaturesEnabled:  httpSignaturesEnabled,
+		tokenDefinitions:       authTokenDefs,
+		tokens:                 authTokens,
+		clientTokenDefinitions: clientAuthTokenDefs,
+		clientTokens:           clientAuthTokens,
+		followPolicy:           followAuthPolicy,
+		inviteWitnessPolicy:    inviteWitnessAuthPolicy,
+	}, nil
+}
 
-	vctProofMonitoringInterval, err := getDuration(cmd, vctProofMonitoringIntervalFlagName, vctProofMonitoringIntervalEnvKey,
+type vctParams struct {
+	proofMonitoringInterval      time.Duration
+	logMonitoringInterval        time.Duration
+	logMonitoringTreeSize        uint64
+	logMonitoringGetEntriesRange int
+	logEntriesStoreEnabled       bool
+}
+
+func getVCTParams(cmd *cobra.Command) (*vctParams, error) {
+	vctProofMonitoringInterval, err := cmdutil.GetDuration(cmd, vctProofMonitoringIntervalFlagName, vctProofMonitoringIntervalEnvKey,
 		defaultVCTProofMonitoringInterval)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", vctProofMonitoringIntervalFlagName, err)
 	}
 
-	proofMonitoringExpiryPeriod, err := getDuration(cmd, vctProofMonitoringExpiryPeriodFlagName, vctProofMonitoringExpiryPeriodEnvKey, defaultProofMonitoringExpiryPeriod)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", vctProofMonitoringExpiryPeriodFlagName, err)
-	}
-
-	vctLogMonitoringInterval, err := getDuration(cmd, vctLogMonitoringIntervalFlagName, vctLogMonitoringIntervalEnvKey,
+	vctLogMonitoringInterval, err := cmdutil.GetDuration(cmd, vctLogMonitoringIntervalFlagName, vctLogMonitoringIntervalEnvKey,
 		defaultVCTLogMonitoringInterval)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", vctLogMonitoringIntervalFlagName, err)
@@ -1456,45 +1541,48 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 
 	vctLogMonitoringGetEntriesRange := defaultVCTLogMonitoringGetEntriesRange
 	if vctLogMonitoringGetEntriesRangeStr != "" {
-		getEntriesRange, err := strconv.ParseUint(vctLogMonitoringGetEntriesRangeStr, 10, 64)
-		if err != nil {
-			return nil, fmt.Errorf("%s: %w", vctLogMonitoringGetEntriesRangeFlagName, err)
+		getEntriesRange, e := strconv.ParseUint(vctLogMonitoringGetEntriesRangeStr, 10, 64)
+		if e != nil {
+			return nil, fmt.Errorf("%s: %w", vctLogMonitoringGetEntriesRangeFlagName, e)
 		}
 
 		vctLogMonitoringGetEntriesRange = int(getEntriesRange)
 	}
 
-	enableLogEntriesStoreStr, err := cmdutil.GetUserSetVarFromString(cmd, vctLogEntriesStoreEnabledFlagName, vctLogEntriesStoreEnabledEnvKey, true)
+	vctLogEntriesStoreEnabled, err := cmdutil.GetBool(cmd, vctLogEntriesStoreEnabledFlagName, vctLogEntriesStoreEnabledEnvKey,
+		defaultVCTLogEntriesStoreEnabled)
 	if err != nil {
 		return nil, err
 	}
 
-	vctLogEntriesStoreEnabled := defaultVCTLogEntriesStoreEnabled
-	if enableLogEntriesStoreStr != "" {
-		enable, parseErr := strconv.ParseBool(enableLogEntriesStoreStr)
-		if parseErr != nil {
-			return nil, fmt.Errorf("invalid value for %s: %s", vctLogEntriesStoreEnabledFlagName, parseErr)
-		}
+	return &vctParams{
+		proofMonitoringInterval:      vctProofMonitoringInterval,
+		logMonitoringInterval:        vctLogMonitoringInterval,
+		logMonitoringTreeSize:        vctLogMonitoringMaxTreeSize,
+		logMonitoringGetEntriesRange: vctLogMonitoringGetEntriesRange,
+		logEntriesStoreEnabled:       vctLogEntriesStoreEnabled,
+	}, nil
+}
 
-		vctLogEntriesStoreEnabled = enable
+type activityPubParams struct {
+	pageSize                 int
+	anchorSyncPeriod         time.Duration
+	anchorSyncMinActivityAge time.Duration
+	clientCacheSize          int
+	clientCacheExpiration    time.Duration
+	iriCacheSize             int
+	iriCacheExpiration       time.Duration
+}
+
+func getActivityPubParams(cmd *cobra.Command) (*activityPubParams, error) {
+	activityPubPageSize, err := getActivityPubPageSize(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", activityPubPageSizeFlagName, err)
 	}
 
-	anchorStatusMonitoringInterval, err := getDuration(cmd, anchorStatusMonitoringIntervalFlagName, anchorStatusMonitoringIntervalEnvKey,
-		defaultAnchorStatusMonitoringInterval)
+	syncPeriod, minActivityAge, err := getAnchorSyncParameters(cmd)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", anchorStatusMonitoringIntervalFlagName, err)
-	}
-
-	anchorStatusInProcessGracePeriod, err := getDuration(cmd, anchorStatusInProcessGracePeriodFlagName, anchorStatusInProcessGracePeriodEnvKey,
-		defaultAnchorStatusInProcessGracePeriod)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", anchorStatusInProcessGracePeriodFlagName, err)
-	}
-
-	witnessPolicyCacheExpiration, err := getDuration(cmd, witnessPolicyCacheExpirationFlagName,
-		witnessPolicyCacheExpirationEnvKey, defaultWitnessPolicyCacheExpiration)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", witnessPolicyCacheExpirationFlagName, err)
+		return nil, err
 	}
 
 	apClientCacheSize, apClientCacheExpiration, err := getActivityPubClientParameters(cmd)
@@ -1507,107 +1595,89 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	sidetreeProtocolVersionsArr := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, sidetreeProtocolVersionsFlagName, sidetreeProtocolVersionsEnvKey)
+	return &activityPubParams{
+		pageSize:                 activityPubPageSize,
+		anchorSyncPeriod:         syncPeriod,
+		anchorSyncMinActivityAge: minActivityAge,
+		clientCacheSize:          apClientCacheSize,
+		clientCacheExpiration:    apClientCacheExpiration,
+		iriCacheSize:             apIRICacheSize,
+		iriCacheExpiration:       apIRICacheExpiration,
+	}, nil
+}
 
-	defaultSidetreeProtocolVersions := []string{"1.0"}
+func getActivityPubClientParameters(cmd *cobra.Command) (int, time.Duration, error) {
+	return getActivityPubCacheParameters(cmd, &cacheParams{
+		sizeFlag:          activityPubClientCacheSizeFlagName,
+		sizeEnvKey:        activityPubClientCacheSizeEnvKey,
+		defaultSize:       defaultActivityPubClientCacheSize,
+		expirationFlag:    activityPubClientCacheExpirationFlagName,
+		expirationEnvKey:  activityPubClientCacheExpirationEnvKey,
+		defaultExpiration: defaultActivityPubClientCacheExpiration,
+	})
+}
 
-	sidetreeProtocolVersions := defaultSidetreeProtocolVersions
+func getActivityPubIRICacheParameters(cmd *cobra.Command) (int, time.Duration, error) {
+	return getActivityPubCacheParameters(cmd, &cacheParams{
+		sizeFlag:          activityPubIRICacheSizeFlagName,
+		sizeEnvKey:        activityPubIRICacheSizeEnvKey,
+		defaultSize:       defaultActivityPubIRICacheSize,
+		expirationFlag:    activityPubIRICacheExpirationFlagName,
+		expirationEnvKey:  activityPubIRICacheExpirationEnvKey,
+		defaultExpiration: defaultActivityPubIRICacheExpiration,
+	})
+}
 
-	if len(sidetreeProtocolVersionsArr) > 0 {
-		sidetreeProtocolVersions = sidetreeProtocolVersionsArr
-	}
-
-	currentSidetreeProtocolVersion := cmdutil.GetUserSetOptionalVarFromString(cmd, currentSidetreeProtocolVersionFlagName, currentSidetreeProtocolVersionEnvKey)
-
-	requestTokens := getRequestTokens(cmd)
-
-	apServiceParams, err := newAPServiceParams(serviceID, externalEndpoint, kmsParams, enableDevMode)
+func getAllowedDIDWebDomains(cmd *cobra.Command) ([]*url.URL, error) {
+	allowedDIDWebDomainsArray, err := cmdutil.GetUserSetVarFromArrayString(cmd, allowedDIDWebDomainsFlagName,
+		allowedDIDWebDomainsEnvKey, true)
 	if err != nil {
 		return nil, err
 	}
 
-	anchorCredentialParams := getAnchorCredentialParameters(cmd, externalEndpoint, apServiceParams.serviceIRI().String())
+	var allowedDIDWebDomains []*url.URL
 
-	return &orbParameters{
-		hostURL:                                 hostURL,
-		discoveryDomain:                         discoveryDomain,
-		externalEndpoint:                        externalEndpoint,
-		apServiceParams:                         apServiceParams,
-		tlsParams:                               tlsParams,
-		didNamespace:                            didNamespace,
-		didAliases:                              didAliases,
-		allowedOrigins:                          allowedOrigins,
-		allowedOriginsCacheExpiration:           allowedOriginsCacheExpiration,
-		allowedDIDWebDomains:                    allowedDIDWebDomains,
-		casType:                                 casType,
-		ipfsURL:                                 ipfsURL,
-		localCASReplicateInIPFSEnabled:          localCASReplicateInIPFSEnabled,
-		cidVersion:                              cidVersion,
-		mqParams:                                mqParams,
-		opQueueParams:                           opQueueParams,
-		batchWriterTimeout:                      batchWriterTimeout,
-		anchorCredentialParams:                  anchorCredentialParams,
-		logLevel:                                loggingLevel,
-		dbParameters:                            dbParams,
-		discoveryDomains:                        discoveryDomains,
-		discoveryMinimumResolvers:               discoveryMinimumResolvers,
-		maxWitnessDelay:                         maxWitnessDelay,
-		maxClockSkew:                            maxClockSkew,
-		witnessStoreExpiryPeriod:                witnessStoreExpiryPeriod,
-		proofMonitoringExpiryPeriod:             proofMonitoringExpiryPeriod,
-		syncTimeout:                             syncTimeout,
-		signWithLocalWitness:                    signWithLocalWitness,
-		httpSignaturesEnabled:                   httpSignaturesEnabled,
-		didDiscoveryEnabled:                     didDiscoveryEnabled,
-		unpublishedOperationStoreEnabled:        unpublishedOperationStoreEnabled,
-		unpublishedOperationStoreOperationTypes: unpublishedOperationStoreOperationTypes,
-		includePublishedOperations:              includePublishedOperations,
-		includeUnpublishedOperations:            includeUnpublishedOperations,
-		resolveFromAnchorOrigin:                 resolveFromAnchorOrigin,
-		verifyLatestFromAnchorOrigin:            verifyLatestFromAnchorOrigin,
-		authTokenDefinitions:                    authTokenDefs,
-		authTokens:                              authTokens,
-		clientAuthTokenDefinitions:              clientAuthTokenDefs,
-		clientAuthTokens:                        clientAuthTokens,
-		activityPubPageSize:                     activityPubPageSize,
-		enableDevMode:                           enableDevMode,
-		enableMaintenanceMode:                   enableMaintenanceMode,
-		enableVCT:                               enableVCT,
-		nodeInfoRefreshInterval:                 nodeInfoRefreshInterval,
-		ipfsTimeout:                             ipfsTimeout,
-		databaseTimeout:                         databaseTimeout,
-		contextProviderURLs:                     contextProviderURLs,
-		unpublishedOperationLifespan:            unpublishedOperationLifespan,
-		dataExpiryCheckInterval:                 dataExpiryCheckInterval,
-		followAuthPolicy:                        followAuthPolicy,
-		inviteWitnessAuthPolicy:                 inviteWitnessAuthPolicy,
-		taskMgrCheckInterval:                    taskMgrCheckInterval,
-		httpDialTimeout:                         httpDialTimeout,
-		httpTimeout:                             httpTimeout,
-		anchorSyncPeriod:                        syncPeriod,
-		anchorSyncMinActivityAge:                minActivityAge,
-		vctProofMonitoringInterval:              vctProofMonitoringInterval,
-		vctLogMonitoringInterval:                vctLogMonitoringInterval,
-		vctLogMonitoringTreeSize:                vctLogMonitoringMaxTreeSize,
-		vctLogMonitoringGetEntriesRange:         vctLogMonitoringGetEntriesRange,
-		vctLogEntriesStoreEnabled:               vctLogEntriesStoreEnabled,
-		anchorStatusMonitoringInterval:          anchorStatusMonitoringInterval,
-		anchorStatusInProcessGracePeriod:        anchorStatusInProcessGracePeriod,
-		witnessPolicyCacheExpiration:            witnessPolicyCacheExpiration,
-		apClientCacheSize:                       apClientCacheSize,
-		apClientCacheExpiration:                 apClientCacheExpiration,
-		apIRICacheSize:                          apIRICacheSize,
-		apIRICacheExpiration:                    apIRICacheExpiration,
-		serverIdleTimeout:                       serverIdleTimeout,
-		serverReadHeaderTimeout:                 serverReadHeaderTimeout,
-		dataURIMediaType:                        dataURIMediaType,
-		sidetreeProtocolVersions:                sidetreeProtocolVersions,
-		currentSidetreeProtocolVersion:          currentSidetreeProtocolVersion,
-		kmsParams:                               kmsParams,
-		requestTokens:                           requestTokens,
-		metricsProviderName:                     metricsProviderName,
-		prometheusMetricsProviderParams:         prometheusMetricsProviderParams,
-		tracingParams:                           tracingParams,
+	for _, domain := range allowedDIDWebDomainsArray {
+		domainURL, e := url.Parse(domain)
+		if e != nil {
+			return nil, fmt.Errorf("%s: %w", allowedDIDWebDomainsFlagName, e)
+		}
+
+		allowedDIDWebDomains = append(allowedDIDWebDomains, domainURL)
+	}
+
+	return allowedDIDWebDomains, nil
+}
+
+func getObservabilityParams(cmd *cobra.Command) (*observabilityParams, error) {
+	metricsProviderName, err := getMetricsProviderName(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	var metricsURL string
+
+	if metricsProviderName == "prometheus" {
+		metricsURL, err = cmdutil.GetUserSetVarFromString(cmd, promHTTPURLFlagName, promHTTPURLEnvKey, false)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	tracingParams, err := getTracingParams(cmd)
+	if err != nil {
+		return nil, err
+	}
+
+	return &observabilityParams{
+		metrics: metricsParams{
+			providerName: metricsProviderName,
+			url:          metricsURL,
+		},
+		tracing: *tracingParams,
 	}, nil
 }
 
@@ -1616,15 +1686,8 @@ func getMetricsProviderName(cmd *cobra.Command) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return metricsProvider, nil
-}
 
-func getPrometheusMetricsProviderParams(cmd *cobra.Command) (*prometheusMetricsProviderParams, error) {
-	promMetricsUrl, err := cmdutil.GetUserSetVarFromString(cmd, promHttpUrlFlagName, promHttpUrlEnvKey, false)
-	if err != nil {
-		return nil, err
-	}
-	return &prometheusMetricsProviderParams{url: promMetricsUrl}, nil
+	return metricsProvider, nil
 }
 
 func getTracingParams(cmd *cobra.Command) (*tracingParams, error) {
@@ -1644,7 +1707,8 @@ func getTracingParams(cmd *cobra.Command) (*tracingParams, error) {
 	case tracing.ProviderJaeger:
 		var err error
 
-		params.collectorURL, err = cmdutil.GetUserSetVarFromString(cmd, tracingCollectorURLFlagName, tracingCollectorURLEnvKey, false)
+		params.collectorURL, err = cmdutil.GetUserSetVarFromString(cmd, tracingCollectorURLFlagName,
+			tracingCollectorURLEnvKey, false)
 		if err != nil {
 			return nil, err
 		}
@@ -1708,10 +1772,16 @@ func getDBParameters(cmd *cobra.Command) (*dbParameters, error) {
 		return nil, err
 	}
 
+	databaseTimeout, err := cmdutil.GetDuration(cmd, databaseTimeoutFlagName, databaseTimeoutEnvKey, defaultDatabaseTimeout)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", databaseTimeoutFlagName, err)
+	}
+
 	return &dbParameters{
-		databaseType:   databaseType,
-		databaseURL:    databaseURL,
-		databasePrefix: databasePrefix,
+		databaseType:    databaseType,
+		databaseURL:     databaseURL,
+		databasePrefix:  databasePrefix,
+		databaseTimeout: databaseTimeout,
 	}, nil
 }
 
@@ -1780,7 +1850,7 @@ func getPrivateKeys(cmd *cobra.Command, flagName, envKey string) (map[string]str
 	privateKeyStr := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, flagName, envKey)
 
 	if len(privateKeyStr) == 0 {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	privateKeys := make(map[string]string)
@@ -1826,7 +1896,8 @@ func getAuthTokens(cmd *cobra.Command, flagName, envKey string, defaultTokens ma
 }
 
 func getActivityPubPageSize(cmd *cobra.Command) (int, error) {
-	activityPubPageSizeStr, err := cmdutil.GetUserSetVarFromString(cmd, activityPubPageSizeFlagName, activityPubPageSizeEnvKey, true)
+	activityPubPageSizeStr, err := cmdutil.GetUserSetVarFromString(cmd, activityPubPageSizeFlagName,
+		activityPubPageSizeEnvKey, true)
 	if err != nil {
 		return 0, err
 	}
@@ -1845,79 +1916,6 @@ func getActivityPubPageSize(cmd *cobra.Command) (int, error) {
 	}
 
 	return activityPubPageSize, nil
-}
-
-func getDuration(cmd *cobra.Command, flagName, envKey string,
-	defaultDuration time.Duration) (time.Duration, error) {
-	timeoutStr, err := cmdutil.GetUserSetVarFromString(cmd, flagName, envKey, true)
-	if err != nil {
-		return -1, err
-	}
-
-	if timeoutStr == "" {
-		return defaultDuration, nil
-	}
-
-	timeout, err := time.ParseDuration(timeoutStr)
-	if err != nil {
-		return -1, fmt.Errorf("invalid value [%s]: %w", timeoutStr, err)
-	}
-
-	return timeout, nil
-}
-
-func getInt(cmd *cobra.Command, flagName, envKey string, defaultValue int) (int, error) {
-	str, err := cmdutil.GetUserSetVarFromString(cmd, flagName, envKey, true)
-	if err != nil {
-		return 0, fmt.Errorf("%s: %w", flagName, err)
-	}
-
-	if str == "" {
-		return defaultValue, nil
-	}
-
-	value, err := strconv.Atoi(str)
-	if err != nil {
-		return 0, fmt.Errorf("invalid value for %s [%s]: %w", flagName, str, err)
-	}
-
-	return value, nil
-}
-
-func getFloat(cmd *cobra.Command, flagName, envKey string, defaultValue float64) (float64, error) {
-	str, err := cmdutil.GetUserSetVarFromString(cmd, flagName, envKey, true)
-	if err != nil {
-		return 0, fmt.Errorf("%s: %w", flagName, err)
-	}
-
-	if str == "" {
-		return defaultValue, nil
-	}
-
-	value, err := strconv.ParseFloat(str, 64)
-	if err != nil {
-		return 0, fmt.Errorf("invalid value for %s [%s]: %w", flagName, str, err)
-	}
-
-	return value, nil
-}
-
-func getBool(cmd *cobra.Command, flagName, envKey string, defaultValue bool) (bool, error) {
-	str, err := cmdutil.GetUserSetVarFromString(cmd, flagName, envKey, true)
-	if err != nil {
-		return false, fmt.Errorf("%s: %w", flagName, err)
-	}
-
-	if str == "" {
-		return defaultValue, nil
-	}
-
-	value, err := strconv.ParseBool(str)
-	if err != nil {
-		return false, fmt.Errorf("invalid value for %s [%s]: %w", flagName, str, err)
-	}
-
-	return value, nil
 }
 
 type mqParams struct {
@@ -1941,64 +1939,64 @@ func getMQParameters(cmd *cobra.Command) (*mqParams, error) {
 		return nil, fmt.Errorf("%s: %w", mqURLFlagName, err)
 	}
 
-	mqObserverPoolSize, err := getInt(cmd, mqObserverPoolFlagName, mqObserverPoolEnvKey, mqDefaultObserverPoolSize)
+	mqObserverPoolSize, err := cmdutil.GetInt(cmd, mqObserverPoolFlagName, mqObserverPoolEnvKey, mqDefaultObserverPoolSize)
 	if err != nil {
 		return nil, err
 	}
 
-	mqOutboxPoolSize, err := getInt(cmd, mqOutboxPoolFlagName, mqOutboxPoolEnvKey, mqDefaultOutboxPoolSize)
+	mqOutboxPoolSize, err := cmdutil.GetInt(cmd, mqOutboxPoolFlagName, mqOutboxPoolEnvKey, mqDefaultOutboxPoolSize)
 	if err != nil {
 		return nil, err
 	}
 
-	mqInboxPoolSize, err := getInt(cmd, mqInboxPoolFlagName, mqInboxPoolEnvKey, mqDefaultInboxPoolSize)
+	mqInboxPoolSize, err := cmdutil.GetInt(cmd, mqInboxPoolFlagName, mqInboxPoolEnvKey, mqDefaultInboxPoolSize)
 	if err != nil {
 		return nil, err
 	}
 
-	mqMaxConnectionChannels, err := getInt(cmd, mqMaxConnectionChannelsFlagName,
+	mqMaxConnectionChannels, err := cmdutil.GetInt(cmd, mqMaxConnectionChannelsFlagName,
 		mqMaxConnectionChannelsEnvKey, mqDefaultMaxConnectionSubscriptions)
 	if err != nil {
 		return nil, err
 	}
 
-	mqPublisherChannelPoolSize, err := getInt(cmd, mqPublisherChannelPoolSizeFlagName,
+	mqPublisherChannelPoolSize, err := cmdutil.GetInt(cmd, mqPublisherChannelPoolSizeFlagName,
 		mqPublisherChannelPoolSizeEnvKey, mqDefaultPublisherChannelPoolSize)
 	if err != nil {
 		return nil, err
 	}
 
-	mqPublisherConfirmDelivery, err := getBool(cmd, mqPublisherConfirmDeliveryFlagName,
+	mqPublisherConfirmDelivery, err := cmdutil.GetBool(cmd, mqPublisherConfirmDeliveryFlagName,
 		mqPublisherConfirmDeliveryEnvKey, mqDefaultPublisherConfirmDelivery)
 	if err != nil {
 		return nil, err
 	}
 
-	mqMaxConnectRetries, err := getInt(cmd, mqConnectMaxRetriesFlagName, mqConnectMaxRetriesEnvKey,
+	mqMaxConnectRetries, err := cmdutil.GetInt(cmd, mqConnectMaxRetriesFlagName, mqConnectMaxRetriesEnvKey,
 		mqDefaultConnectMaxRetries)
 	if err != nil {
 		return nil, err
 	}
 
-	mqMaxRedeliveryAttempts, err := getInt(cmd, mqRedeliveryMaxAttemptsFlagName, mqRedeliveryMaxAttemptsEnvKey,
+	mqMaxRedeliveryAttempts, err := cmdutil.GetInt(cmd, mqRedeliveryMaxAttemptsFlagName, mqRedeliveryMaxAttemptsEnvKey,
 		mqDefaultRedeliveryMaxAttempts)
 	if err != nil {
 		return nil, err
 	}
 
-	mqRedeliveryMultiplier, err := getFloat(cmd, mqRedeliveryMultiplierFlagName, mqRedeliveryMultiplierEnvKey,
+	mqRedeliveryMultiplier, err := cmdutil.GetFloat(cmd, mqRedeliveryMultiplierFlagName, mqRedeliveryMultiplierEnvKey,
 		mqDefaultRedeliveryMultiplier)
 	if err != nil {
 		return nil, err
 	}
 
-	mqRedeliveryInitialInterval, err := getDuration(cmd, mqRedeliveryInitialIntervalFlagName,
+	mqRedeliveryInitialInterval, err := cmdutil.GetDuration(cmd, mqRedeliveryInitialIntervalFlagName,
 		mqRedeliveryInitialIntervalEnvKey, mqDefaultRedeliveryInitialInterval)
 	if err != nil {
 		return nil, err
 	}
 
-	mqRedeliveryMaxInterval, err := getDuration(cmd, mqRedeliveryMaxIntervalFlagName,
+	mqRedeliveryMaxInterval, err := cmdutil.GetDuration(cmd, mqRedeliveryMaxIntervalFlagName,
 		mqRedeliveryMaxIntervalEnvKey, mqDefaultRedeliveryMaxInterval)
 	if err != nil {
 		return nil, err
@@ -2020,19 +2018,19 @@ func getMQParameters(cmd *cobra.Command) (*mqParams, error) {
 	}, nil
 }
 
-func getOpQueueParameters(cmd *cobra.Command, batchTimeout time.Duration, mqParams *mqParams) (*opqueue.Config, error) {
-	poolSize, err := getInt(cmd, opQueuePoolFlagName, opQueuePoolEnvKey, opQueueDefaultPoolSize)
+func getOpQueueParameters(cmd *cobra.Command, mqParams *mqParams) (*opqueue.Config, error) {
+	poolSize, err := cmdutil.GetInt(cmd, opQueuePoolFlagName, opQueuePoolEnvKey, opQueueDefaultPoolSize)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", opQueuePoolFlagName, err)
 	}
 
-	taskMonitorInterval, err := getDuration(cmd, opQueueTaskMonitorIntervalFlagName,
+	taskMonitorInterval, err := cmdutil.GetDuration(cmd, opQueueTaskMonitorIntervalFlagName,
 		opQueueTaskMonitorIntervalEnvKey, opQueueDefaultTaskMonitorInterval)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", opQueueTaskMonitorIntervalFlagName, err)
 	}
 
-	taskExpiration, err := getDuration(cmd, opQueueTaskExpirationFlagName,
+	taskExpiration, err := cmdutil.GetDuration(cmd, opQueueTaskExpirationFlagName,
 		opQueueTaskExpirationEnvKey, opQueueDefaultTaskExpiration)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", opQueueTaskExpirationFlagName, err)
@@ -2050,18 +2048,9 @@ func getOpQueueParameters(cmd *cobra.Command, batchTimeout time.Duration, mqPara
 }
 
 func getTLS(cmd *cobra.Command) (*tlsParameters, error) {
-	tlsSystemCertPoolString := cmdutil.GetUserSetOptionalVarFromString(cmd, tlsSystemCertPoolFlagName,
-		tlsSystemCertPoolEnvKey)
-
-	tlsSystemCertPool := false
-
-	if tlsSystemCertPoolString != "" {
-		var err error
-
-		tlsSystemCertPool, err = strconv.ParseBool(tlsSystemCertPoolString)
-		if err != nil {
-			return nil, err
-		}
+	tlsSystemCertPool, err := cmdutil.GetBool(cmd, tlsSystemCertPoolFlagName, tlsSystemCertPoolEnvKey, false)
+	if err != nil {
+		return nil, err
 	}
 
 	tlsCACerts := cmdutil.GetUserSetOptionalVarFromArrayString(cmd, tlsCACertsFlagName, tlsCACertsEnvKey)
@@ -2114,40 +2103,20 @@ func getInviteWitnessAuthPolicy(cmd *cobra.Command) (acceptRejectPolicy, error) 
 	return inviteWitnessAuthType, nil
 }
 
-func getActivityPubClientParameters(cmd *cobra.Command) (int, time.Duration, error) {
-	cacheSize := defaultActivityPubClientCacheSize
+type cacheParams struct {
+	sizeFlag    string
+	sizeEnvKey  string
+	defaultSize int
 
-	cacheSizeStr, err := cmdutil.GetUserSetVarFromString(cmd, activityPubClientCacheSizeFlagName, activityPubClientCacheSizeEnvKey, true)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	if cacheSizeStr != "" {
-		cacheSize, err = strconv.Atoi(cacheSizeStr)
-		if err != nil {
-			return 0, 0, fmt.Errorf("invalid value [%s] for parameter [%s]: %w",
-				cacheSizeStr, activityPubClientCacheSizeFlagName, err)
-		}
-
-		if cacheSize <= 0 {
-			return 0, 0, fmt.Errorf("value for parameter [%s] must be grater than 0", activityPubClientCacheSizeFlagName)
-		}
-	}
-
-	cacheExpiration, err := getDuration(cmd, activityPubClientCacheExpirationFlagName,
-		activityPubClientCacheExpirationEnvKey, defaultActivityPubClientCacheExpiration)
-	if err != nil {
-		return 0, 0, fmt.Errorf("invalid value for parameter [%s]: %w",
-			activityPubClientCacheExpirationFlagName, err)
-	}
-
-	return cacheSize, cacheExpiration, nil
+	expirationFlag    string
+	expirationEnvKey  string
+	defaultExpiration time.Duration
 }
 
-func getActivityPubIRICacheParameters(cmd *cobra.Command) (int, time.Duration, error) {
-	cacheSize := defaultActivityPubIRICacheSize
+func getActivityPubCacheParameters(cmd *cobra.Command, params *cacheParams) (int, time.Duration, error) {
+	cacheSize := params.defaultSize
 
-	cacheSizeStr, err := cmdutil.GetUserSetVarFromString(cmd, activityPubIRICacheSizeFlagName, activityPubIRICacheSizeEnvKey, true)
+	cacheSizeStr, err := cmdutil.GetUserSetVarFromString(cmd, params.sizeFlag, params.sizeEnvKey, true)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -2155,32 +2124,29 @@ func getActivityPubIRICacheParameters(cmd *cobra.Command) (int, time.Duration, e
 	if cacheSizeStr != "" {
 		cacheSize, err = strconv.Atoi(cacheSizeStr)
 		if err != nil {
-			return 0, 0, fmt.Errorf("invalid value [%s] for parameter [%s]: %w",
-				cacheSizeStr, activityPubIRICacheSizeFlagName, err)
+			return 0, 0, fmt.Errorf("invalid value [%s] for parameter [%s]: %w", cacheSizeStr, params.sizeFlag, err)
 		}
 
 		if cacheSize <= 0 {
-			return 0, 0, fmt.Errorf("value for parameter [%s] must be grater than 0", activityPubIRICacheSizeFlagName)
+			return 0, 0, fmt.Errorf("value for parameter [%s] must be grater than 0", params.sizeFlag)
 		}
 	}
 
-	cacheExpiration, err := getDuration(cmd, activityPubIRICacheExpirationFlagName,
-		activityPubIRICacheExpirationEnvKey, defaultActivityPubIRICacheExpiration)
+	cacheExpiration, err := cmdutil.GetDuration(cmd, params.expirationFlag, params.expirationEnvKey, params.defaultExpiration)
 	if err != nil {
-		return 0, 0, fmt.Errorf("invalid value for parameter [%s]: %w",
-			activityPubIRICacheExpirationFlagName, err)
+		return 0, 0, fmt.Errorf("invalid value for parameter [%s]: %w", params.expirationFlag, err)
 	}
 
 	return cacheSize, cacheExpiration, nil
 }
 
 func getAnchorSyncParameters(cmd *cobra.Command) (syncPeriod, minActivityAge time.Duration, err error) {
-	syncPeriod, err = getDuration(cmd, anchorSyncIntervalFlagName, anchorSyncIntervalEnvKey, defaultAnchorSyncInterval)
+	syncPeriod, err = cmdutil.GetDuration(cmd, anchorSyncIntervalFlagName, anchorSyncIntervalEnvKey, defaultAnchorSyncInterval)
 	if err != nil {
 		return 0, 0, fmt.Errorf("%s: %w", anchorSyncIntervalFlagName, err)
 	}
 
-	minActivityAge, err = getDuration(cmd, anchorSyncMinActivityAgeFlagName, anchorSyncMinActivityAgeEnvKey,
+	minActivityAge, err = cmdutil.GetDuration(cmd, anchorSyncMinActivityAgeFlagName, anchorSyncMinActivityAgeEnvKey,
 		defaultAnchorSyncMinActivityAge)
 	if err != nil {
 		return 0, 0, fmt.Errorf("%s: %w", anchorSyncMinActivityAgeFlagName, err)
@@ -2189,8 +2155,9 @@ func getAnchorSyncParameters(cmd *cobra.Command) (syncPeriod, minActivityAge tim
 	return syncPeriod, minActivityAge, nil
 }
 
-func newAPServiceParams(apServiceID, externalEndpoint string, kmsParams *kmsParameters,
-	enableDevMode bool) (params *apServiceParams, err error) {
+func newAPServiceParams(apServiceID, externalEndpoint string,
+	kmsParams *kmsParameters, enableDevMode bool,
+) (params *apServiceParams, err error) {
 	if apServiceID == "" {
 		apServiceID = externalEndpoint + activityPubServicesPath
 	}
@@ -2198,11 +2165,11 @@ func newAPServiceParams(apServiceID, externalEndpoint string, kmsParams *kmsPara
 	var apServiceEndpoint string
 
 	if util.IsDID(apServiceID) {
-		var err error
+		var e error
 
-		apServiceEndpoint, err = getEndpointFromDIDWeb(apServiceID, enableDevMode)
-		if err != nil {
-			return nil, fmt.Errorf("get endpoint from DID [%s]: %w", apServiceID, err)
+		apServiceEndpoint, e = getEndpointFromDIDWeb(apServiceID, enableDevMode)
+		if e != nil {
+			return nil, fmt.Errorf("get endpoint from DID [%s]: %w", apServiceID, e)
 		}
 	} else {
 		apServiceEndpoint = apServiceID
@@ -2279,6 +2246,7 @@ func getEndpointFromDIDWeb(id string, useHTTP bool) (string, error) {
 	return protocolScheme + strings.Join(pathComponents, "/"), nil
 }
 
+//nolint:funlen
 func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(hostURLFlagName, hostURLFlagShorthand, "", hostURLFlagUsage)
 	startCmd.Flags().String(syncTimeoutFlagName, "1", syncTimeoutFlagUsage)
@@ -2388,7 +2356,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(allowedOriginsCacheExpirationFlagName, "", "", allowedOriginsCacheExpirationFlagUsage)
 	startCmd.Flags().String(kmsRegionFlagName, "", kmsRegionFlagUsage)
 	startCmd.Flags().StringP(metricsProviderFlagName, "", "", allowedMetricsProviderFlagUsage)
-	startCmd.Flags().StringP(promHttpUrlFlagName, "", "", allowedPromHttpUrlFlagNameUsage)
+	startCmd.Flags().StringP(promHTTPURLFlagName, "", "", allowedPromHTTPURLFlagNameUsage)
 	startCmd.Flags().StringP(tracingProviderFlagName, "", "", tracingProviderFlagUsage)
 	startCmd.Flags().StringP(tracingCollectorURLFlagName, "", "", tracingCollectorURLFlagUsage)
 	startCmd.Flags().StringP(tracingServiceNameFlagName, "", "", tracingServiceNameFlagUsage)

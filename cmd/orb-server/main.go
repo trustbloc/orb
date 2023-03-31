@@ -8,9 +8,9 @@ SPDX-License-Identifier: Apache-2.0
 //
 // Terms Of Service:
 //
-//     Schemes: http
-//     Version: 1.0
-//     License: SPDX-License-Identifier: Apache-2.0
+// Schemes: http
+// Version: 1.0
+// License: SPDX-License-Identifier: Apache-2.0
 //
 // swagger:meta
 package main

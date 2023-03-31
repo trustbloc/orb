@@ -20,6 +20,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/logutil-go/pkg/log"
 
+	"github.com/trustbloc/orb/internal/pkg/cmdutil"
 	"github.com/trustbloc/orb/pkg/observability/tracing"
 )
 
@@ -114,7 +115,8 @@ func TestAuthTokens(t *testing.T) {
 	}
 	startCmd.SetArgs(args)
 
-	err := startCmd.Execute()
+	// We don't want to start the server - just initialize the args.
+	require.Error(t, startCmd.Execute())
 
 	authDefs, err := getAuthTokenDefinitions(startCmd, authTokensDefFlagName, authTokensDefEnvKey, nil)
 	require.NoError(t, err)
@@ -203,7 +205,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8248",
+			"--" + promHTTPURLFlagName, "localhost:8248",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -228,7 +230,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8248",
+			"--" + promHTTPURLFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -253,7 +255,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8248",
+			"--" + promHTTPURLFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -279,7 +281,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8248",
+			"--" + promHTTPURLFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -306,7 +308,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8248",
+			"--" + promHTTPURLFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -333,7 +335,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8248",
+			"--" + promHTTPURLFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -350,7 +352,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		err := startCmd.Execute()
 
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "invalid sign with local witness flag value")
+		require.Contains(t, err.Error(), "invalid value for sign-with-local-witness")
 	})
 
 	t.Run("test invalid sync time format", func(t *testing.T) {
@@ -359,7 +361,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8248",
+			"--" + promHTTPURLFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -375,7 +377,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		err := startCmd.Execute()
 
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "sync timeout is not a number(positive)")
+		require.Contains(t, err.Error(), "invalid value for sync-timeout")
 	})
 	t.Run("test invalid enable-http-signatures", func(t *testing.T) {
 		startCmd := GetStartCmd()
@@ -383,11 +385,12 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8248",
+			"--" + promHTTPURLFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace", "--" + databaseTypeFlagName, databaseTypeMemOption,
+			"--" + kmsTypeFlagName, "local",
 			"--" + kmsSecretsDatabaseTypeFlagName, databaseTypeMemOption,
 			"--" + anchorCredentialDomainFlagName, "domain.com",
 			"--" + LogLevelFlagName, log.ERROR.String(),
@@ -408,7 +411,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8248",
+			"--" + promHTTPURLFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -433,7 +436,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8248",
+			"--" + promHTTPURLFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -458,7 +461,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8248",
+			"--" + promHTTPURLFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -483,7 +486,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8248",
+			"--" + promHTTPURLFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -508,7 +511,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8248",
+			"--" + promHTTPURLFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -533,7 +536,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8248",
+			"--" + promHTTPURLFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -558,7 +561,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8248",
+			"--" + promHTTPURLFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -583,7 +586,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8247",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8248",
+			"--" + promHTTPURLFlagName, "localhost:8248",
 			"--" + externalEndpointFlagName, "orb.example.com",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
@@ -608,7 +611,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 
@@ -621,7 +624,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
@@ -634,7 +637,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
@@ -647,7 +650,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
@@ -660,7 +663,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
@@ -673,7 +676,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
@@ -686,7 +689,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
@@ -699,7 +702,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
@@ -712,7 +715,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
@@ -725,11 +728,11 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "sync-interval: invalid value [xxx]")
+		require.Contains(t, err.Error(), "invalid value for sync-interval [xxx]")
 	})
 
 	t.Run("VCT proof monitoring interval", func(t *testing.T) {
@@ -738,11 +741,11 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "vct-proof-monitoring-interval: invalid value [xxx]")
+		require.Contains(t, err.Error(), "invalid value for vct-proof-monitoring-interval [xxx]")
 	})
 
 	t.Run("VCT proof monitoring expiry period", func(t *testing.T) {
@@ -751,11 +754,11 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "vct-proof-monitoring-expiry-period: invalid value [xxx]")
+		require.Contains(t, err.Error(), "invalid value for vct-proof-monitoring-expiry-period [xxx]")
 	})
 
 	t.Run("VCT log monitoring interval", func(t *testing.T) {
@@ -764,11 +767,11 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "vct-log-monitoring-interval: invalid value [xxx]")
+		require.Contains(t, err.Error(), "invalid value for vct-log-monitoring-interval [xxx]")
 	})
 
 	t.Run("VCT log monitoring max tree size", func(t *testing.T) {
@@ -777,7 +780,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
@@ -790,7 +793,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
@@ -803,11 +806,11 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "vct-log-entries-store-enabled: strconv.ParseBool: parsing \"xxx\": invalid syntax")
+		require.Contains(t, err.Error(), "invalid value for vct-log-entries-store-enabled")
 	})
 
 	t.Run("anchor status monitoring interval", func(t *testing.T) {
@@ -816,11 +819,11 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "anchor-status-monitoring-interval: invalid value [xxx]")
+		require.Contains(t, err.Error(), "invalid value for anchor-status-monitoring-interval [xxx]")
 	})
 
 	t.Run("anchor status in-process grace period", func(t *testing.T) {
@@ -829,11 +832,11 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "anchor-status-in-process-grace-period: invalid value [xxx]")
+		require.Contains(t, err.Error(), "invalid value for anchor-status-in-process-grace-period [xxx]")
 	})
 
 	t.Run("witness policy cache expiration", func(t *testing.T) {
@@ -842,11 +845,11 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "witness-policy-cache-expiration: invalid value [xxx]")
+		require.Contains(t, err.Error(), "invalid value for witness-policy-cache-expiration [xxx]")
 	})
 
 	t.Run("ActivityPub client parameters", func(t *testing.T) {
@@ -855,7 +858,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
@@ -868,7 +871,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
@@ -881,11 +884,11 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "allowed-origins-cache-expiration: invalid value [xxx]")
+		require.Contains(t, err.Error(), "invalid value for allowed-origins-cache-expiration [xxx]")
 	})
 
 	t.Run("allowed DID web domains", func(t *testing.T) {
@@ -894,7 +897,7 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
 
 		err := startCmd.Execute()
 		require.Error(t, err)
@@ -906,10 +909,9 @@ func TestStartCmdWithBlankEnvVar(t *testing.T) {
 	t.Run("test blank host env var", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		err := os.Setenv(hostURLEnvKey, "")
-		require.NoError(t, err)
+		t.Setenv(hostURLEnvKey, "")
 
-		err = startCmd.Execute()
+		err := startCmd.Execute()
 		require.Error(t, err)
 		require.Equal(t, "ORB_HOST_URL value is empty", err.Error())
 	})
@@ -917,21 +919,16 @@ func TestStartCmdWithBlankEnvVar(t *testing.T) {
 	t.Run("test blank cas url env var", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		err := os.Setenv(hostURLEnvKey, "localhost:8080")
-		require.NoError(t, err)
-
-		err = os.Setenv(promHttpUrlEnvKey, "localhost:8081")
-		require.NoError(t, err)
-
-		err = os.Setenv(casTypeEnvKey, "")
-		require.NoError(t, err)
+		t.Setenv(hostURLEnvKey, "localhost:8080")
+		t.Setenv(promHTTPURLEnvKey, "localhost:8081")
+		t.Setenv(casTypeEnvKey, "")
 
 		defer func() {
 			require.NoError(t, os.Unsetenv(hostURLEnvKey))
 			require.NoError(t, os.Unsetenv(casTypeEnvKey))
 		}()
 
-		err = startCmd.Execute()
+		err := startCmd.Execute()
 		require.Error(t, err)
 		require.Equal(t, "CAS_TYPE value is empty", err.Error())
 	})
@@ -943,7 +940,7 @@ func TestStartCmdWithInvalidCIDVersion(t *testing.T) {
 	args := []string{
 		"--" + hostURLFlagName, "localhost:8247",
 		"--" + metricsProviderFlagName, "prometheus",
-		"--" + promHttpUrlFlagName, "localhost:8248",
+		"--" + promHTTPURLFlagName, "localhost:8248",
 		"--" + externalEndpointFlagName, "orb.example.com",
 		"--" + ipfsURLFlagName, "localhost:8081",
 		"--" + casTypeFlagName, "ipfs",
@@ -969,7 +966,7 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8081",
+			"--" + promHTTPURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
@@ -992,7 +989,7 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8081",
+			"--" + promHTTPURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "ipfs",
 			"--" + ipfsURLFlagName, "localhost:8081",
 			"--" + didNamespaceFlagName, "namespace",
@@ -1015,7 +1012,7 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8081",
+			"--" + promHTTPURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "local",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -1035,7 +1032,7 @@ func TestStartCmdCreateKMSFailure(t *testing.T) {
 		args := []string{
 			"--" + hostURLFlagName, "localhost:8080",
 			"--" + metricsProviderFlagName, "prometheus",
-			"--" + promHttpUrlFlagName, "localhost:8081",
+			"--" + promHTTPURLFlagName, "localhost:8081",
 			"--" + casTypeFlagName, "local",
 			"--" + didNamespaceFlagName, "namespace",
 			"--" + databaseTypeFlagName, databaseTypeMemOption,
@@ -1114,7 +1111,7 @@ func TestStartCmdValidArgs(t *testing.T) {
 			startCmd := GetStartCmd()
 
 			startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false",
-				databaseTypeMemOption, ""))
+				databaseTypeMemOption))
 
 			go func() {
 				err := startCmd.Execute()
@@ -1131,7 +1128,7 @@ func TestStartCmdValidArgs(t *testing.T) {
 				startCmd := GetStartCmd()
 
 				startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false",
-					databaseTypeMongoDBOption, ""))
+					databaseTypeMongoDBOption))
 
 				err := startCmd.Execute()
 				require.EqualError(t, err,
@@ -1144,7 +1141,7 @@ func TestStartCmdValidArgs(t *testing.T) {
 		"is enabled. Replication is forced off since ipfs.io doesn't support writes", func(t *testing.T) {
 		startCmd := GetStartCmd()
 
-		startCmd.SetArgs(getTestArgs("https://ipfs.io", "local", "true", databaseTypeMemOption, ""))
+		startCmd.SetArgs(getTestArgs("https://ipfs.io", "local", "true", databaseTypeMemOption))
 
 		go func() {
 			err := startCmd.Execute()
@@ -1161,7 +1158,7 @@ func TestStartCmdValidArgs(t *testing.T) {
 func TestStartCmdWithConflictingIPFSAndCASTypeSettings(t *testing.T) {
 	startCmd := GetStartCmd()
 
-	startCmd.SetArgs(getTestArgs("https://ipfs.io", "ipfs", "false", databaseTypeMemOption, ""))
+	startCmd.SetArgs(getTestArgs("https://ipfs.io", "ipfs", "false", databaseTypeMemOption))
 
 	err := startCmd.Execute()
 	require.EqualError(t, err, "CAS type cannot be set to IPFS if ipfs.io is being used as the node "+
@@ -1172,7 +1169,7 @@ func TestStartCmdWithConflictingIPFSAndCASTypeSettings(t *testing.T) {
 func TestStartCmdWithUnparsableIPFSURL(t *testing.T) {
 	startCmd := GetStartCmd()
 
-	startCmd.SetArgs(getTestArgs("%s", "ipfs", "false", databaseTypeMemOption, ""))
+	startCmd.SetArgs(getTestArgs("%s", "ipfs", "false", databaseTypeMemOption))
 
 	err := startCmd.Execute()
 	require.EqualError(t, err, `failed to parse IPFS URL: parse "%s": invalid URL escape "%s"`)
@@ -1181,7 +1178,7 @@ func TestStartCmdWithUnparsableIPFSURL(t *testing.T) {
 func TestStartCmdWithInvalidCASType(t *testing.T) {
 	startCmd := GetStartCmd()
 
-	startCmd.SetArgs(getTestArgs("localhost:8081", "InvalidName", "false", databaseTypeMemOption, ""))
+	startCmd.SetArgs(getTestArgs("localhost:8081", "InvalidName", "false", databaseTypeMemOption))
 
 	err := startCmd.Execute()
 	require.EqualError(t, err, "InvalidName is not a valid CAS type. It must be either local or ipfs")
@@ -1235,7 +1232,7 @@ func TestGetIPFSTimeout(t *testing.T) {
 	t.Run("Not specified -> default value", func(t *testing.T) {
 		cmd := getTestCmd(t)
 
-		timeout, err := getDuration(cmd, ipfsTimeoutFlagName, ipfsTimeoutEnvKey, defaultIPFSTimeout)
+		timeout, err := cmdutil.GetDuration(cmd, ipfsTimeoutFlagName, ipfsTimeoutEnvKey, defaultIPFSTimeout)
 		require.NoError(t, err)
 		require.Equal(t, defaultIPFSTimeout, timeout)
 	})
@@ -1243,7 +1240,7 @@ func TestGetIPFSTimeout(t *testing.T) {
 	t.Run("Invalid value -> error", func(t *testing.T) {
 		cmd := getTestCmd(t, "--"+ipfsTimeoutFlagName, "xxx")
 
-		_, err := getDuration(cmd, ipfsTimeoutFlagName, ipfsTimeoutEnvKey, defaultIPFSTimeout)
+		_, err := cmdutil.GetDuration(cmd, ipfsTimeoutFlagName, ipfsTimeoutEnvKey, defaultIPFSTimeout)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid value")
 	})
@@ -1251,7 +1248,7 @@ func TestGetIPFSTimeout(t *testing.T) {
 	t.Run("Valid value -> success", func(t *testing.T) {
 		cmd := getTestCmd(t, "--"+ipfsTimeoutFlagName, "30s")
 
-		timeout, err := getDuration(cmd, ipfsTimeoutFlagName, ipfsTimeoutEnvKey, defaultIPFSTimeout)
+		timeout, err := cmdutil.GetDuration(cmd, ipfsTimeoutFlagName, ipfsTimeoutEnvKey, defaultIPFSTimeout)
 		require.NoError(t, err)
 		require.Equal(t, 30*time.Second, timeout)
 	})
@@ -1262,7 +1259,7 @@ func TestGetIPFSTimeout(t *testing.T) {
 
 		cmd := getTestCmd(t)
 
-		timeout, err := getDuration(cmd, ipfsTimeoutFlagName, ipfsTimeoutEnvKey, defaultIPFSTimeout)
+		timeout, err := cmdutil.GetDuration(cmd, ipfsTimeoutFlagName, ipfsTimeoutEnvKey, defaultIPFSTimeout)
 		require.NoError(t, err)
 		require.Equal(t, 40*time.Second, timeout)
 	})
@@ -1320,10 +1317,7 @@ func TestGetMQParameters(t *testing.T) {
 
 	t.Run("Not specified -> default value", func(t *testing.T) {
 		restoreURLEnv := setEnv(t, mqURLEnvKey, u)
-
-		defer func() {
-			restoreURLEnv()
-		}()
+		defer restoreURLEnv()
 
 		cmd := getTestCmd(t)
 
@@ -1345,9 +1339,7 @@ func TestGetMQParameters(t *testing.T) {
 	t.Run("Invalid max connection subscriptions value -> error", func(t *testing.T) {
 		restoreEnv := setEnv(t, mqMaxConnectionChannelsEnvKey, "xxx")
 
-		defer func() {
-			restoreEnv()
-		}()
+		defer restoreEnv()
 
 		cmd := getTestCmd(t)
 
@@ -1359,9 +1351,7 @@ func TestGetMQParameters(t *testing.T) {
 	t.Run("Invalid publisher channel pool value -> error", func(t *testing.T) {
 		restoreEnv := setEnv(t, mqPublisherChannelPoolSizeEnvKey, "xxx")
 
-		defer func() {
-			restoreEnv()
-		}()
+		defer restoreEnv()
 
 		cmd := getTestCmd(t)
 
@@ -1373,9 +1363,7 @@ func TestGetMQParameters(t *testing.T) {
 	t.Run("Invalid publisher confirm delivery -> error", func(t *testing.T) {
 		restoreEnv := setEnv(t, mqPublisherConfirmDeliveryEnvKey, "xxx")
 
-		defer func() {
-			restoreEnv()
-		}()
+		defer restoreEnv()
 
 		cmd := getTestCmd(t)
 
@@ -1399,7 +1387,7 @@ func TestGetOpQueueParameters(t *testing.T) {
 
 		cmd := getTestCmd(t)
 
-		opQueueParams, err := getOpQueueParameters(cmd, time.Minute,
+		opQueueParams, err := getOpQueueParameters(cmd,
 			&mqParams{
 				redeliveryMultiplier:      2.5,
 				redeliveryInitialInterval: 4 * time.Second,
@@ -1420,7 +1408,7 @@ func TestGetOpQueueParameters(t *testing.T) {
 	t.Run("Not specified -> default value", func(t *testing.T) {
 		cmd := getTestCmd(t)
 
-		opQueueParams, err := getOpQueueParameters(cmd, time.Minute, &mqParams{})
+		opQueueParams, err := getOpQueueParameters(cmd, &mqParams{})
 		require.NoError(t, err)
 		require.Equal(t, opQueueDefaultPoolSize, opQueueParams.PoolSize)
 		require.Equal(t, opQueueDefaultTaskMonitorInterval, opQueueParams.TaskMonitorInterval)
@@ -1429,42 +1417,33 @@ func TestGetOpQueueParameters(t *testing.T) {
 
 	t.Run("Invalid pool size value -> error", func(t *testing.T) {
 		restoreEnv := setEnv(t, opQueuePoolEnvKey, "xxx")
-
-		defer func() {
-			restoreEnv()
-		}()
+		defer restoreEnv()
 
 		cmd := getTestCmd(t)
 
-		_, err := getOpQueueParameters(cmd, time.Minute, &mqParams{})
+		_, err := getOpQueueParameters(cmd, &mqParams{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid value")
 	})
 
 	t.Run("Invalid task monitor interval value -> error", func(t *testing.T) {
 		restoreTaskMonitorIntervalEnv := setEnv(t, opQueueTaskMonitorIntervalEnvKey, "17")
-
-		defer func() {
-			restoreTaskMonitorIntervalEnv()
-		}()
+		defer restoreTaskMonitorIntervalEnv()
 
 		cmd := getTestCmd(t)
 
-		_, err := getOpQueueParameters(cmd, time.Minute, &mqParams{})
+		_, err := getOpQueueParameters(cmd, &mqParams{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid value")
 	})
 
 	t.Run("Invalid task expiration value -> error", func(t *testing.T) {
 		restoreTaskExpirationEnv := setEnv(t, opQueueTaskExpirationEnvKey, "33")
-
-		defer func() {
-			restoreTaskExpirationEnv()
-		}()
+		defer restoreTaskExpirationEnv()
 
 		cmd := getTestCmd(t)
 
-		_, err := getOpQueueParameters(cmd, time.Minute, &mqParams{})
+		_, err := getOpQueueParameters(cmd, &mqParams{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid value")
 	})
@@ -1756,61 +1735,27 @@ func TestTracingParameters(t *testing.T) {
 func setEnvVars(t *testing.T, databaseType, casType, replicateLocalCASToIPFS string) {
 	t.Helper()
 
-	err := os.Setenv(hostURLEnvKey, "localhost:8237")
-	require.NoError(t, err)
-
-	err = os.Setenv(enableVCTFlagName, "true")
-	require.NoError(t, err)
-
-	err = os.Setenv(casTypeEnvKey, casType)
-	require.NoError(t, err)
-
-	err = os.Setenv(localCASReplicateInIPFSEnvKey, replicateLocalCASToIPFS)
-	require.NoError(t, err)
-
-	err = os.Setenv(batchWriterTimeoutEnvKey, "2000")
-	require.NoError(t, err)
-
-	err = os.Setenv(maxWitnessDelayEnvKey, "10m")
-	require.NoError(t, err)
-
-	err = os.Setenv(witnessStoreExpiryPeriodEnvKey, "12m")
-	require.NoError(t, err)
-
-	err = os.Setenv(signWithLocalWitnessEnvKey, "true")
-	require.NoError(t, err)
-
-	err = os.Setenv(didNamespaceEnvKey, "namespace")
-	require.NoError(t, err)
-
-	err = os.Setenv(databaseTypeEnvKey, databaseType)
-	require.NoError(t, err)
-
-	err = os.Setenv(kmsSecretsDatabaseTypeEnvKey, databaseTypeMemOption)
-	require.NoError(t, err)
-
-	err = os.Setenv(anchorCredentialDomainEnvKey, "domain")
-	require.NoError(t, err)
-
-	err = os.Setenv(enableUnpublishedOperationStoreEnvKey, "true")
-	require.NoError(t, err)
-
-	err = os.Setenv(sidetreeProtocolVersionsEnvKey, "1.0")
-	require.NoError(t, err)
-
-	err = os.Setenv(currentSidetreeProtocolVersionEnvKey, "1.0")
-	require.NoError(t, err)
-
-	err = os.Setenv(kmsTypeEnvKey, "local")
-	require.NoError(t, err)
-
-	err = os.Setenv(kmsSecretsDatabaseTypeFlagName, "mem")
-	require.NoError(t, err)
-
-	err = os.Setenv(maintenanceModeEnabledEnvKey, "false")
-	require.NoError(t, err)
+	t.Setenv(hostURLEnvKey, "localhost:8237")
+	t.Setenv(enableVCTFlagName, "true")
+	t.Setenv(casTypeEnvKey, casType)
+	t.Setenv(localCASReplicateInIPFSEnvKey, replicateLocalCASToIPFS)
+	t.Setenv(batchWriterTimeoutEnvKey, "2000")
+	t.Setenv(maxWitnessDelayEnvKey, "10m")
+	t.Setenv(witnessStoreExpiryPeriodEnvKey, "12m")
+	t.Setenv(signWithLocalWitnessEnvKey, "true")
+	t.Setenv(didNamespaceEnvKey, "namespace")
+	t.Setenv(databaseTypeEnvKey, databaseType)
+	t.Setenv(kmsSecretsDatabaseTypeEnvKey, databaseTypeMemOption)
+	t.Setenv(anchorCredentialDomainEnvKey, "domain")
+	t.Setenv(enableUnpublishedOperationStoreEnvKey, "true")
+	t.Setenv(sidetreeProtocolVersionsEnvKey, "1.0")
+	t.Setenv(currentSidetreeProtocolVersionEnvKey, "1.0")
+	t.Setenv(kmsTypeEnvKey, "local")
+	t.Setenv(kmsSecretsDatabaseTypeFlagName, "mem")
+	t.Setenv(maintenanceModeEnabledEnvKey, "false")
 }
 
+//nolint:gocritic
 func unsetEnvVars(t *testing.T) {
 	t.Helper()
 
@@ -1859,19 +1804,18 @@ func getTestCmd(t *testing.T, args ...string) *cobra.Command {
 
 func setEnv(t *testing.T, name, value string) (restore func()) {
 	t.Helper()
-
-	require.NoError(t, os.Setenv(name, value))
+	t.Setenv(name, value)
 
 	return func() {
 		require.NoError(t, os.Unsetenv(name))
 	}
 }
 
-func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType, databaseURL string) []string {
-	args := []string{
+func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType string) []string {
+	return []string{
 		"--" + hostURLFlagName, "localhost:8247",
 		"--" + metricsProviderFlagName, "prometheus",
-		"--" + promHttpUrlFlagName, "localhost:8248",
+		"--" + promHTTPURLFlagName, "localhost:8248",
 		"--" + externalEndpointFlagName, "orb.example.com",
 		"--" + discoveryDomainFlagName, "shared.example.com",
 		"--" + enableVCTFlagName, "true",
@@ -1899,12 +1843,6 @@ func getTestArgs(ipfsURL, casType, localCASReplicateInIPFSEnabled, databaseType,
 		"--" + kmsTypeFlagName, "local",
 		"--" + maintenanceModeEnabledFlagName, "false",
 	}
-
-	if databaseURL != "" {
-		args = append(args, "--"+databaseURLFlagName, databaseURL, "--"+kmsSecretsDatabaseURLFlagName, databaseURL)
-	}
-
-	return args
 }
 
 func Test_getAPServiceParams(t *testing.T) {
