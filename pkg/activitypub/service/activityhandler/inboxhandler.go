@@ -42,7 +42,8 @@ type Inbox struct {
 
 // NewInbox returns a new ActivityPub inbox activity handler.
 func NewInbox(cfg *Config, s store.Store, outbox service.Outbox,
-	activityPubClient activityPubClient, opts ...service.HandlerOpt) *Inbox {
+	activityPubClient activityPubClient, opts ...service.HandlerOpt,
+) *Inbox {
 	options := defaultOptions()
 
 	for _, opt := range opts {
@@ -149,7 +150,8 @@ func (h *Inbox) HandleCreateActivity(ctx context.Context, source *url.URL, creat
 }
 
 func (h *Inbox) handleEmbeddedAnchorEvent(ctx context.Context, source *url.URL, create *vocab.ActivityType,
-	anchorEvent *vocab.AnchorEventType, announce bool) error {
+	anchorEvent *vocab.AnchorEventType, announce bool,
+) error {
 	if len(anchorEvent.URL()) == 0 {
 		return errors.New("missing anchor URL")
 	}
@@ -169,7 +171,8 @@ func (h *Inbox) handleEmbeddedAnchorEvent(ctx context.Context, source *url.URL, 
 }
 
 func (h *Inbox) handleAnchorEventRef(ctx context.Context, source *url.URL, create *vocab.ActivityType,
-	anchorEventURL *url.URL, announce bool) error {
+	anchorEventURL *url.URL, announce bool,
+) error {
 	if err := h.handleAnchorEventReference(ctx, create.Actor(), anchorEventURL, source); err != nil {
 		return fmt.Errorf("error handling 'Create' activity [%s]: %w", create.ID(), err)
 	}
@@ -185,7 +188,8 @@ func (h *Inbox) handleAnchorEventRef(ctx context.Context, source *url.URL, creat
 }
 
 func (h *Inbox) handleReferenceActivity(ctx context.Context, activity *vocab.ActivityType, refType store.ReferenceType,
-	auth service.ActorAuth, getTargetIRI func() *url.URL) error {
+	auth service.ActorAuth, getTargetIRI func() *url.URL,
+) error {
 	h.logger.Debug("Handling activity", logfields.WithActivityType(activity.Type().String()), logfields.WithActivityID(activity.ID()))
 
 	err := h.validateActivity(activity, getTargetIRI)
@@ -669,7 +673,8 @@ func (h *Inbox) handleAnchorEventReference(ctx context.Context, actor, anchorRef
 
 //nolint:cyclop
 func (h *Inbox) handleAnnounceCollection(ctx context.Context, source *url.URL, announce *vocab.ActivityType,
-	items []*vocab.ObjectProperty) (int, error) {
+	items []*vocab.ObjectProperty,
+) (int, error) {
 	var anchorURIs []*url.URL
 
 	for _, item := range items {
@@ -951,7 +956,8 @@ func (h *Inbox) witnessAnchorCredential(vcBytes []byte) (*vocab.ObjectType, erro
 }
 
 func (h *Inbox) undoFollowReference(activity *vocab.ActivityType,
-	getTargetIRI func() *url.URL) error {
+	getTargetIRI func() *url.URL,
+) error {
 	err := h.undoAddReference(activity, store.Follower, getTargetIRI)
 	if err != nil {
 		return err
@@ -966,7 +972,8 @@ func (h *Inbox) undoFollowReference(activity *vocab.ActivityType,
 }
 
 func (h *Inbox) undoAddReference(activity *vocab.ActivityType, refType store.ReferenceType,
-	getTargetIRI func() *url.URL) error {
+	getTargetIRI func() *url.URL,
+) error {
 	iri := getTargetIRI()
 	if iri == nil {
 		return fmt.Errorf("no IRI specified in the '%s' activity", activity.Type())
@@ -1082,8 +1089,7 @@ func ensureSameActivity(a1, a2 *vocab.ActivityType) error {
 
 type noOpAnchorCredentialPublisher struct{}
 
-func (p *noOpAnchorCredentialPublisher) HandleAnchorEvent(ctx context.Context, actor, anchorEventRef, source *url.URL,
-	anchorEvent *vocab.AnchorEventType) error {
+func (p *noOpAnchorCredentialPublisher) HandleAnchorEvent(_ context.Context, _, _, _ *url.URL, _ *vocab.AnchorEventType) error {
 	return nil
 }
 
@@ -1104,7 +1110,8 @@ func (p *noOpProofHandler) HandleProof(ctx context.Context, witness *url.URL, an
 type noOpAnchorAcknowledgementHandler struct{}
 
 func (p *noOpAnchorAcknowledgementHandler) AnchorEventAcknowledged(actor, anchorRef *url.URL,
-	additionalAnchorRefs []*url.URL) error {
+	additionalAnchorRefs []*url.URL,
+) error {
 	logger.Debug("Anchor event was acknowledged by actor",
 		logfields.WithActorIRI(actor), zap.String("anchor-event-uri", hashlink.ToString(anchorRef)),
 		zap.String("additional-anchors", hashlink.ToString(additionalAnchorRefs...)))
@@ -1113,7 +1120,8 @@ func (p *noOpAnchorAcknowledgementHandler) AnchorEventAcknowledged(actor, anchor
 }
 
 func (p *noOpAnchorAcknowledgementHandler) UndoAnchorEventAcknowledgement(actor, anchorRef *url.URL,
-	additionalAnchorRefs []*url.URL) error {
+	additionalAnchorRefs []*url.URL,
+) error {
 	logger.Debug("Anchor event was undone by actor",
 		logfields.WithActorIRI(actor), zap.String("anchor-event-uri", hashlink.ToString(anchorRef)),
 		zap.String("additional-anchors", hashlink.ToString(additionalAnchorRefs...)))

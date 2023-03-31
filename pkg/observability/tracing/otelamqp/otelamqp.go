@@ -39,6 +39,7 @@ type pubSub interface {
 	Close() error
 }
 
+// PubSub wraps the publisher/subscriber to inject/collect OpenTelemetry tracing data.
 type PubSub struct {
 	pubSub
 
@@ -47,6 +48,7 @@ type PubSub struct {
 	messagingSystem string
 }
 
+// New returns an OpenTelemetry publisher/subscriber wrapper.
 func New(p pubSub) *PubSub {
 	return &PubSub{
 		pubSub:          p,
@@ -56,6 +58,7 @@ func New(p pubSub) *PubSub {
 	}
 }
 
+// Publish injects OpenTelemetry tracing data before publishing the given messages.
 func (p *PubSub) Publish(queue string, messages ...*message.Message) error {
 	if len(messages) > 1 {
 		logger.Warn("Tracing is supported for only one message at a time. No tracing will be performed.",
@@ -81,6 +84,7 @@ func (p *PubSub) Publish(queue string, messages ...*message.Message) error {
 	return err
 }
 
+// PublishWithOpts injects OpenTelemetry tracing data before publishing the given message.
 func (p *PubSub) PublishWithOpts(queue string, msg *message.Message, opts ...spi.Option) error {
 	span := p.startPubSpan(queue, msg)
 
@@ -155,6 +159,8 @@ func (p *PubSub) finishSpan(span trace.Span, err error) {
 	span.End()
 }
 
+// Subscribe subscribes to the given queue. When messages are consumed, OpenTelemetry data is
+// extracted from the message header.
 func (p *PubSub) Subscribe(ctx context.Context, queue string) (<-chan *message.Message, error) {
 	msgChan, err := p.pubSub.Subscribe(ctx, queue)
 	if err != nil {
@@ -163,11 +169,13 @@ func (p *PubSub) Subscribe(ctx context.Context, queue string) (<-chan *message.M
 
 	subChan := make(chan *message.Message)
 
-	go p.listen(queue, msgChan, subChan)
+	go p.listen(queue, msgChan, subChan) //nolint:contextcheck
 
 	return subChan, nil
 }
 
+// SubscribeWithOpts subscribes to the given queue. When messages are consumed, OpenTelemetry data is
+// extracted from the message header.
 func (p *PubSub) SubscribeWithOpts(ctx context.Context, queue string, opts ...spi.Option) (<-chan *message.Message, error) {
 	msgChan, err := p.pubSub.SubscribeWithOpts(ctx, queue, opts...)
 	if err != nil {
@@ -176,7 +184,7 @@ func (p *PubSub) SubscribeWithOpts(ctx context.Context, queue string, opts ...sp
 
 	subChan := make(chan *message.Message)
 
-	go p.listen(queue, msgChan, subChan)
+	go p.listen(queue, msgChan, subChan) //nolint:contextcheck
 
 	return subChan, nil
 }

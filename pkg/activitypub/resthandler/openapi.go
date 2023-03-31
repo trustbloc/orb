@@ -334,7 +334,7 @@ type outboxPostResp struct { //nolint: unused
 //
 //	200: outboxPostResp
 //
-//nolint: lll,goimports
+//nolint:lll
 func outboxPostRequest() { //nolint: unused
 }
 
@@ -365,7 +365,7 @@ type likesGetResp struct { //nolint: unused
 //
 // 200: likesGetResp
 //
-//nolint: lll,goimports
+//nolint:lll
 func likesGetRequest() { //nolint: unused
 }
 

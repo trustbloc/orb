@@ -73,7 +73,8 @@ type task struct {
 
 // Register registers the anchor event synchronization task.
 func Register(cfg Config, taskMgr taskManager, apClient activityPubClient, apStore store.Store,
-	storageProvider storage.Provider, handlerFactory func() spi.InboxHandler) error {
+	storageProvider storage.Provider, handlerFactory func() spi.InboxHandler,
+) error {
 	interval := cfg.Interval
 
 	if interval == 0 {
@@ -102,7 +103,8 @@ func Register(cfg Config, taskMgr taskManager, apClient activityPubClient, apSto
 
 func newTask(serviceIRI *url.URL, apClient activityPubClient, apStore store.Store,
 	storageProvider storage.Provider, minActivityAge time.Duration,
-	handlerFactory func() spi.InboxHandler) (*task, error) {
+	handlerFactory func() spi.InboxHandler,
+) (*task, error) {
 	s, err := newSyncStore(storageProvider)
 	if err != nil {
 		return nil, fmt.Errorf("create new run store: %w", err)
@@ -343,7 +345,8 @@ func (m *task) getServices(refType store.ReferenceType) ([]*url.URL, error) {
 }
 
 func (m *task) getNewActivities(serviceIRI *url.URL, src activitySource) (client.ActivityIterator,
-	*url.URL, int, error) {
+	*url.URL, int, error,
+) {
 	page, index, err := m.getLastSyncedPage(serviceIRI, src)
 	if err != nil {
 		return nil, nil, 0, fmt.Errorf("get last synced page: %w", err)

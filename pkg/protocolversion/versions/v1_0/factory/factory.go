@@ -45,9 +45,9 @@ func New() *Factory {
 }
 
 // Create creates a new protocol version.
-func (v *Factory) Create(version string, casClient cas.Client, casResolver ctxcommon.CASResolver,
-	opStore ctxcommon.OperationStore, provider storage.Provider,
-	sidetreeCfg *config.Sidetree, metrics metricsProvider.Metrics) (protocol.Version, error) {
+func (v *Factory) Create(version string, casClient cas.Client, casResolver ctxcommon.CASResolver, opStore ctxcommon.OperationStore,
+	_ storage.Provider, sidetreeCfg *config.Sidetree, metrics metricsProvider.Metrics,
+) (protocol.Version, error) {
 	p := protocolcfg.GetProtocolConfig()
 
 	opParser := operationparser.New(p,

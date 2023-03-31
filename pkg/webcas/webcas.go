@@ -63,7 +63,8 @@ type authTokenManager interface {
 // New returns a new WebCAS, which contains a REST handler that implements WebCAS as defined in
 // https://trustbloc.github.io/did-method-orb/#webcas.
 func New(authCfg *resthandler.Config, s spi.Store, verifier signatureVerifier,
-	casClient casapi.Client, tm authTokenManager) *WebCAS {
+	casClient casapi.Client, tm authTokenManager,
+) *WebCAS {
 	h := &WebCAS{
 		casClient: casClient,
 	}

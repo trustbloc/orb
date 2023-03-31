@@ -17,8 +17,7 @@ import (
 )
 
 // VerifiableCredentialFromAnchorLink validates the AnchorEvent and returns the embedded verifiable credential.
-func VerifiableCredentialFromAnchorLink(anchorLink *linkset.Link,
-	opts ...verifiable.CredentialOpt) (*verifiable.Credential, error) {
+func VerifiableCredentialFromAnchorLink(anchorLink *linkset.Link, opts ...verifiable.CredentialOpt) (*verifiable.Credential, error) {
 	if err := anchorLink.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid anchor link: %w", err)
 	}

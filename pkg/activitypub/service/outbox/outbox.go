@@ -111,7 +111,8 @@ type metricsProvider interface {
 
 // New returns a new ActivityPub Outbox.
 func New(cnfg *Config, s store.Store, pubSub pubSub, t httpTransport, activityHandler service.ActivityHandler,
-	apClient activityPubClient, resourceResolver resourceResolver, metrics metricsProvider) (*Outbox, error) {
+	apClient activityPubClient, resourceResolver resourceResolver, metrics metricsProvider,
+) (*Outbox, error) {
 	cfg := populateConfigDefaults(cnfg)
 
 	logger := log.New(loggerModule, log.WithFields(logfields.WithServiceName(cfg.ServiceName)))
@@ -409,8 +410,9 @@ func (h *Outbox) publishBroadcastMessage(ctx context.Context, activity *vocab.Ac
 	return h.publisher.Publish(h.Topic, msg)
 }
 
-func (h *Outbox) publishResolveAndDeliverMessage(ctx context.Context, activity *vocab.ActivityType, targetIRI *url.URL,
-	excludeIRIs []*url.URL) error {
+func (h *Outbox) publishResolveAndDeliverMessage(ctx context.Context,
+	activity *vocab.ActivityType, targetIRI *url.URL, excludeIRIs []*url.URL,
+) error {
 	activityMsg := &activityMessage{
 		Type:        resolveAndDeliverType,
 		Activity:    activity,
@@ -635,8 +637,7 @@ func (h *Outbox) loadReferences(refType store.ReferenceType) ([]*url.URL, error)
 
 // resolveIRIs resolves each of the given IRIs using the given resolve function. The requests are performed
 // in parallel, up to a maximum concurrent requests specified by parameter, MaxConcurrentRequests.
-func (h *Outbox) resolveIRIs(toIRIs []*url.URL,
-	resolve func(iri *url.URL) []*resolveIRIResponse) []*resolveIRIResponse {
+func (h *Outbox) resolveIRIs(toIRIs []*url.URL, resolve func(iri *url.URL) []*resolveIRIResponse) []*resolveIRIResponse {
 	var wg sync.WaitGroup
 
 	var responses []*resolveIRIResponse

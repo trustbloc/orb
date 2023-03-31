@@ -45,8 +45,9 @@ type metricsProvider interface {
 }
 
 // NewResolveHandler returns a new document resolve handler.
-func NewResolveHandler(domains []*url.URL, orbPrefix, orbUnpublishedLabel string, resolver orbResolver,
-	metrics metricsProvider) *ResolveHandler {
+func NewResolveHandler(domains []*url.URL, orbPrefix, orbUnpublishedLabel string,
+	resolver orbResolver, metrics metricsProvider,
+) *ResolveHandler {
 	allowedDomains := make(map[string]bool)
 
 	for _, domain := range domains {

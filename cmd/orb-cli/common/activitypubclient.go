@@ -131,7 +131,8 @@ type requestSender func(req []byte, method, endpointURL string) ([]byte, error)
 type targetOverrideFunc func(targetURI string) string
 
 func newAPCollIterator(cmd *cobra.Command, collURI string, sendRequest requestSender,
-	getTargetOverride targetOverrideFunc) (*ActivityPubCollectionIterator, error) {
+	getTargetOverride targetOverrideFunc,
+) (*ActivityPubCollectionIterator, error) {
 	resp, err := sendRequest(nil, http.MethodGet, getTargetOverride(collURI))
 	if err != nil {
 		return nil, fmt.Errorf("failed to send http request: %w", err)

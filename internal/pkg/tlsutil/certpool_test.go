@@ -148,7 +148,8 @@ func TestTLSCAConfigWithMultipleCerts(t *testing.T) {
 }
 
 func verifyCertPoolInstance(t *testing.T, pool *x509.CertPool, tlsCertPool *CertPool, numberOfCertsInPool,
-	numberOfCerts, numberOfCertsByName, numberOfSubjects int, dirty int32) {
+	numberOfCerts, numberOfCertsByName, numberOfSubjects int, dirty int32,
+) {
 	t.Helper()
 
 	assert.NotNil(t, tlsCertPool)

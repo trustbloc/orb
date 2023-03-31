@@ -13,8 +13,7 @@ import (
 )
 
 // Provider implements a no-op metrics provider.
-type Provider struct {
-}
+type Provider struct{}
 
 // NewProvider creates new instance of Prometheus Metrics Provider.
 func NewProvider() *Provider {

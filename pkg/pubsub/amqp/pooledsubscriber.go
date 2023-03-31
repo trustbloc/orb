@@ -26,8 +26,7 @@ type pooledSubscriber struct {
 	logger      *log.Log
 }
 
-func newPooledSubscriber(ctx context.Context, size int, subscriber subscriber,
-	topic string) (*pooledSubscriber, error) {
+func newPooledSubscriber(ctx context.Context, size int, subscriber subscriber, topic string) (*pooledSubscriber, error) {
 	l := log.New(loggerModule, log.WithFields(log.WithTopic(topic)))
 
 	p := &pooledSubscriber{

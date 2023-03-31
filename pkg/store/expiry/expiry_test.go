@@ -229,7 +229,8 @@ type serviceInfo struct {
 // We return the started services so that the caller can call service.Stop on them when the test is done.
 // service2's logger is returned, so it can be examined later on in the test.
 func getTestExpiryServices(coordinationStore storage.Store, storeToRunExpiryChecksOn storage.Store,
-	expiryTagName, storeName string, opts ...Option) (*serviceInfo, *serviceInfo) {
+	expiryTagName, storeName string, opts ...Option,
+) (*serviceInfo, *serviceInfo) {
 	taskMgr1 := taskmgr.New(coordinationStore, time.Second)
 
 	service1 := NewService(taskMgr1, time.Second)

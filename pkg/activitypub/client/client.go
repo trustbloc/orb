@@ -525,8 +525,10 @@ type activityIterator struct {
 	appendActivity appendFunc
 }
 
-func newActivityIterator(ctx context.Context, items []*vocab.ActivityType, currentPage, nextPage *url.URL, totalItems int,
-	get getFunc, getNext getNextIRIFunc, appendActivity appendFunc) *activityIterator {
+func newActivityIterator(ctx context.Context,
+	items []*vocab.ActivityType, currentPage, nextPage *url.URL, totalItems int,
+	get getFunc, getNext getNextIRIFunc, appendActivity appendFunc,
+) *activityIterator {
 	return &activityIterator{
 		ctx:            ctx,
 		currentItems:   items,
@@ -640,8 +642,10 @@ func (it *activityIterator) getNextPage() error {
 	return nil
 }
 
-func newForwardActivityIterator(ctx context.Context, items []*vocab.ActivityType, currentPage, nextPage *url.URL,
-	totalItems int, retrieve getFunc) *activityIterator {
+func newForwardActivityIterator(ctx context.Context,
+	items []*vocab.ActivityType, currentPage, nextPage *url.URL,
+	totalItems int, retrieve getFunc,
+) *activityIterator {
 	return newActivityIterator(ctx, items, currentPage, nextPage, totalItems, retrieve,
 		func(next, _ *url.URL) *url.URL {
 			return next
@@ -652,8 +656,10 @@ func newForwardActivityIterator(ctx context.Context, items []*vocab.ActivityType
 	)
 }
 
-func newReverseActivityIterator(ctx context.Context, items []*vocab.ActivityType, currentPage, nextPage *url.URL,
-	totalItems int, retrieve getFunc) *activityIterator {
+func newReverseActivityIterator(ctx context.Context,
+	items []*vocab.ActivityType, currentPage, nextPage *url.URL,
+	totalItems int, retrieve getFunc,
+) *activityIterator {
 	return newActivityIterator(ctx, reverseSort(items), currentPage, nextPage, totalItems, retrieve,
 		func(_, prev *url.URL) *url.URL {
 			return prev
@@ -665,8 +671,9 @@ func newReverseActivityIterator(ctx context.Context, items []*vocab.ActivityType
 	)
 }
 
-func unmarshalCollection(respBytes []byte) (items []*vocab.ObjectProperty, firstPage, lastPage *url.URL,
-	totalCount int, err error) {
+func unmarshalCollection(respBytes []byte) (items []*vocab.ObjectProperty, firstPage,
+	lastPage *url.URL, totalCount int, err error,
+) {
 	obj := &vocab.ObjectType{}
 
 	if err := json.Unmarshal(respBytes, &obj); err != nil {

@@ -78,8 +78,7 @@ func (s *Store) QueryActivities(query *spi.Criteria, opts ...spi.QueryOpt) (spi.
 }
 
 // AddReference adds the reference of the given type to the given object.
-func (s *Store) AddReference(referenceType spi.ReferenceType, objectIRI *url.URL, referenceIRI *url.URL,
-	refMetaDataOpts ...spi.RefMetadataOpt) error {
+func (s *Store) AddReference(referenceType spi.ReferenceType, objectIRI, referenceIRI *url.URL, _ ...spi.RefMetadataOpt) error {
 	s.logger.Debug("Adding reference to object", logfields.WithReferenceType(string(referenceType)),
 		logfields.WithObjectIRI(objectIRI), logfields.WithReferenceIRI(referenceIRI))
 
@@ -111,15 +110,13 @@ func (s *Store) DeleteReference(referenceType spi.ReferenceType, objectIRI, refe
 }
 
 // QueryReferences returns the list of references of the given type according to the given query.
-func (s *Store) QueryReferences(refType spi.ReferenceType,
-	query *spi.Criteria, opts ...spi.QueryOpt) (spi.ReferenceIterator, error) {
+func (s *Store) QueryReferences(refType spi.ReferenceType, query *spi.Criteria, opts ...spi.QueryOpt) (spi.ReferenceIterator, error) {
 	s.logger.Debug("Querying references", logfields.WithReferenceType(string(refType)), logfields.WithQuery(query))
 
 	return s.referenceStores[refType].query(query, opts...)
 }
 
-func (s *Store) queryActivitiesByRef(refType spi.ReferenceType, query *spi.Criteria,
-	opts ...spi.QueryOpt) (spi.ActivityIterator, error) {
+func (s *Store) queryActivitiesByRef(refType spi.ReferenceType, query *spi.Criteria, opts ...spi.QueryOpt) (spi.ActivityIterator, error) {
 	it, err := s.QueryReferences(refType, query, opts...)
 	if err != nil {
 		return nil, err

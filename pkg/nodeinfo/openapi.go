@@ -51,6 +51,6 @@ type nodeInfo21Resp struct { //nolint: unused
 //
 // 200: nodeInfo21Resp
 //
-//nolint: lll,goimports
+//nolint:lll
 func (h *Handler) nodeInfo21GetReq() { //nolint: unused
 }

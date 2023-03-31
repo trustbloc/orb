@@ -22,7 +22,13 @@ func TestLogLevels(t *testing.T) {
 	const logSpecURL = "https://example.com/services/logger"
 
 	t.Run("Success", func(t *testing.T) {
-		defer resetLoggingLevels(t)
+		defer func() {
+			log.SetDefaultLevel(log.INFO)
+
+			log.SetLevel("module1", log.INFO)
+			log.SetLevel("module2", log.INFO)
+			log.SetLevel("module3", log.INFO)
+		}()
 
 		const spec = "module3=WARN:ERROR"
 
@@ -99,13 +105,4 @@ func TestLogLevels(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, result.StatusCode)
 		require.NoError(t, result.Body.Close())
 	})
-}
-
-func resetLoggingLevels(t *testing.T) {
-	t.Helper()
-
-	log.SetDefaultLevel(log.INFO)
-	log.SetLevel("module1", log.INFO)
-	log.SetLevel("module2", log.INFO)
-	log.SetLevel("module3", log.INFO)
 }

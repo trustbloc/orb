@@ -63,7 +63,8 @@ type anchorPublisher interface {
 func New(anchorPublisher anchorPublisher, casResolver casResolver,
 	documentLoader ld.DocumentLoader,
 	maxDelay time.Duration, anchorLinkStore anchorLinkStore,
-	registry generatorRegistry) *AnchorEventHandler {
+	registry generatorRegistry,
+) *AnchorEventHandler {
 	return &AnchorEventHandler{
 		anchorPublisher:   anchorPublisher,
 		maxDelay:          maxDelay,
@@ -80,7 +81,8 @@ func New(anchorPublisher anchorPublisher, casResolver casResolver,
 //
 //nolint:cyclop
 func (h *AnchorEventHandler) HandleAnchorEvent(ctx context.Context, actor, anchorRef, source *url.URL,
-	anchorEvent *vocab.AnchorEventType) error {
+	anchorEvent *vocab.AnchorEventType,
+) error {
 	logger.Debug("Received request for anchor", logfields.WithActorIRI(actor), logfields.WithAnchorEventURI(anchorRef))
 
 	var anchorLinksetBytes []byte
@@ -217,7 +219,7 @@ func (h *AnchorEventHandler) ensureParentAnchorsAreProcessed(ctx context.Context
 // getUnprocessedParentAnchors returns all unprocessed ancestors (parents, grandparents, etc.) of the given
 // anchor event, sorted by oldest to newest.
 //
-//nolint: cyclop,goimports
+//nolint:cyclop
 func (h *AnchorEventHandler) getUnprocessedParentAnchors(hl string, anchorLink *linkset.Link) (anchorInfoSlice, error) {
 	logger.Debug("Getting unprocessed parents of anchor", logfields.WithAnchorURIString(hl))
 

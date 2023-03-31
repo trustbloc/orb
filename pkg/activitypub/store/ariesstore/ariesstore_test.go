@@ -424,8 +424,7 @@ func TestStore_Reference_Failures(t *testing.T) {
 // expectedActivities is with respect to the query's page settings.
 // Since Iterator.TotalItems' count is not affected by page settings, expectedTotalItems must be passed in explicitly.
 // It can't be determined by looking at the length of expectedActivities.
-func checkActivityQueryResultsInOrder(t *testing.T, it spi.ActivityIterator, expectedTotalItems int,
-	expectedActivities ...*url.URL) {
+func checkActivityQueryResultsInOrder(t *testing.T, it spi.ActivityIterator, expectedTotalItems int, expectedActivities ...*url.URL) {
 	t.Helper()
 
 	require.NotNil(t, it)
@@ -450,8 +449,7 @@ func checkActivityQueryResultsInOrder(t *testing.T, it spi.ActivityIterator, exp
 // expectedIRIs is with respect to the query's page settings.
 // Since Iterator.TotalItems' count is not affected by page settings, expectedTotalItems must be passed in explicitly.
 // It can't be determined by looking at the length of expectedIRIs.
-func checkReferenceQueryResultsInOrder(t *testing.T, it spi.ReferenceIterator, expectedTotalItems int,
-	expectedIRIs ...*url.URL) {
+func checkReferenceQueryResultsInOrder(t *testing.T, it spi.ReferenceIterator, expectedTotalItems int, expectedIRIs ...*url.URL) {
 	t.Helper()
 
 	require.NotNil(t, it)

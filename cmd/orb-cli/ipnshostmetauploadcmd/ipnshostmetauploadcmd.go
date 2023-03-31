@@ -43,6 +43,7 @@ const (
 	timeout = 240
 )
 
+//nolint:musttag
 type object struct {
 	Hash string
 }

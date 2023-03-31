@@ -203,8 +203,11 @@ func (wp *WitnessPolicy) Select(witnesses []*proof.Witness, exclude ...*proof.Wi
 }
 
 // selects min number of batch and system witnesses that are required to fulfill witness policy.
-func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witness, //nolint: cyclop
-	cfg *config.WitnessPolicyConfig, exclude ...*proof.Witness) ([]*proof.Witness, []*proof.Witness, error) {
+//
+//nolint:cyclop
+func (wp *WitnessPolicy) selectBatchAndSystemWitnesses(witnesses []*proof.Witness,
+	cfg *config.WitnessPolicyConfig, exclude ...*proof.Witness,
+) ([]*proof.Witness, []*proof.Witness, error) {
 	logger.Debug("Selecting minimum number of batch and system witnesses based on policy",
 		withPolicyConfigField(cfg), withWitnessesField(witnesses))
 
@@ -285,8 +288,9 @@ func isExcluded(witness *proof.Witness, excluded ...*proof.Witness) bool {
 	return false
 }
 
-func (wp *WitnessPolicy) selectMinWitnesses(eligible []*proof.Witness,
-	minNumber, minPercent, totalWitnesses int, preferred ...*proof.Witness) ([]*proof.Witness, error) {
+func (wp *WitnessPolicy) selectMinWitnesses(eligible []*proof.Witness, minNumber, minPercent,
+	totalWitnesses int, preferred ...*proof.Witness,
+) ([]*proof.Witness, error) {
 	var selected []*proof.Witness
 	selected = append(selected, preferred...)
 

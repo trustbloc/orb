@@ -307,8 +307,10 @@ func getDidParts(did string) (cid, suffix string, err error) {
 }
 
 //nolint:funlen,cyclop
-func (o *Observer) processAnchor(ctx context.Context, anchor *anchorinfo.AnchorInfo,
-	anchorLink *linkset.Link, suffixes ...string) error {
+func (o *Observer) processAnchor(ctx context.Context,
+	anchor *anchorinfo.AnchorInfo, anchorLink *linkset.Link,
+	suffixes ...string,
+) error {
 	logger.Debug("Processing anchor", logfields.WithAnchorEventURIString(anchor.Hashlink),
 		logfields.WithAttributedTo(anchor.AttributedTo), logfields.WithSuffixes(suffixes...))
 

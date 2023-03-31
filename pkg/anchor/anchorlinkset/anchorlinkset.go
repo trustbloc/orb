@@ -52,8 +52,9 @@ type generatorRegistry interface {
 // BuildAnchorLink builds an anchor Link from the given payload.
 //
 //nolint:cyclop
-func (b *Builder) BuildAnchorLink(payload *subject.Payload, dataURIMediaType datauri.MediaType,
-	buildVC VCBuilder) (anchorLink *linkset.Link, vcBytes []byte, err error) {
+func (b *Builder) BuildAnchorLink(payload *subject.Payload,
+	dataURIMediaType datauri.MediaType, buildVC VCBuilder,
+) (anchorLink *linkset.Link, vcBytes []byte, err error) {
 	contentObj, err := b.buildContentObject(payload)
 	if err != nil {
 		return nil, nil, fmt.Errorf("build content object: %w", err)

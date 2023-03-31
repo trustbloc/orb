@@ -306,7 +306,8 @@ func (c *Client) processLogInconsistency(logURL string, vctClient *vct.Client, s
 }
 
 func (c *Client) getDiscrepancyIndexAndAdditionalLogEntries(logURL string,
-	vctClient *vct.Client, treeSize uint64) (int64, []*command.LeafEntry, error) {
+	vctClient *vct.Client, treeSize uint64,
+) (int64, []*command.LeafEntry, error) {
 	var allDifferentLogEntries []*command.LeafEntry
 
 	curEnd := int64(treeSize)
@@ -421,8 +422,7 @@ func (c *Client) verifySTHTree(logURL string, sth *command.GetSTHResponse, vctCl
 	return nil
 }
 
-func (c *Client) getLogEntries(logURL string, vctClient *vct.Client,
-	start, end uint64, store bool) ([]*command.LeafEntry, error) {
+func (c *Client) getLogEntries(logURL string, vctClient *vct.Client, start, end uint64, store bool) ([]*command.LeafEntry, error) {
 	var allEntries []*command.LeafEntry
 
 	attempts := int(end) / c.maxGetEntriesRange
@@ -456,8 +456,7 @@ func (c *Client) getLogEntries(logURL string, vctClient *vct.Client,
 	return allEntries, nil
 }
 
-func (c *Client) getAllEntries(logURL string, vctClient *vct.Client,
-	treeSize uint64) ([]*command.LeafEntry, error) {
+func (c *Client) getAllEntries(logURL string, vctClient *vct.Client, treeSize uint64) ([]*command.LeafEntry, error) {
 	return c.getLogEntries(logURL, vctClient, 0, treeSize-1, true)
 }
 

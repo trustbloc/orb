@@ -1776,7 +1776,8 @@ type mockTxnBuilder struct {
 }
 
 func (m *mockTxnBuilder) Build(profile *url.URL, anchorHashlink, coreIndexHashlink string,
-	_ []string) (*verifiable.Credential, error) {
+	_ []string,
+) (*verifiable.Credential, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}
@@ -1815,8 +1816,7 @@ type mockOpProcessor struct {
 	Map map[string]*protocol.ResolutionModel
 }
 
-func (m *mockOpProcessor) Resolve(uniqueSuffix string,
-	_ ...document.ResolutionOption) (*protocol.ResolutionModel, error) {
+func (m *mockOpProcessor) Resolve(uniqueSuffix string, _ ...document.ResolutionOption) (*protocol.ResolutionModel, error) {
 	if m.Err != nil {
 		return nil, m.Err
 	}
@@ -1885,8 +1885,7 @@ type mockActivityStore struct {
 	Err error
 }
 
-func (a *mockActivityStore) QueryReferences(refType spi.ReferenceType, query *spi.Criteria,
-	opts ...spi.QueryOpt) (spi.ReferenceIterator, error) {
+func (a *mockActivityStore) QueryReferences(spi.ReferenceType, *spi.Criteria, ...spi.QueryOpt) (spi.ReferenceIterator, error) {
 	if a.Err != nil {
 		return nil, a.Err
 	}

@@ -213,7 +213,8 @@ func getVerifyArgs(cmd *cobra.Command) (casURL, anchorHash, authToken string, ve
 }
 
 func getVC(cmd *cobra.Command, anchorHash, casURL string, docLoader jsonld.DocumentLoader,
-	verbose bool) (*verifiable.Credential, error) {
+	verbose bool,
+) (*verifiable.Credential, error) {
 	anchorLinksetBytes, err := common.SendHTTPRequest(cmd, nil, http.MethodGet,
 		fmt.Sprintf("%s/%s", casURL, anchorHash))
 	if err != nil {
@@ -304,7 +305,7 @@ func getVCParameters(proof verifiable.Proof) (domain string, created time.Time, 
 		return "", time.Time{}, fmt.Errorf("parse 'created': %w", err)
 	}
 
-	return d.(string), createdTime, nil
+	return d.(string), createdTime, nil //nolint:forcetypeassert
 }
 
 type ldStoreProvider struct {

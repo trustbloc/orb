@@ -83,7 +83,8 @@ type Inbox struct {
 
 // New returns a new ActivityPub inbox.
 func New(cnfg *Config, s store.Store, pubSub pubSub, activityHandler service.ActivityHandler,
-	sigVerifier signatureVerifier, tm authTokenManager, metrics metricsProvider) (*Inbox, error) {
+	sigVerifier signatureVerifier, tm authTokenManager, metrics metricsProvider,
+) (*Inbox, error) {
 	cfg := populateConfigDefaults(cnfg)
 
 	h := &Inbox{

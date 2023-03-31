@@ -43,8 +43,7 @@ func New() *Registry {
 }
 
 // CreateClientVersion creates a new client version using the given version and providers.
-func (r *Registry) CreateClientVersion(version string, casClient common.CASReader,
-	sidetreeCfg *config.Sidetree) (protocol.Version, error) {
+func (r *Registry) CreateClientVersion(version string, casClient common.CASReader, sidetreeCfg *config.Sidetree) (protocol.Version, error) {
 	v, err := r.resolveFactory(version)
 	if err != nil {
 		return nil, err

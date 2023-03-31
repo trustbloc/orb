@@ -44,7 +44,7 @@ func TestWebDocumentFromOrbDocument(t *testing.T) {
 		responseBytes, err := json.Marshal(response)
 		require.NoError(t, err)
 
-		fmt.Println(string(responseBytes))
+		fmt.Printf("%s", string(responseBytes))
 	})
 
 	t.Run("success - unpublished did (orb unpublished ID added to also known as)", func(t *testing.T) {
@@ -67,7 +67,7 @@ func TestWebDocumentFromOrbDocument(t *testing.T) {
 		responseBytes, err := json.Marshal(response)
 		require.NoError(t, err)
 
-		fmt.Println(string(responseBytes))
+		fmt.Printf("%s", string(responseBytes))
 	})
 
 	t.Run("success - published did but domain not in alsoKnownAs (orb canonical ID added to also known as)", func(t *testing.T) {

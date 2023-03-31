@@ -133,8 +133,9 @@ type activityRef struct {
 }
 
 // AddReference adds the reference of the given type to the given object.
-func (s *Provider) AddReference(referenceType spi.ReferenceType, objectIRI *url.URL, referenceIRI *url.URL,
-	refMetaDataOpts ...spi.RefMetadataOpt) error {
+func (s *Provider) AddReference(referenceType spi.ReferenceType, objectIRI *url.URL,
+	referenceIRI *url.URL, refMetaDataOpts ...spi.RefMetadataOpt,
+) error {
 	s.logger.Debug("Adding reference", logfields.WithReferenceType(string(referenceType)),
 		logfields.WithObjectIRI(objectIRI), logfields.WithReferenceIRI(referenceIRI))
 
@@ -185,8 +186,9 @@ func (s *Provider) DeleteReference(referenceType spi.ReferenceType, objectIRI, r
 }
 
 // QueryReferences returns the list of references of the given type according to the given query.
-func (s *Provider) QueryReferences(referenceType spi.ReferenceType, query *spi.Criteria,
-	opts ...spi.QueryOpt) (spi.ReferenceIterator, error) {
+func (s *Provider) QueryReferences(referenceType spi.ReferenceType,
+	query *spi.Criteria, opts ...spi.QueryOpt,
+) (spi.ReferenceIterator, error) {
 	s.logger.Debug("Querying references", logfields.WithReferenceType(string(referenceType)), logfields.WithQuery(query))
 
 	if query.ObjectIRI == nil {
@@ -239,8 +241,9 @@ func (s *Provider) QueryReferences(referenceType spi.ReferenceType, query *spi.C
 	return memstore.NewReferenceIterator([]*url.URL{ref.IRI.URL()}, 1), nil
 }
 
-func (s *Provider) queryActivitiesByRef(refType spi.ReferenceType, query *spi.Criteria,
-	opts ...spi.QueryOpt) (spi.ActivityIterator, error) {
+func (s *Provider) queryActivitiesByRef(refType spi.ReferenceType,
+	query *spi.Criteria, opts ...spi.QueryOpt,
+) (spi.ActivityIterator, error) {
 	iterator, err := s.QueryReferences(refType, query, opts...)
 	if err != nil {
 		return nil, err

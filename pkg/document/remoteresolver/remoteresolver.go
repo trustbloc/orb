@@ -44,8 +44,9 @@ func New(httpClient httpClient) *Resolver {
 }
 
 // ResolveDocumentFromResolutionEndpoints resolved document from resolution endpoints.
-func (rr *Resolver) ResolveDocumentFromResolutionEndpoints(ctx context.Context, id string,
-	endpoints []string) (*document.ResolutionResult, error) {
+func (rr *Resolver) ResolveDocumentFromResolutionEndpoints(ctx context.Context,
+	id string, endpoints []string,
+) (*document.ResolutionResult, error) {
 	if len(endpoints) == 0 {
 		return nil, fmt.Errorf("must provide at least one remote resolver endpoint in order to retrieve data")
 	}

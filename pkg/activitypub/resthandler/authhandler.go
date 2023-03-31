@@ -41,7 +41,8 @@ type authTokenManager interface {
 
 // NewAuthHandler returns a new authorization handler.
 func NewAuthHandler(cfg *Config, endpoint, method string, s store.Store, verifier signatureVerifier,
-	tm authTokenManager, authorizeActor authorizeActorFunc) *AuthHandler {
+	tm authTokenManager, authorizeActor authorizeActorFunc,
+) *AuthHandler {
 	ep := fmt.Sprintf("%s%s", cfg.BasePath, endpoint)
 
 	logger := log.New(loggerModule, log.WithFields(logfields.WithServiceEndpoint(ep)))

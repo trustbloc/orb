@@ -71,7 +71,7 @@ func UnmarshalFromDoc(doc Document, obj interface{}) error {
 	return nil
 }
 
-// MarshalJSON marshals the given objects (merging them into one document) and returns the marshalled JSON result.
+// MarshalJSON marshals the given objects (merging them into one document) and returns the marshaled JSON result.
 func MarshalJSON(o interface{}, others ...interface{}) ([]byte, error) {
 	doc, err := MarshalToDoc(o)
 	if err != nil {

@@ -62,8 +62,7 @@ type CredentialSubject struct {
 }
 
 // Build will create and sign anchor credential.
-func (b *Builder) Build(profile *url.URL, anchorHashlink, coreIndexHashlink string,
-	context []string) (*verifiable.Credential, error) {
+func (b *Builder) Build(profile *url.URL, anchorHashlink, coreIndexHashlink string, context []string) (*verifiable.Credential, error) {
 	id := b.params.URL + "/" + uuid.New().String()
 
 	now := &util.TimeWrapper{Time: time.Now()}

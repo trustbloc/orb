@@ -895,8 +895,10 @@ func TestWellKnownNodeInfo(t *testing.T) {
 }
 
 //nolint:unparam
-func serveHTTP(t *testing.T, handler common.HTTPRequestHandler, method, path string,
-	req []byte, urlVars map[string]string, includeAcceptHeader bool) *httptest.ResponseRecorder {
+func serveHTTP(t *testing.T,
+	handler common.HTTPRequestHandler, method, path string,
+	req []byte, urlVars map[string]string, includeAcceptHeader bool,
+) *httptest.ResponseRecorder {
 	t.Helper()
 
 	httpReq, err := http.NewRequest(

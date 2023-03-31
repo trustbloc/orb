@@ -63,8 +63,7 @@ func (g *Generator) CreateContentObject(payload *subject.Payload) (vocab.Documen
 }
 
 // CreatePayload creates a payload from the given anchor event.
-func (g *Generator) CreatePayload(doc vocab.Document, coreIndexURI *url.URL,
-	anchors []*url.URL) (*subject.Payload, error) {
+func (g *Generator) CreatePayload(doc vocab.Document, coreIndexURI *url.URL, anchors []*url.URL) (*subject.Payload, error) {
 	return g.orbGenerator.CreatePayload(doc, coreIndexURI, anchors)
 }
 

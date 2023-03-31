@@ -64,8 +64,8 @@ type taskManager interface {
 
 // New returns monitoring client.
 func New(provider storage.Provider, documentLoader ld.DocumentLoader, wfClient webfingerClient,
-	httpClient httpClient, taskMgr taskManager, interval time.Duration,
-	requestTokens map[string]string) (*Client, error) {
+	httpClient httpClient, taskMgr taskManager, interval time.Duration, requestTokens map[string]string,
+) (*Client, error) {
 	s, err := store.Open(provider, storeName,
 		store.NewTagGroup(tagStatus),
 	)

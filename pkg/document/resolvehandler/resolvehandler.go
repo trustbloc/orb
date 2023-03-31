@@ -114,7 +114,8 @@ func WithUnpublishedDIDLabel(label string) Option {
 // NewResolveHandler returns a new document resolve handler.
 func NewResolveHandler(namespace string, resolver coreResolver, discovery discoveryService,
 	domain string, endpointClient endpointClient, remoteResolver remoteResolver,
-	anchorGraph common.AnchorGraph, metrics metricsProvider, opts ...Option) *ResolveHandler {
+	anchorGraph common.AnchorGraph, metrics metricsProvider, opts ...Option,
+) *ResolveHandler {
 	rh := &ResolveHandler{
 		namespace:        namespace,
 		coreResolver:     resolver,
@@ -160,9 +161,9 @@ func (r *ResolveHandler) ResolveDocument(id string, opts ...document.ResolutionO
 }
 
 //nolint:funlen,cyclop
-func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(
-	ctx context.Context, id string, localResponse *document.ResolutionResult,
-	opts ...document.ResolutionOption) *document.ResolutionResult {
+func (r *ResolveHandler) resolveDocumentFromAnchorOriginAndCombineWithLocal(ctx context.Context, id string,
+	localResponse *document.ResolutionResult, opts ...document.ResolutionOption,
+) *document.ResolutionResult {
 	localAnchorOrigin, err := util.GetAnchorOrigin(localResponse.DocumentMetadata)
 	if err != nil {
 		logger.Debug(
@@ -292,8 +293,7 @@ func getOperations(id string, metadata document.Metadata) ([]*operation.Anchored
 	return unpublishedOps, publishedOps
 }
 
-func getAdditionalPublishedOps(id string, localOps,
-	anchorOps []*operation.AnchoredOperation) []*operation.AnchoredOperation {
+func getAdditionalPublishedOps(id string, localOps, anchorOps []*operation.AnchoredOperation) []*operation.AnchoredOperation {
 	if len(anchorOps) == 0 {
 		logger.Debug("Nothing to check since anchor origin published operations are not provided.",
 			logfields.WithDID(id))
@@ -433,7 +433,8 @@ func (r *ResolveHandler) getAnchorOriginEndpoint(anchorOrigin string) (*models.E
 }
 
 func (r *ResolveHandler) resolveDocumentLocally(ctx context.Context, id string,
-	opts ...document.ResolutionOption) (*document.ResolutionResult, error) {
+	opts ...document.ResolutionOption,
+) (*document.ResolutionResult, error) {
 	resolveDocumentLocallyStartTime := time.Now()
 
 	defer func() {

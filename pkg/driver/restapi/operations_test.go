@@ -76,7 +76,8 @@ func TestDIDResolve(t *testing.T) {
 }
 
 func serveHTTP(t *testing.T, handler common.HTTPRequestHandler, method, path string,
-	req []byte, urlVars map[string]string) *httptest.ResponseRecorder {
+	req []byte, urlVars map[string]string,
+) *httptest.ResponseRecorder {
 	t.Helper()
 
 	httpReq, err := http.NewRequest(

@@ -261,8 +261,10 @@ func (o *Operation) serviceWebDIDHandler(rw http.ResponseWriter, r *http.Request
 	o.handleDIDWeb(o.serviceID.String(), o.httpSignPubKeys, rw, false, true)
 }
 
-func (o *Operation) handleDIDWeb(did string, pubKeys []PublicKey, rw http.ResponseWriter,
-	includeVerificationRelationships, includeService bool) {
+func (o *Operation) handleDIDWeb(
+	did string, pubKeys []PublicKey, rw http.ResponseWriter,
+	includeVerificationRelationships, includeService bool,
+) {
 	rawDoc := &ariesdid.Doc{ID: did}
 
 	for _, key := range pubKeys {
@@ -305,8 +307,7 @@ func (o *Operation) handleDIDWeb(did string, pubKeys []PublicKey, rw http.Respon
 }
 
 //nolint:cyclop
-func populateVerificationMethod(rawDoc *ariesdid.Doc, did string, key PublicKey,
-	includeVerificationRelationships bool) error {
+func populateVerificationMethod(rawDoc *ariesdid.Doc, did string, key PublicKey, includeVerificationRelationships bool) error {
 	var vm *ariesdid.VerificationMethod
 
 	switch {

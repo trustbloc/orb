@@ -25,6 +25,7 @@ import (
 var logger = log.New("cas-store")
 
 const (
+	dbName           = "cas"
 	defaultCacheSize = 1000
 	casType          = "local"
 )
@@ -50,8 +51,9 @@ type CAS struct {
 // Reads are always done on only the passed in provider.
 // If no CID version is specified, then v1 will be used by default.
 func New(provider ariesstorage.Provider, casLink string, ipfsClient *ipfs.Client, metrics metricsProvider,
-	cacheSize int, opts ...extendedcasclient.CIDFormatOption) (*CAS, error) {
-	cas, err := provider.OpenStore("cas")
+	cacheSize int, opts ...extendedcasclient.CIDFormatOption,
+) (*CAS, error) {
+	cas, err := provider.OpenStore(dbName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open store in underlying storage provider: %w", err)
 	}

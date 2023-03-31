@@ -10,12 +10,15 @@ set -e
 echo "Running $0"
 
 DOCKER_CMD=${DOCKER_CMD:-docker}
-GOLANGCI_LINT_IMAGE="golangci/golangci-lint:v1.50.0"
+GOLANGCI_LINT_IMAGE="golangci/golangci-lint:v1.52"
 
 if [ ! $(command -v ${DOCKER_CMD}) ]; then
     exit 0
 fi
 
+echo "Linting pkg"
 ${DOCKER_CMD} run --rm -e GOPROXY=${GOPROXY} -v $(pwd):/opt/workspace -w /opt/workspace ${GOLANGCI_LINT_IMAGE} golangci-lint run --timeout 5m
+echo "Linting orb-cli"
 ${DOCKER_CMD} run --rm -e GOPROXY=${GOPROXY} -v $(pwd):/opt/workspace -w /opt/workspace/cmd/orb-cli ${GOLANGCI_LINT_IMAGE} golangci-lint run -c ../../.golangci.yml --timeout 5m
+echo "Linting orb-driver"
 ${DOCKER_CMD} run --rm -e GOPROXY=${GOPROXY} -v $(pwd):/opt/workspace -w /opt/workspace/cmd/orb-driver ${GOLANGCI_LINT_IMAGE} golangci-lint run -c ../../.golangci.yml --timeout 5m
