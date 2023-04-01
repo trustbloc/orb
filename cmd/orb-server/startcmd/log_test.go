@@ -19,7 +19,7 @@ var testLogger = log.New(testLogModuleName)
 
 func TestSetLogLevel(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		defer resetLoggingLevels(t)
+		defer resetLoggingLevels()
 
 		setLogLevels(testLogger, "debug")
 
@@ -27,7 +27,7 @@ func TestSetLogLevel(t *testing.T) {
 	})
 
 	t.Run("Log spec -> Success", func(t *testing.T) {
-		defer resetLoggingLevels(t)
+		defer resetLoggingLevels()
 
 		setLogLevels(testLogger, "module1=debug:module2=error:warning")
 
@@ -37,7 +37,7 @@ func TestSetLogLevel(t *testing.T) {
 	})
 
 	t.Run("Invalid log level", func(t *testing.T) {
-		defer resetLoggingLevels(t)
+		defer resetLoggingLevels()
 
 		setLogLevels(testLogger, "mango")
 
@@ -46,9 +46,7 @@ func TestSetLogLevel(t *testing.T) {
 	})
 }
 
-func resetLoggingLevels(t *testing.T) {
-	t.Helper()
-
+func resetLoggingLevels() {
 	log.SetDefaultLevel(log.INFO)
 	log.SetLevel("module1", log.INFO)
 	log.SetLevel("module2", log.INFO)

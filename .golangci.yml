@@ -7,7 +7,7 @@
 
 run:
   concurrency: 4
-  deadline: 3m
+  deadline: 5m
   issues-exit-code: 1
   tests: true
   build-tags: [""]
@@ -85,6 +85,7 @@ linters-settings:
       - marshaller
       - marshalling
       - unmarshalling
+      - behaviour
   nolintlint:
     allow-unused: false # report any unused nolint directives
     require-explanation: false # don't require an explanation for nolint directives

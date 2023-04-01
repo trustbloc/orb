@@ -6,8 +6,10 @@ SPDX-License-Identifier: Apache-2.0
 package cmdutil_test
 
 import (
+	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
@@ -170,4 +172,181 @@ func TestGetUserSetVarFromArrayString(t *testing.T) {
 
 	env = cmdutil.GetUserSetOptionalVarFromArrayString(command, flagName, "")
 	require.Equal(t, []string{"other", "other1"}, env)
+}
+
+func TestGetBool(t *testing.T) {
+	command := &cobra.Command{
+		Use:   "start",
+		Short: "short usage",
+		Long:  "long usage",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return nil
+		},
+	}
+
+	t.Run("test unset value should use defaultValue", func(t *testing.T) {
+		env, err := cmdutil.GetBool(command, flagName, envKey, false)
+		require.NoError(t, err)
+		require.False(t, env)
+	})
+
+	t.Run("test env var is set", func(t *testing.T) {
+		someIntVal := true
+		t.Setenv(envKey, fmt.Sprint(someIntVal))
+
+		// test resolution via environment variable
+		env, err := cmdutil.GetBool(command, flagName, envKey, true)
+		require.NoError(t, err)
+		require.Equal(t, someIntVal, env)
+	})
+
+	t.Run("test invalid env var", func(t *testing.T) {
+		t.Setenv(envKey, "not-an-int")
+
+		env, err := cmdutil.GetBool(command, flagName, envKey, true)
+		require.Error(t, err)
+		require.Empty(t, env)
+	})
+}
+
+func TestGetDuration(t *testing.T) {
+	command := &cobra.Command{
+		Use:   "start",
+		Short: "short usage",
+		Long:  "long usage",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return nil
+		},
+	}
+
+	defaultDuration := 10 * time.Second
+
+	t.Run("test unset value should use defaultValue", func(t *testing.T) {
+		env, err := cmdutil.GetDuration(command, flagName, envKey, defaultDuration)
+		require.NoError(t, err)
+		require.Equal(t, defaultDuration, env)
+	})
+
+	t.Run("test env var is set", func(t *testing.T) {
+		duration := 15 * time.Second
+		t.Setenv(envKey, duration.String())
+
+		// test resolution via environment variable
+		env, err := cmdutil.GetDuration(command, flagName, envKey, defaultDuration)
+		require.NoError(t, err)
+		require.Equal(t, duration, env)
+	})
+
+	t.Run("test invalid env var", func(t *testing.T) {
+		t.Setenv(envKey, "not-an-int")
+
+		env, err := cmdutil.GetDuration(command, flagName, envKey, defaultDuration)
+		require.Error(t, err)
+		require.Less(t, env, 0*time.Second)
+	})
+}
+
+func TestGetInt(t *testing.T) {
+	command := &cobra.Command{
+		Use:   "start",
+		Short: "short usage",
+		Long:  "long usage",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return nil
+		},
+	}
+
+	t.Run("test unset value should use defaultValue", func(t *testing.T) {
+		env, err := cmdutil.GetInt(command, flagName, envKey, 0)
+		require.NoError(t, err)
+		require.Equal(t, 0, env)
+	})
+
+	t.Run("test env var is set", func(t *testing.T) {
+		someIntVal := 15
+		t.Setenv(envKey, fmt.Sprint(someIntVal))
+
+		// test resolution via environment variable
+		env, err := cmdutil.GetInt(command, flagName, envKey, 0)
+		require.NoError(t, err)
+		require.Equal(t, someIntVal, env)
+	})
+
+	t.Run("test invalid env var", func(t *testing.T) {
+		t.Setenv(envKey, "not-an-int")
+
+		env, err := cmdutil.GetInt(command, flagName, envKey, 0)
+		require.Error(t, err)
+		require.Empty(t, env)
+	})
+}
+
+func TestGetUInt64(t *testing.T) {
+	command := &cobra.Command{
+		Use:   "start",
+		Short: "short usage",
+		Long:  "long usage",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return nil
+		},
+	}
+
+	t.Run("test unset value should use defaultValue", func(t *testing.T) {
+		env, err := cmdutil.GetUInt64(command, flagName, envKey, 0)
+		require.NoError(t, err)
+		require.Equal(t, uint64(0), env)
+	})
+
+	t.Run("test env var is set", func(t *testing.T) {
+		someIntVal := uint64(15)
+		t.Setenv(envKey, fmt.Sprint(someIntVal))
+
+		// test resolution via environment variable
+		env, err := cmdutil.GetUInt64(command, flagName, envKey, 0)
+		require.NoError(t, err)
+		require.Equal(t, someIntVal, env)
+	})
+
+	t.Run("test invalid env var", func(t *testing.T) {
+		t.Setenv(envKey, "not-an-int")
+
+		env, err := cmdutil.GetUInt64(command, flagName, envKey, 0)
+		require.Error(t, err)
+		require.Empty(t, env)
+	})
+}
+
+func TestGetFloat(t *testing.T) {
+	command := &cobra.Command{
+		Use:   "start",
+		Short: "short usage",
+		Long:  "long usage",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return nil
+		},
+	}
+
+	t.Run("test unset value should use defaultValue", func(t *testing.T) {
+		env, err := cmdutil.GetFloat(command, flagName, envKey, 0)
+		require.NoError(t, err)
+		require.Equal(t, 0.0, env)
+	})
+
+	t.Run("test env var is set", func(t *testing.T) {
+		someIntVal := 15.0
+		t.Setenv(envKey, fmt.Sprint(someIntVal))
+
+		// test resolution via environment variable
+		env, err := cmdutil.GetFloat(command, flagName, envKey, 0)
+		require.NoError(t, err)
+		require.Equal(t, someIntVal, env)
+	})
+
+	t.Run("test invalid env var", func(t *testing.T) {
+		t.Setenv(envKey, "not-an-int")
+
+		env, err := cmdutil.GetFloat(command, flagName, envKey, 0)
+		require.Error(t, err)
+		require.Empty(t, env)
+	})
 }

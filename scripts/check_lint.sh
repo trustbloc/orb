@@ -18,6 +18,8 @@ fi
 
 echo "Linting pkg"
 ${DOCKER_CMD} run --rm -e GOPROXY=${GOPROXY} -v $(pwd):/opt/workspace -w /opt/workspace ${GOLANGCI_LINT_IMAGE} golangci-lint run --timeout 5m
+echo "Linting orb-server"
+${DOCKER_CMD} run --rm -e GOPROXY=${GOPROXY} -v $(pwd):/opt/workspace -w /opt/workspace/cmd/orb-server ${GOLANGCI_LINT_IMAGE} golangci-lint run -c ../../.golangci.yml --timeout 5m
 echo "Linting orb-cli"
 ${DOCKER_CMD} run --rm -e GOPROXY=${GOPROXY} -v $(pwd):/opt/workspace -w /opt/workspace/cmd/orb-cli ${GOLANGCI_LINT_IMAGE} golangci-lint run -c ../../.golangci.yml --timeout 5m
 echo "Linting orb-driver"

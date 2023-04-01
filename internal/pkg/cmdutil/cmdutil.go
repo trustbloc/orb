@@ -9,7 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -88,4 +90,99 @@ func GetUserSetVarFromArrayString(cmd *cobra.Command, flagName, envKey string, i
 
 	return nil, errors.New("Neither " + flagName + " (command line flag) nor " + envKey +
 		" (environment variable) have been set.")
+}
+
+// GetBool returns values either command line flag or environment variable.
+func GetBool(cmd *cobra.Command, flagName, envKey string, defaultValue bool) (bool, error) {
+	str, err := GetUserSetVarFromString(cmd, flagName, envKey, true)
+	if err != nil {
+		return false, fmt.Errorf("%s: %w", flagName, err)
+	}
+
+	if str == "" {
+		return defaultValue, nil
+	}
+
+	value, err := strconv.ParseBool(str)
+	if err != nil {
+		return false, fmt.Errorf("invalid value for %s [%s]: %w", flagName, str, err)
+	}
+
+	return value, nil
+}
+
+// GetDuration returns values either command line flag or environment variable.
+func GetDuration(cmd *cobra.Command, flagName, envKey string, defaultDuration time.Duration) (time.Duration, error) {
+	timeoutStr, err := GetUserSetVarFromString(cmd, flagName, envKey, true)
+	if err != nil {
+		return -1, fmt.Errorf("%s: %w", flagName, err)
+	}
+
+	if timeoutStr == "" {
+		return defaultDuration, nil
+	}
+
+	timeout, err := time.ParseDuration(timeoutStr)
+	if err != nil {
+		return -1, fmt.Errorf("invalid value for %s [%s]: %w", flagName, timeoutStr, err)
+	}
+
+	return timeout, nil
+}
+
+// GetInt returns values either command line flag or environment variable.
+func GetInt(cmd *cobra.Command, flagName, envKey string, defaultValue int) (int, error) {
+	str, err := GetUserSetVarFromString(cmd, flagName, envKey, true)
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", flagName, err)
+	}
+
+	if str == "" {
+		return defaultValue, nil
+	}
+
+	value, err := strconv.Atoi(str)
+	if err != nil {
+		return 0, fmt.Errorf("invalid value for %s [%s]: %w", flagName, str, err)
+	}
+
+	return value, nil
+}
+
+// GetUInt64 returns values either command line flag or environment variable.
+func GetUInt64(cmd *cobra.Command, flagName, envKey string, defaultValue uint64) (uint64, error) {
+	str, err := GetUserSetVarFromString(cmd, flagName, envKey, true)
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", flagName, err)
+	}
+
+	if str == "" {
+		return defaultValue, nil
+	}
+
+	value, err := strconv.ParseUint(str, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid value for %s [%s]: %w", flagName, str, err)
+	}
+
+	return value, nil
+}
+
+// GetFloat returns values either command line flag or environment variable.
+func GetFloat(cmd *cobra.Command, flagName, envKey string, defaultValue float64) (float64, error) {
+	str, err := GetUserSetVarFromString(cmd, flagName, envKey, true)
+	if err != nil {
+		return 0, fmt.Errorf("%s: %w", flagName, err)
+	}
+
+	if str == "" {
+		return defaultValue, nil
+	}
+
+	value, err := strconv.ParseFloat(str, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid value for %s [%s]: %w", flagName, str, err)
+	}
+
+	return value, nil
 }

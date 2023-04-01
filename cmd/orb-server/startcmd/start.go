@@ -35,7 +35,6 @@ import (
 	ariesmongodbstorage "github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	"github.com/hyperledger/aries-framework-go/component/storageutil/cachedstore"
 	ariesmemstorage "github.com/hyperledger/aries-framework-go/component/storageutil/mem"
-	ariesrest "github.com/hyperledger/aries-framework-go/pkg/controller/rest"
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	webcrypto "github.com/hyperledger/aries-framework-go/pkg/crypto/webkms"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
@@ -213,9 +212,11 @@ const (
 	webKeyStoreKey = "web-key-store"
 	vcKidKey       = "vckid"
 	httpKidKey     = "httpkid"
+
+	configDBName = "orb-config"
 )
 
-type pubSub interface {
+type publisherSubscriber interface {
 	Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error)
 	SubscribeWithOpts(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error)
 	Publish(topic string, messages ...*message.Message) error
@@ -311,15 +312,16 @@ type keyStoreCfg struct {
 	KeyID string `json:"keyID,omitempty"`
 }
 
-func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
-	store storage.Provider, cfg storage.Store, metrics metricsProvider.Metrics) (keyManager, crypto, error) {
+func createKMSAndCrypto(parameters *orbParameters, httpClient *http.Client, s storage.Provider,
+	cfg storage.Store, metrics metricsProvider.Metrics,
+) (keyManager, crypto, error) {
 	switch parameters.kmsParams.kmsType {
 	case kmsLocal:
-		return createLocalKMS(parameters.kmsParams.secretLockKeyPath, masterKeyURI, store)
+		return createLocalKMS(parameters.kmsParams.secretLockKeyPath, masterKeyURI, s)
 	case kmsWeb:
 		if strings.Contains(parameters.kmsParams.kmsEndpoint, "keystores") {
-			return webkms.New(parameters.kmsParams.kmsEndpoint, client),
-				webcrypto.New(parameters.kmsParams.kmsEndpoint, client), nil
+			return webkms.New(parameters.kmsParams.kmsEndpoint, httpClient),
+				webcrypto.New(parameters.kmsParams.kmsEndpoint, httpClient), nil
 		}
 
 		keyStoreCfg := &keyStoreCfg{}
@@ -327,7 +329,7 @@ func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 		err := getOrInit(cfg, webKeyStoreKey, &keyStoreCfg, func() (interface{}, error) {
 			var err error
 
-			keyStoreCfg.URL, _, err = webkms.CreateKeyStore(client, parameters.kmsParams.kmsEndpoint, uuid.New().String(), "", nil)
+			keyStoreCfg.URL, _, err = webkms.CreateKeyStore(httpClient, parameters.kmsParams.kmsEndpoint, uuid.New().String(), "", nil)
 
 			return keyStoreCfg, err
 		}, parameters.syncTimeout)
@@ -337,7 +339,7 @@ func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 
 		keyStoreURL := BuildKMSURL(parameters.kmsParams.kmsEndpoint, keyStoreCfg.URL)
 
-		return webkms.New(keyStoreURL, client), webcrypto.New(keyStoreURL, client), nil
+		return webkms.New(keyStoreURL, httpClient), webcrypto.New(keyStoreURL, httpClient), nil
 	case kmsAWS:
 		region := parameters.kmsParams.kmsRegion
 
@@ -367,7 +369,7 @@ func createKMSAndCrypto(parameters *orbParameters, client *http.Client,
 	return nil, nil, fmt.Errorf("unsupported kms type: %s", parameters.kmsParams.kmsType)
 }
 
-func createLocalKMS(secretLockKeyPath, masterKeyURI string, store storage.Provider) (keyManager, crypto, error) {
+func createLocalKMS(secretLockKeyPath, masterKeyURI string, s storage.Provider) (keyManager, crypto, error) {
 	secretLockService, err := prepareKeyLock(secretLockKeyPath)
 	if err != nil {
 		return nil, nil, err
@@ -375,7 +377,7 @@ func createLocalKMS(secretLockKeyPath, masterKeyURI string, store storage.Provid
 
 	// TODO (#1434): Create our own implementation of the KMS storage interface and pass it in here instead of
 	//  wrapping the Aries storage provider.
-	kmsStore, err := kms.NewAriesProviderWrapper(store)
+	kmsStore, err := kms.NewAriesProviderWrapper(s)
 	if err != nil {
 		return nil, nil, fmt.Errorf("create Aries KMS store wrapper: %w", err)
 	}
@@ -414,8 +416,7 @@ func (a *awsKMSWrapper) ExportPubKeyBytes(keyID string) ([]byte, kms.KeyType, er
 	return a.service.ExportPubKeyBytes(keyID)
 }
 
-func (a *awsKMSWrapper) ImportPrivateKey(privKey interface{}, kt kms.KeyType,
-	opts ...kms.PrivateKeyOpts) (string, interface{}, error) {
+func (a *awsKMSWrapper) ImportPrivateKey(privKey interface{}, kt kms.KeyType, opts ...kms.PrivateKeyOpts) (string, interface{}, error) {
 	return a.service.ImportPrivateKey(privKey, kt, opts...)
 }
 
@@ -468,30 +469,28 @@ func importPrivateKey(km keyManager, httpSignKeyType bool, parameters *orbParame
 				return nil, err
 			}
 
-			keyID, _, err := km.ImportPrivateKey(ed25519.PrivateKey(keyBytes), kms.ED25519, kms.WithKeyID(keyID))
-			if err == nil && strings.TrimSpace(keyID) == "" {
+			kid, _, err := km.ImportPrivateKey(ed25519.PrivateKey(keyBytes), kms.ED25519, kms.WithKeyID(keyID))
+			if err == nil && strings.TrimSpace(kid) == "" {
 				return nil, errors.New("import private key: keyID is empty")
 			}
 		}
+
 		return activeKeyID, nil
 	}, parameters.syncTimeout)
 }
 
-// nolint: funlen,gocognit
+//nolint:funlen,gocyclo
 func startOrbServices(parameters *orbParameters) error {
 	if parameters.logLevel != "" {
 		setLogLevels(logger, parameters.logLevel)
 	}
 
-	mp, err := newMetricsProvider(parameters)
-	if err != nil {
-		return err
-	}
+	mp := newMetricsProvider(parameters)
 
 	metrics := mp.Metrics()
 
-	tracerProvider, err := tracing.Initialize(parameters.tracingParams.provider,
-		parameters.tracingParams.serviceName, parameters.tracingParams.collectorURL)
+	tracerProvider, err := tracing.Initialize(parameters.observability.tracing.provider,
+		parameters.observability.tracing.serviceName, parameters.observability.tracing.collectorURL)
 	if err != nil {
 		return fmt.Errorf("create tracer: %w", err)
 	}
@@ -501,45 +500,14 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	configStore, err := store.Open(storeProviders.provider, "orb-config")
+	configStore, err := store.Open(storeProviders.provider, configDBName)
 	if err != nil {
 		return fmt.Errorf("open store: %w", err)
 	}
 
-	rootCAs, err := tlsutil.GetCertPool(parameters.tlsParams.systemCertPool, parameters.tlsParams.caCerts)
+	httpClient, err := newHTTPClient(parameters)
 	if err != nil {
 		return err
-	}
-
-	tlsConfig := &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}
-
-	if parameters.enableDevMode {
-		tlsConfig = &tls.Config{
-			InsecureSkipVerify: true, //nolint: gosec
-		}
-	}
-
-	var httpTransport http.RoundTripper = &http.Transport{
-		TLSClientConfig: tlsConfig,
-		DialContext: (&net.Dialer{
-			Timeout:   parameters.httpDialTimeout,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          2000,
-		MaxConnsPerHost:       100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   5 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	}
-
-	if parameters.tracingParams.enabled {
-		httpTransport = otelhttp.NewTransport(httpTransport)
-	}
-
-	httpClient := &http.Client{
-		Timeout:   parameters.httpTimeout,
-		Transport: httpTransport,
 	}
 
 	km, cr, err := createKMSAndCrypto(parameters, httpClient, storeProviders.kmsSecretsProvider, configStore, metrics)
@@ -547,40 +515,11 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	casIRI := mustParseURL(parameters.externalEndpoint, casPath)
+	casIRI := mustParseURL(parameters.http.externalEndpoint, casPath)
 
-	var coreCASClient extendedcasclient.Client
-
-	switch {
-	case strings.EqualFold(parameters.casType, "ipfs"):
-		logger.Info("Initializing Orb CAS with IPFS.")
-		coreCASClient = ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout, defaultCasCacheSize, metrics,
-			extendedcasclient.WithCIDVersion(parameters.cidVersion))
-	case strings.EqualFold(parameters.casType, "local"):
-		logger.Info("Initializing Orb CAS with local storage provider.")
-
-		var err error
-
-		if parameters.localCASReplicateInIPFSEnabled {
-			logger.Info("Local CAS writes will be replicated in IPFS.")
-
-			coreCASClient, err = casstore.New(storeProviders.provider, casIRI.String(),
-				ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout, defaultCasCacheSize, metrics,
-					extendedcasclient.WithCIDVersion(parameters.cidVersion)),
-				metrics, defaultCasCacheSize, extendedcasclient.WithCIDVersion(parameters.cidVersion))
-			if err != nil {
-				return err
-			}
-		} else {
-			coreCASClient, err = casstore.New(storeProviders.provider, casIRI.String(), nil,
-				metrics, defaultCasCacheSize, extendedcasclient.WithCIDVersion(parameters.cidVersion))
-			if err != nil {
-				return err
-			}
-		}
-
-	default:
-		return fmt.Errorf("%s is not a valid CAS type. It must be either local or ipfs", parameters.casType)
+	coreCASClient, err := newCASClient(parameters, storeProviders.provider, casIRI, metrics)
+	if err != nil {
+		return err
 	}
 
 	didAnchors, err := didanchorstore.New(storeProviders.provider)
@@ -593,21 +532,9 @@ func startOrbServices(parameters *orbParameters) error {
 		return err
 	}
 
-	ldStorageProvider := cachedstore.NewProvider(storeProviders.provider, ariesmemstorage.NewProvider())
-
-	contextStore, err := ldstore.NewContextStore(ldStorageProvider)
+	ldStore, err := newLDStoreProvider(storeProviders.provider)
 	if err != nil {
-		return fmt.Errorf("create JSON-LD context store: %w", err)
-	}
-
-	remoteProviderStore, err := ldstore.NewRemoteProviderStore(ldStorageProvider)
-	if err != nil {
-		return fmt.Errorf("create remote provider store: %w", err)
-	}
-
-	ldStore := &ldStoreProvider{
-		ContextStore:        contextStore,
-		RemoteProviderStore: remoteProviderStore,
+		return err
 	}
 
 	orbDocumentLoader, err := createJSONLDDocumentLoader(ldStore, httpClient, parameters.contextProviderURLs)
@@ -623,40 +550,19 @@ func startOrbServices(parameters *orbParameters) error {
 		webFingerURIScheme = "http"
 	}
 
-	vdr := vdr.New(
+	vdrClient := vdr.New(
 		vdr.WithVDR(&webVDR{http: httpClient, VDR: vdrweb.New(), useHTTPOpt: useHTTPOpt}),
 	)
 
-	if parameters.kmsParams.vcSignActiveKeyID == "" {
-		if err = createKID(km, false, parameters, configStore); err != nil {
-			return fmt.Errorf("create kid: %w", err)
-		}
+	err = initKMS(parameters, km, configStore)
+	if err != nil {
+		return err
 	}
-
-	if parameters.kmsParams.httpSignActiveKeyID == "" {
-		if err = createKID(km, true, parameters, configStore); err != nil {
-			return fmt.Errorf("create kid: %w", err)
-		}
-	}
-
-	if parameters.kmsParams.vcSignActiveKeyID != "" && len(parameters.kmsParams.vcSignPrivateKeys) > 0 {
-		if err = importPrivateKey(km, false, parameters, configStore); err != nil {
-			return fmt.Errorf("import kid: %w", err)
-		}
-	}
-
-	if parameters.kmsParams.httpSignActiveKeyID != "" && len(parameters.kmsParams.httpSignPrivateKey) > 0 {
-		if err = importPrivateKey(km, true, parameters, configStore); err != nil {
-			return fmt.Errorf("import kid: %w", err)
-		}
-	}
-
-	apServicePath := parameters.apServiceParams.serviceEndpoint().Path
 
 	// authTokenManager is used by the REST endpoints to authorize the request.
 	authTokenManager, err := auth.NewTokenManager(auth.Config{
-		AuthTokensDef: parameters.authTokenDefinitions,
-		AuthTokens:    parameters.authTokens,
+		AuthTokensDef: parameters.auth.tokenDefinitions,
+		AuthTokens:    parameters.auth.tokens,
 	})
 	if err != nil {
 		return fmt.Errorf("create server Token Manager: %w", err)
@@ -665,8 +571,8 @@ func startOrbServices(parameters *orbParameters) error {
 	// clientTokenManager is used by the HTTP transport to determine whether an outbound
 	// HTTP request should be signed.
 	clientTokenManager, err := auth.NewTokenManager(auth.Config{
-		AuthTokensDef: parameters.clientAuthTokenDefinitions,
-		AuthTokens:    parameters.clientAuthTokens,
+		AuthTokensDef: parameters.auth.clientTokenDefinitions,
+		AuthTokens:    parameters.auth.clientTokens,
 	})
 	if err != nil {
 		return fmt.Errorf("create client Token Manager: %w", err)
@@ -679,7 +585,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("parse public key ID: %w", err)
 	}
 
-	t := transport.New(httpClient, publicKeyID, apGetSigner, apPostSigner, clientTokenManager)
+	httpTransport := transport.New(httpClient, publicKeyID, apGetSigner, apPostSigner, clientTokenManager)
 
 	var endpointClient *discoveryclient.Client
 
@@ -692,13 +598,13 @@ func startOrbServices(parameters *orbParameters) error {
 		wfclient.WithCacheSize(defaultWebfingerCacheSize),           // TODO: Define parameter.
 	)
 
-	webCASResolver := resolver.NewWebCASResolver(t, wfClient, webFingerURIScheme)
+	webCASResolver := resolver.NewWebCASResolver(httpTransport, wfClient, webFingerURIScheme)
 
 	var ipfsReader *ipfscas.Client
 	var casResolver *resolver.Resolver
-	if parameters.ipfsURL != "" {
-		ipfsReader = ipfscas.New(parameters.ipfsURL, parameters.ipfsTimeout, defaultCasCacheSize, metrics,
-			extendedcasclient.WithCIDVersion(parameters.cidVersion))
+	if parameters.cas.ipfsURL != "" {
+		ipfsReader = ipfscas.New(parameters.cas.ipfsURL, parameters.cas.ipfsTimeout, defaultCasCacheSize, metrics,
+			extendedcasclient.WithCIDVersion(parameters.cas.cidVersion))
 		casResolver = resolver.New(coreCASClient, ipfsReader, webCASResolver, metrics)
 	} else {
 		casResolver = resolver.New(coreCASClient, nil, webCASResolver, metrics)
@@ -722,9 +628,9 @@ func startOrbServices(parameters *orbParameters) error {
 	expiryService := expiry.NewService(taskMgr, parameters.dataExpiryCheckInterval)
 
 	var updateDocumentStore *unpublishedopstore.Store
-	if parameters.unpublishedOperationStoreEnabled {
+	if parameters.unpublishedOperations.enabled {
 		updateDocumentStore, err = unpublishedopstore.New(storeProviders.provider,
-			parameters.unpublishedOperationLifespan, expiryService, metrics)
+			parameters.unpublishedOperations.lifespan, expiryService, metrics)
 		if err != nil {
 			return fmt.Errorf("failed to create unpublished document store: %w", err)
 		}
@@ -732,7 +638,7 @@ func startOrbServices(parameters *orbParameters) error {
 
 	originURIs, err := asURIs(parameters.allowedOrigins...)
 	if err != nil {
-		return fmt.Errorf("invalid anchor origins: %s", err)
+		return fmt.Errorf("invalid anchor origins: %w", err)
 	}
 
 	allowedOriginsStore, err := allowedoriginsmgr.New(configStore, originURIs...)
@@ -748,29 +654,23 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create protocol client provider: %w", err)
 	}
 
-	pc, err := pcp.ForNamespace(parameters.didNamespace)
+	pc, err := pcp.ForNamespace(parameters.sidetree.didNamespace)
 	if err != nil {
-		return fmt.Errorf("failed to get protocol client for namespace [%s]: %w", parameters.didNamespace, err)
+		return fmt.Errorf("failed to get protocol client for namespace [%s]: %w", parameters.sidetree.didNamespace, err)
 	}
 
-	u, err := url.Parse(parameters.externalEndpoint)
+	pubKeys, signatureSuiteType, err := getPublicKeys(parameters, km)
+	if err != nil {
+		return err
+	}
+
+	externalEndpoint, err := url.Parse(parameters.http.externalEndpoint)
 	if err != nil {
 		return fmt.Errorf("parse external endpoint: %w", err)
 	}
 
-	vcActivePubKey, vcActiveKeyType, err := km.ExportPubKeyBytes(parameters.kmsParams.vcSignActiveKeyID)
-	if err != nil {
-		return fmt.Errorf("failed to export pub key: %w", err)
-	}
-
-	signatureSuiteType := jsonWebSignature2020
-
-	if vcActiveKeyType == kms.ED25519 {
-		signatureSuiteType = ed25519Signature2020
-	}
-
 	signingParams := vcsigner.SigningParams{
-		VerificationMethod: "did:web:" + u.Host + "#" + parameters.kmsParams.vcSignActiveKeyID,
+		VerificationMethod: "did:web:" + externalEndpoint.Host + "#" + parameters.kmsParams.vcSignActiveKeyID,
 		Domain:             parameters.anchorCredentialParams.domain,
 		SignatureSuite:     signatureSuiteType,
 	}
@@ -802,97 +702,26 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create anchor event store: %s", err.Error())
 	}
 
-	witnessProofStore, err := proofstore.New(storeProviders.provider, expiryService, parameters.witnessStoreExpiryPeriod)
+	witnessProofStore, err := proofstore.New(storeProviders.provider, expiryService, parameters.witnessProof.witnessStoreExpiryPeriod)
 	if err != nil {
 		return fmt.Errorf("failed to create proof store: %s", err.Error())
 	}
 
 	var processorOpts []processor.Option
-	if parameters.unpublishedOperationStoreEnabled {
+	if parameters.unpublishedOperations.enabled {
 		processorOpts = append(processorOpts, processor.WithUnpublishedOperationStore(updateDocumentStore))
 	}
 
-	opProcessor := processor.New(parameters.didNamespace, opStore, pc, processorOpts...)
+	opProcessor := processor.New(parameters.sidetree.didNamespace, opStore, pc, processorOpts...)
 
-	didAnchoringInfoProvider := didanchorinfo.New(parameters.didNamespace, didAnchors, opProcessor)
+	didAnchoringInfoProvider := didanchorinfo.New(parameters.sidetree.didNamespace, didAnchors, opProcessor)
 
 	// add any additional supported namespaces to resource registry (for now we have just one)
 	resourceRegistry := registry.New(registry.WithResourceInfoProvider(didAnchoringInfoProvider))
 
-	var pubSub pubSub
-
-	mqParams := parameters.mqParams
-
-	if mqParams.endpoint != "" {
-		pubSub = amqp.New(amqp.Config{
-			URI:                       mqParams.endpoint,
-			MaxConnectionChannels:     mqParams.maxConnectionChannels,
-			PublisherChannelPoolSize:  mqParams.publisherChannelPoolSize,
-			PublisherConfirmDelivery:  mqParams.publisherConfirmDelivery,
-			MaxConnectRetries:         mqParams.maxConnectRetries,
-			MaxRedeliveryAttempts:     mqParams.maxRedeliveryAttempts,
-			RedeliveryMultiplier:      mqParams.redeliveryMultiplier,
-			RedeliveryInitialInterval: mqParams.redeliveryInitialInterval,
-			MaxRedeliveryInterval:     mqParams.maxRedeliveryInterval,
-		})
-
-		if parameters.tracingParams.enabled {
-			pubSub = otelamqp.New(pubSub)
-		}
-	} else {
-		pubSub = mempubsub.New(mempubsub.DefaultConfig())
-	}
-
-	apConfig := &apservice.Config{
-		ServicePath:              apServicePath,
-		ServiceIRI:               parameters.apServiceParams.serviceIRI(),
-		ServiceEndpointURL:       parameters.apServiceParams.serviceEndpoint(),
-		VerifyActorInSignature:   parameters.httpSignaturesEnabled,
-		MaxWitnessDelay:          parameters.maxWitnessDelay,
-		IRICacheSize:             parameters.apIRICacheSize,
-		IRICacheExpiration:       parameters.apIRICacheExpiration,
-		OutboxSubscriberPoolSize: parameters.mqParams.outboxPoolSize,
-		InboxSubscriberPoolSize:  parameters.mqParams.inboxPoolSize,
-	}
-
-	apStore, err := createActivityPubStore(storeProviders.provider, apConfig.ServicePath)
+	apStore, err := createActivityPubStore(storeProviders.provider, parameters.apServiceParams.serviceEndpoint().Path)
 	if err != nil {
 		return err
-	}
-
-	pubKeys := make([]discoveryrest.PublicKey, 0)
-
-	pubKeys = append(pubKeys, discoveryrest.PublicKey{
-		ID:   parameters.kmsParams.vcSignActiveKeyID,
-		Type: vcActiveKeyType, Value: vcActivePubKey,
-	})
-
-	if len(parameters.kmsParams.vcSignPrivateKeys) > 0 {
-		for keyID := range parameters.kmsParams.vcSignPrivateKeys {
-			pubKey, pubKeyType, err := km.ExportPubKeyBytes(keyID)
-			if err != nil {
-				return fmt.Errorf("failed to export pub key: %w", err)
-			}
-
-			pubKeys = append(pubKeys, discoveryrest.PublicKey{
-				ID:   keyID,
-				Type: pubKeyType, Value: pubKey,
-			})
-		}
-	}
-
-	if len(parameters.kmsParams.vcSignKeysID) > 0 {
-		for _, keyID := range parameters.kmsParams.vcSignKeysID {
-			pubKey, pubKeyType, err := km.ExportPubKeyBytes(keyID)
-			if err != nil {
-				return fmt.Errorf("failed to export pub key: %w", err)
-			}
-
-			pubKeys = append(pubKeys, discoveryrest.PublicKey{
-				ID:   keyID,
-				Type: pubKeyType, Value: pubKey,
-			})
-		}
 	}
 
 	httpSignActivePubKey, httpSignKeyType, err := km.ExportPubKeyBytes(parameters.kmsParams.httpSignActiveKeyID)
@@ -912,7 +741,7 @@ func startOrbServices(parameters *orbParameters) error {
 		Type: httpSignKeyType, Value: httpSignActivePubKey,
 	})
 
-	pkStore, err := publickey.New(storeProviders.provider, verifiable.NewVDRKeyResolver(vdr).PublicKeyFetcher())
+	pkStore, err := publickey.New(storeProviders.provider, verifiable.NewVDRKeyResolver(vdrClient).PublicKeyFetcher())
 	if err != nil {
 		return fmt.Errorf("create public key storage: %w", err)
 	}
@@ -923,56 +752,37 @@ func startOrbServices(parameters *orbParameters) error {
 
 	endpointClient, err = discoveryclient.New(orbDocumentLoader,
 		&discoveryCAS{resolver: casResolver},
-		discoveryclient.WithNamespace(parameters.didNamespace),
+		discoveryclient.WithNamespace(parameters.sidetree.didNamespace),
 		discoveryclient.WithHTTPClient(httpClient),
 		discoveryclient.WithDIDWebHTTP(parameters.enableDevMode),
 		discoveryclient.WithPublicKeyFetcher(publicKeyFetcher),
-		discoveryclient.WithVDR(vdr),
+		discoveryclient.WithVDR(vdrClient),
 	)
+	if err != nil {
+		return fmt.Errorf("new discovery client: %w", err)
+	}
 
 	resourceResolver := resource.New(httpClient, ipfsReader, endpointClient)
 
 	apClient := client.New(client.Config{
-		CacheSize:       parameters.apClientCacheSize,
-		CacheExpiration: parameters.apClientCacheExpiration,
-	}, t, publicKeyFetcher, resourceResolver)
+		CacheSize:       parameters.activityPub.clientCacheSize,
+		CacheExpiration: parameters.activityPub.clientCacheExpiration,
+	}, httpTransport, publicKeyFetcher, resourceResolver)
 
 	apSigVerifier := getActivityPubVerifier(parameters, km, cr, apClient)
 
 	proofMonitoringSvc, err := proofmonitoring.New(storeProviders.provider, orbDocumentLoader, wfClient,
-		httpClient, taskMgr, parameters.vctProofMonitoringInterval, parameters.requestTokens)
+		httpClient, taskMgr, parameters.vct.proofMonitoringInterval, parameters.requestTokens)
 	if err != nil {
 		return fmt.Errorf("new VCT monitoring service: %w", err)
 	}
 
-	logMonitorStore, err := logmonitor.New(storeProviders.provider)
+	logMonitoringSvc, logMonitorStore, err := newLogMonitoringService(parameters, httpClient, storeProviders.provider)
 	if err != nil {
-		return fmt.Errorf("failed to create log monitor store: %w", err)
+		return err
 	}
 
-	logMonitoringOpts := []logmonitoring.Option{
-		logmonitoring.WithMaxTreeSize(parameters.vctLogMonitoringTreeSize),
-		logmonitoring.WithMaxGetEntriesRange(parameters.vctLogMonitoringGetEntriesRange),
-	}
-
-	if parameters.vctLogEntriesStoreEnabled {
-		logEntryStore, err := logentry.New(storeProviders.provider)
-		if err != nil {
-			return fmt.Errorf("failed to create log entries store: %w", err)
-		}
-
-		logMonitoringOpts = append(logMonitoringOpts,
-			logmonitoring.WithLogEntriesStoreEnabled(true),
-			logmonitoring.WithLogEntriesStore(logEntryStore))
-	}
-
-	logMonitoringSvc, err := logmonitoring.New(logMonitorStore, httpClient, parameters.requestTokens,
-		logMonitoringOpts...)
-	if err != nil {
-		return fmt.Errorf("new VCT consistency monitoring service: %w", err)
-	}
-
-	taskMgr.RegisterTask("vct-log-consistency-monitor", parameters.vctLogMonitoringInterval, logMonitoringSvc.MonitorLogs)
+	taskMgr.RegisterTask("vct-log-consistency-monitor", parameters.vct.logMonitoringInterval, logMonitoringSvc.MonitorLogs)
 
 	policyStore := policycfg.NewPolicyStore(configStore)
 
@@ -990,19 +800,21 @@ func startOrbServices(parameters *orbParameters) error {
 		WitnessPolicy:   witnessPolicy,
 	}
 
-	policyInspector, err := inspector.New(witnessPolicyInspectorProviders, parameters.maxWitnessDelay)
+	policyInspector, err := inspector.New(witnessPolicyInspectorProviders, parameters.witnessProof.maxWitnessDelay)
 	if err != nil {
 		return fmt.Errorf("failed to create witness policy inspector: %s", err.Error())
 	}
 
 	anchorEventStatusStore, err := anchorstatus.New(storeProviders.provider, expiryService,
-		parameters.maxWitnessDelay, anchorstatus.WithPolicyHandler(policyInspector),
+		parameters.witnessProof.maxWitnessDelay, anchorstatus.WithPolicyHandler(policyInspector),
 		anchorstatus.WithCheckStatusAfterTime(parameters.anchorStatusInProcessGracePeriod))
 	if err != nil {
 		return fmt.Errorf("failed to create vc status store: %s", err.Error())
 	}
 
 	taskMgr.RegisterTask("anchor-status-monitor", parameters.anchorStatusMonitoringInterval, anchorEventStatusStore.CheckInProcessAnchors)
+
+	pubSub := newPubSub(parameters)
 
 	proofHandler := proof.New(
 		&proof.Providers{
@@ -1014,7 +826,8 @@ func startOrbServices(parameters *orbParameters) error {
 			WitnessPolicy:   witnessPolicy,
 			Metrics:         metrics,
 		},
-		pubSub, parameters.dataURIMediaType, parameters.maxClockSkew)
+		pubSub, parameters.dataURIMediaType, parameters.witnessProof.maxClockSkew,
+	)
 
 	witness := vct.New(configclient.New(configStore), vcSigner, metrics,
 		vct.WithHTTPClient(httpClient),
@@ -1047,10 +860,10 @@ func startOrbServices(parameters *orbParameters) error {
 		MonitoringSvc:          proofMonitoringSvc,
 	}
 
-	observer, err := observer.New(apConfig.ServiceIRI, providers,
+	obsrv, err := observer.New(parameters.apServiceParams.serviceIRI(), providers,
 		observer.WithDiscoveryDomain(parameters.discoveryDomain),
 		observer.WithSubscriberPoolSize(parameters.mqParams.observerPoolSize),
-		observer.WithProofMonitoringExpiryPeriod(parameters.proofMonitoringExpiryPeriod),
+		observer.WithProofMonitoringExpiryPeriod(parameters.witnessProof.proofMonitoringExpiryPeriod),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to create observer: %w", err)
@@ -1061,8 +874,8 @@ func startOrbServices(parameters *orbParameters) error {
 	err = anchorsynctask.Register(
 		anchorsynctask.Config{
 			ServiceIRI:     parameters.apServiceParams.serviceIRI(),
-			Interval:       parameters.anchorSyncPeriod,
-			MinActivityAge: parameters.anchorSyncMinActivityAge,
+			Interval:       parameters.activityPub.anchorSyncPeriod,
+			MinActivityAge: parameters.activityPub.anchorSyncMinActivityAge,
 		},
 		taskMgr, apClient, apStore, storeProviders.provider,
 		func() apspi.InboxHandler {
@@ -1073,18 +886,30 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to register anchor sync task: %w", err)
 	}
 
+	apConfig := &apservice.Config{
+		ServicePath:              parameters.apServiceParams.serviceEndpoint().Path,
+		ServiceIRI:               parameters.apServiceParams.serviceIRI(),
+		ServiceEndpointURL:       parameters.apServiceParams.serviceEndpoint(),
+		VerifyActorInSignature:   parameters.auth.httpSignaturesEnabled,
+		MaxWitnessDelay:          parameters.witnessProof.maxWitnessDelay,
+		IRICacheSize:             parameters.activityPub.iriCacheSize,
+		IRICacheExpiration:       parameters.activityPub.iriCacheExpiration,
+		OutboxSubscriberPoolSize: parameters.mqParams.outboxPoolSize,
+		InboxSubscriberPoolSize:  parameters.mqParams.inboxPoolSize,
+	}
+
 	activityPubService, err = apservice.New(apConfig,
-		apStore, t, apSigVerifier, pubSub, apClient, resourceResolver, authTokenManager, metrics,
+		apStore, httpTransport, apSigVerifier, pubSub, apClient, resourceResolver, authTokenManager, metrics,
 		apspi.WithProofHandler(proofHandler),
 		apspi.WithAcceptFollowHandler(logMonitorHandler),
 		apspi.WithUndoFollowHandler(logMonitorHandler),
 		apspi.WithWitness(witness),
 		apspi.WithAnchorEventHandler(credential.New(
-			observer.Publisher(), casResolver, orbDocumentLoader, parameters.maxWitnessDelay,
+			obsrv.Publisher(), casResolver, orbDocumentLoader, parameters.witnessProof.maxWitnessDelay,
 			anchorLinkStore, generatorRegistry,
 		)),
-		apspi.WithInviteWitnessAuth(NewAcceptRejectHandler(activityhandler.InviteWitnessType, parameters.inviteWitnessAuthPolicy, configStore)),
-		apspi.WithFollowAuth(NewAcceptRejectHandler(activityhandler.FollowType, parameters.followAuthPolicy, configStore)),
+		apspi.WithInviteWitnessAuth(newAcceptRejectHandler(activityhandler.InviteWitnessType, parameters.auth.inviteWitnessPolicy, configStore)),
+		apspi.WithFollowAuth(newAcceptRejectHandler(activityhandler.FollowType, parameters.auth.followPolicy, configStore)),
 		apspi.WithAnchorEventAcknowledgementHandler(anchorEventHandler),
 	)
 	if err != nil {
@@ -1120,15 +945,15 @@ func startOrbServices(parameters *orbParameters) error {
 		AnchorLinkBuilder:      anchorLinksetBuilder,
 	}
 
-	anchorWriter, err := writer.New(parameters.didNamespace,
+	anchorWriter, err := writer.New(parameters.sidetree.didNamespace,
 		parameters.apServiceParams.serviceIRI(),
 		parameters.apServiceParams.serviceEndpoint(),
 		casIRI,
 		parameters.dataURIMediaType,
 		anchorWriterProviders,
-		observer.Publisher(), pubSub,
-		parameters.maxWitnessDelay,
-		parameters.signWithLocalWitness,
+		obsrv.Publisher(), pubSub,
+		parameters.witnessProof.maxWitnessDelay,
+		parameters.witnessProof.signWithLocalWitness,
 		resourceResolver,
 		metrics)
 	if err != nil {
@@ -1141,7 +966,7 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	// create new batch writer
-	batchWriter, err := batch.New(parameters.didNamespace,
+	batchWriter, err := batch.New(parameters.sidetree.didNamespace,
 		sidetreecontext.New(pc, anchorWriter, opQueue),
 		batch.WithBatchTimeout(parameters.batchWriterTimeout))
 	if err != nil {
@@ -1151,23 +976,24 @@ func startOrbServices(parameters *orbParameters) error {
 	var didDocHandlerOpts []dochandler.Option
 
 	if parameters.enableDevMode {
-		didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithDomain("http:"+u.Host))
+		didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithDomain("http:"+externalEndpoint.Host))
 	} else {
-		didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithDomain("https:"+u.Host))
+		didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithDomain("https:"+externalEndpoint.Host))
 	}
 
 	didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithLabel(unpublishedDIDLabel))
 
-	if parameters.unpublishedOperationStoreEnabled {
-		didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithUnpublishedOperationStore(updateDocumentStore, parameters.unpublishedOperationStoreOperationTypes))
+	if parameters.unpublishedOperations.enabled {
+		didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithUnpublishedOperationStore(updateDocumentStore,
+			parameters.unpublishedOperations.operationTypes))
 	}
 
 	if parameters.verifyLatestFromAnchorOrigin {
-		operationDecorator := decorator.New(parameters.didNamespace,
-			parameters.externalEndpoint,
+		operationDecorator := decorator.New(parameters.sidetree.didNamespace,
+			parameters.http.externalEndpoint,
 			opProcessor,
 			endpointClient,
-			remoteresolver.New(t),
+			remoteresolver.New(httpTransport),
 			metrics,
 		)
 
@@ -1175,8 +1001,8 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	didDocHandler := dochandler.New(
-		parameters.didNamespace,
-		parameters.didAliases,
+		parameters.sidetree.didNamespace,
+		parameters.sidetree.didAliases,
 		pc,
 		batchWriter,
 		opProcessor,
@@ -1185,35 +1011,30 @@ func startOrbServices(parameters *orbParameters) error {
 	)
 
 	apEndpointCfg := &aphandler.Config{
-		BasePath:               apServicePath,
+		BasePath:               parameters.apServiceParams.serviceEndpoint().Path,
 		ObjectIRI:              parameters.apServiceParams.serviceIRI(),
 		ServiceEndpointURL:     parameters.apServiceParams.serviceEndpoint(),
-		VerifyActorInSignature: parameters.httpSignaturesEnabled,
-		PageSize:               parameters.activityPubPageSize,
+		VerifyActorInSignature: parameters.auth.httpSignaturesEnabled,
+		PageSize:               parameters.activityPub.pageSize,
 	}
 
-	var resolveHandlerOpts []resolvehandler.Option
-	resolveHandlerOpts = append(resolveHandlerOpts, resolvehandler.WithUnpublishedDIDLabel(unpublishedDIDLabel))
-	resolveHandlerOpts = append(resolveHandlerOpts, resolvehandler.WithEnableDIDDiscovery(parameters.didDiscoveryEnabled))
-	resolveHandlerOpts = append(resolveHandlerOpts, resolvehandler.WithEnableResolutionFromAnchorOrigin(parameters.resolveFromAnchorOrigin))
-
-	var updateHandlerOpts []updatehandler.Option
-
-	didDiscovery := localdiscovery.New(parameters.didNamespace, observer.Publisher(), endpointClient)
+	didDiscovery := localdiscovery.New(parameters.sidetree.didNamespace, obsrv.Publisher(), endpointClient)
 
 	orbResolveHandler := resolvehandler.NewResolveHandler(
-		parameters.didNamespace,
+		parameters.sidetree.didNamespace,
 		didDocHandler,
 		didDiscovery,
-		parameters.externalEndpoint,
+		parameters.http.externalEndpoint,
 		endpointClient,
-		remoteresolver.New(t),
+		remoteresolver.New(httpTransport),
 		anchorGraph,
 		metrics,
-		resolveHandlerOpts...,
+		resolvehandler.WithUnpublishedDIDLabel(unpublishedDIDLabel),
+		resolvehandler.WithEnableDIDDiscovery(parameters.didDiscoveryEnabled),
+		resolvehandler.WithEnableResolutionFromAnchorOrigin(parameters.resolveFromAnchorOrigin),
 	)
 
-	orbDocUpdateHandler := updatehandler.New(didDocHandler, metrics, updateHandlerOpts...)
+	orbDocUpdateHandler := updatehandler.New(didDocHandler, metrics)
 
 	var logEndpoint logEndpoint
 
@@ -1226,13 +1047,13 @@ func startOrbServices(parameters *orbParameters) error {
 	}
 
 	// current external endpoint is always allowed
-	allowedDIDWebDomains := []*url.URL{u}
+	allowedDIDWebDomains := []*url.URL{externalEndpoint}
 
 	if len(parameters.allowedDIDWebDomains) > 0 {
 		allowedDIDWebDomains = append(allowedDIDWebDomains, parameters.allowedDIDWebDomains...)
 	}
 
-	webResolveHandler := webresolver.NewResolveHandler(allowedDIDWebDomains, parameters.didNamespace,
+	webResolveHandler := webresolver.NewResolveHandler(allowedDIDWebDomains, parameters.sidetree.didNamespace,
 		unpublishedDIDLabel, orbResolveHandler, metrics)
 
 	// create discovery rest api
@@ -1243,8 +1064,8 @@ func startOrbServices(parameters *orbParameters) error {
 			ResolutionPath:            baseResolvePath,
 			OperationPath:             baseUpdatePath,
 			WebCASPath:                casPath,
-			DiscoveryDomains:          parameters.discoveryDomains,
-			DiscoveryMinimumResolvers: parameters.discoveryMinimumResolvers,
+			DiscoveryDomains:          parameters.discovery.domains,
+			DiscoveryMinimumResolvers: parameters.discovery.minimumResolvers,
 			ServiceID:                 parameters.apServiceParams.serviceIRI(),
 			ServiceEndpointURL:        parameters.apServiceParams.serviceEndpoint(),
 		},
@@ -1283,12 +1104,16 @@ func startOrbServices(parameters *orbParameters) error {
 	var sidetreeResolutionHandler restcommon.HTTPHandler
 	var activityInboxHandler restcommon.HTTPHandler
 
-	sidetreeOperationsHandler = auth.NewHandlerWrapper(diddochandler.NewUpdateHandler(baseUpdatePath, orbDocUpdateHandler, pc, metrics), authTokenManager)
+	sidetreeOperationsHandler = auth.NewHandlerWrapper(
+		diddochandler.NewUpdateHandler(baseUpdatePath, orbDocUpdateHandler, pc, metrics),
+		authTokenManager,
+	)
+
 	sidetreeResolutionHandler = signature.NewHandlerWrapper(diddochandler.NewResolveHandler(baseResolvePath, didResolveHandler, metrics),
 		&aphandler.Config{
 			ObjectIRI:              parameters.apServiceParams.serviceIRI(),
-			VerifyActorInSignature: parameters.httpSignaturesEnabled,
-			PageSize:               parameters.activityPubPageSize,
+			VerifyActorInSignature: parameters.auth.httpSignaturesEnabled,
+			PageSize:               parameters.activityPub.pageSize,
 		},
 		apStore, apSigVerifier, authTokenManager,
 	)
@@ -1321,8 +1146,8 @@ func startOrbServices(parameters *orbParameters) error {
 		webcas.New(
 			&aphandler.Config{
 				ObjectIRI:              parameters.apServiceParams.serviceIRI(),
-				VerifyActorInSignature: parameters.httpSignaturesEnabled,
-				PageSize:               parameters.activityPubPageSize,
+				VerifyActorInSignature: parameters.auth.httpSignaturesEnabled,
+				PageSize:               parameters.activityPub.pageSize,
 			},
 			apStore, apSigVerifier, coreCASClient, authTokenManager,
 		),
@@ -1341,33 +1166,30 @@ func startOrbServices(parameters *orbParameters) error {
 		auth.NewHandlerWrapper(loglevels.NewReadHandler(), authTokenManager),
 	)
 
-	handlers = append(handlers,
-		endpointDiscoveryOp.GetRESTHandlers()...)
+	handlers = append(handlers, endpointDiscoveryOp.GetRESTHandlers()...)
 
-	if parameters.followAuthPolicy == acceptListPolicy || parameters.inviteWitnessAuthPolicy == acceptListPolicy {
+	if parameters.auth.followPolicy == acceptListPolicy || parameters.auth.inviteWitnessPolicy == acceptListPolicy {
 		// Register endpoints to manage the 'accept list'.
-		handlers = append(handlers, auth.NewHandlerWrapper(
-			aphandler.NewAcceptListWriter(apEndpointCfg, acceptlist.NewManager(configStore)), authTokenManager),
-		)
-		handlers = append(handlers, auth.NewHandlerWrapper(
-			aphandler.NewAcceptListReader(apEndpointCfg, acceptlist.NewManager(configStore)), authTokenManager),
+		handlers = append(handlers,
+			auth.NewHandlerWrapper(aphandler.NewAcceptListWriter(apEndpointCfg, acceptlist.NewManager(configStore)), authTokenManager),
+			auth.NewHandlerWrapper(aphandler.NewAcceptListReader(apEndpointCfg, acceptlist.NewManager(configStore)), authTokenManager),
 		)
 	}
 
 	handlers = append(handlers, healthcheck.NewHandler(pubSub, logEndpoint, storeProviders.provider, km, parameters.enableMaintenanceMode))
 
 	httpServer := httpserver.New(
-		parameters.hostURL,
-		httpserver.WithCertFile(parameters.tlsParams.serveCertPath),
-		httpserver.WithKeyFile(parameters.tlsParams.serveKeyPath),
-		httpserver.WithServerIdleTimeout(parameters.serverIdleTimeout),
-		httpserver.WithServerReadHeaderTimeout(parameters.serverReadHeaderTimeout),
-		httpserver.WithTracingEnabled(parameters.tracingParams.enabled),
-		httpserver.WithTracingServiceName(parameters.tracingParams.serviceName),
+		parameters.http.hostURL,
+		httpserver.WithCertFile(parameters.http.tls.serveCertPath),
+		httpserver.WithKeyFile(parameters.http.tls.serveKeyPath),
+		httpserver.WithServerIdleTimeout(parameters.http.serverIdleTimeout),
+		httpserver.WithServerReadHeaderTimeout(parameters.http.serverReadHeaderTimeout),
+		httpserver.WithTracingEnabled(parameters.observability.tracing.enabled),
+		httpserver.WithTracingServiceName(parameters.observability.tracing.serviceName),
 		httpserver.WithHandlers(handlers...),
 	)
 
-	err = run(httpServer, activityPubService, opQueue, observer, batchWriter, taskMgr,
+	err = run(httpServer, activityPubService, opQueue, obsrv, batchWriter, taskMgr,
 		nodeInfoService, newMPLifecycleWrapper(mp), tracerProvider)
 	if err != nil {
 		return err
@@ -1380,26 +1202,250 @@ func startOrbServices(parameters *orbParameters) error {
 	return nil
 }
 
+func newHTTPClient(parameters *orbParameters) (*http.Client, error) {
+	rootCAs, err := tlsutil.GetCertPool(parameters.http.tls.systemCertPool, parameters.http.tls.caCerts)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConfig := &tls.Config{RootCAs: rootCAs, MinVersion: tls.VersionTLS12}
+
+	if parameters.enableDevMode {
+		tlsConfig = &tls.Config{
+			InsecureSkipVerify: true, //nolint: gosec
+		}
+	}
+
+	var httpTransport http.RoundTripper = &http.Transport{
+		TLSClientConfig: tlsConfig,
+		DialContext: (&net.Dialer{
+			Timeout:   parameters.http.dialTimeout,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          2000,
+		MaxConnsPerHost:       100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   5 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
+
+	if parameters.observability.tracing.enabled {
+		httpTransport = otelhttp.NewTransport(httpTransport)
+	}
+
+	return &http.Client{
+		Timeout:   parameters.http.timeout,
+		Transport: httpTransport,
+	}, nil
+}
+
+func newCASClient(parameters *orbParameters, p dbProvider, casIRI *url.URL,
+	metrics metricsProvider.Metrics,
+) (extendedcasclient.Client, error) {
+	switch {
+	case strings.EqualFold(parameters.cas.casType, "ipfs"):
+		logger.Info("Initializing Orb CAS with IPFS.")
+
+		return ipfscas.New(parameters.cas.ipfsURL, parameters.cas.ipfsTimeout, defaultCasCacheSize, metrics,
+			extendedcasclient.WithCIDVersion(parameters.cas.cidVersion)), nil
+	case strings.EqualFold(parameters.cas.casType, "local"):
+		logger.Info("Initializing Orb CAS with local storage provider.")
+
+		if parameters.cas.localCASReplicateInIPFSEnabled {
+			logger.Info("Local CAS writes will be replicated in IPFS.")
+
+			return casstore.New(p, casIRI.String(),
+				ipfscas.New(parameters.cas.ipfsURL, parameters.cas.ipfsTimeout, defaultCasCacheSize, metrics,
+					extendedcasclient.WithCIDVersion(parameters.cas.cidVersion)),
+				metrics, defaultCasCacheSize, extendedcasclient.WithCIDVersion(parameters.cas.cidVersion))
+		} else {
+			return casstore.New(p, casIRI.String(), nil,
+				metrics, defaultCasCacheSize, extendedcasclient.WithCIDVersion(parameters.cas.cidVersion))
+		}
+
+	default:
+		return nil, fmt.Errorf("%s is not a valid CAS type. It must be either local or ipfs", parameters.cas.casType)
+	}
+}
+
+func newPubSub(parameters *orbParameters) publisherSubscriber {
+	mqParams := parameters.mqParams
+
+	if mqParams.endpoint == "" {
+		return mempubsub.New(mempubsub.DefaultConfig())
+	}
+
+	var ps publisherSubscriber = amqp.New(amqp.Config{
+		URI:                       mqParams.endpoint,
+		MaxConnectionChannels:     mqParams.maxConnectionChannels,
+		PublisherChannelPoolSize:  mqParams.publisherChannelPoolSize,
+		PublisherConfirmDelivery:  mqParams.publisherConfirmDelivery,
+		MaxConnectRetries:         mqParams.maxConnectRetries,
+		MaxRedeliveryAttempts:     mqParams.maxRedeliveryAttempts,
+		RedeliveryMultiplier:      mqParams.redeliveryMultiplier,
+		RedeliveryInitialInterval: mqParams.redeliveryInitialInterval,
+		MaxRedeliveryInterval:     mqParams.maxRedeliveryInterval,
+	})
+
+	if parameters.observability.tracing.enabled {
+		ps = otelamqp.New(ps)
+	}
+
+	return ps
+}
+
+func getPublicKeys(parameters *orbParameters, km keyManager) ([]discoveryrest.PublicKey, string, error) {
+	pubKeys := make([]discoveryrest.PublicKey, 0)
+
+	vcActivePubKey, vcActiveKeyType, err := km.ExportPubKeyBytes(parameters.kmsParams.vcSignActiveKeyID)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to export pub key: %w", err)
+	}
+
+	pubKeys = append(pubKeys, discoveryrest.PublicKey{
+		ID:   parameters.kmsParams.vcSignActiveKeyID,
+		Type: vcActiveKeyType, Value: vcActivePubKey,
+	})
+
+	if len(parameters.kmsParams.vcSignPrivateKeys) > 0 {
+		for keyID := range parameters.kmsParams.vcSignPrivateKeys {
+			pubKey, pubKeyType, e := km.ExportPubKeyBytes(keyID)
+			if e != nil {
+				return nil, "", fmt.Errorf("failed to export pub key: %w", e)
+			}
+
+			pubKeys = append(pubKeys, discoveryrest.PublicKey{
+				ID:   keyID,
+				Type: pubKeyType, Value: pubKey,
+			})
+		}
+	}
+
+	if len(parameters.kmsParams.vcSignKeysID) > 0 {
+		for _, keyID := range parameters.kmsParams.vcSignKeysID {
+			pubKey, pubKeyType, e := km.ExportPubKeyBytes(keyID)
+			if e != nil {
+				return nil, "", fmt.Errorf("failed to export pub key: %w", e)
+			}
+
+			pubKeys = append(pubKeys, discoveryrest.PublicKey{
+				ID:   keyID,
+				Type: pubKeyType, Value: pubKey,
+			})
+		}
+	}
+
+	signatureSuiteType := jsonWebSignature2020
+
+	if vcActiveKeyType == kms.ED25519 {
+		signatureSuiteType = ed25519Signature2020
+	}
+
+	return pubKeys, signatureSuiteType, nil
+}
+
+func newLogMonitoringService(parameters *orbParameters,
+	httpClient *http.Client, dbp dbProvider,
+) (*logmonitoring.Client, *logmonitor.Store, error) {
+	logMonitorStore, err := logmonitor.New(dbp)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create log monitor store: %w", err)
+	}
+
+	logMonitoringOpts := []logmonitoring.Option{
+		logmonitoring.WithMaxTreeSize(parameters.vct.logMonitoringTreeSize),
+		logmonitoring.WithMaxGetEntriesRange(parameters.vct.logMonitoringGetEntriesRange),
+	}
+
+	if parameters.vct.logEntriesStoreEnabled {
+		logEntryStore, e := logentry.New(dbp)
+		if e != nil {
+			return nil, nil, fmt.Errorf("failed to create log entries store: %w", e)
+		}
+
+		logMonitoringOpts = append(logMonitoringOpts,
+			logmonitoring.WithLogEntriesStoreEnabled(true),
+			logmonitoring.WithLogEntriesStore(logEntryStore))
+	}
+
+	logMonitoringSvc, err := logmonitoring.New(logMonitorStore, httpClient, parameters.requestTokens,
+		logMonitoringOpts...)
+	if err != nil {
+		return nil, nil, fmt.Errorf("new VCT consistency monitoring service: %w", err)
+	}
+
+	return logMonitoringSvc, logMonitorStore, nil
+}
+
+func initKMS(parameters *orbParameters, km keyManager, configStore storage.Store) error {
+	if parameters.kmsParams.vcSignActiveKeyID == "" {
+		if err := createKID(km, false, parameters, configStore); err != nil {
+			return fmt.Errorf("create kid: %w", err)
+		}
+	}
+
+	if parameters.kmsParams.httpSignActiveKeyID == "" {
+		if err := createKID(km, true, parameters, configStore); err != nil {
+			return fmt.Errorf("create kid: %w", err)
+		}
+	}
+
+	if parameters.kmsParams.vcSignActiveKeyID != "" && len(parameters.kmsParams.vcSignPrivateKeys) > 0 {
+		if err := importPrivateKey(km, false, parameters, configStore); err != nil {
+			return fmt.Errorf("import kid: %w", err)
+		}
+	}
+
+	if parameters.kmsParams.httpSignActiveKeyID != "" && len(parameters.kmsParams.httpSignPrivateKey) > 0 {
+		if err := importPrivateKey(km, true, parameters, configStore); err != nil {
+			return fmt.Errorf("import kid: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func newLDStoreProvider(dbp dbProvider) (*ldStoreProvider, error) {
+	ldStorageProvider := cachedstore.NewProvider(dbp, ariesmemstorage.NewProvider())
+
+	contextStore, err := ldstore.NewContextStore(ldStorageProvider)
+	if err != nil {
+		return nil, fmt.Errorf("create JSON-LD context store: %w", err)
+	}
+
+	remoteProviderStore, err := ldstore.NewRemoteProviderStore(ldStorageProvider)
+	if err != nil {
+		return nil, fmt.Errorf("create remote provider store: %w", err)
+	}
+
+	return &ldStoreProvider{
+		ContextStore:        contextStore,
+		RemoteProviderStore: remoteProviderStore,
+	}, nil
+}
+
 func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Client, casResolver common.CASResolver,
 	opStore common.OperationStore, provider storage.Provider, unpublishedOpStore *unpublishedopstore.Store,
-	allowedOriginsValidator operationparser.ObjectValidator, metrics metricsProvider.Metrics) (*orbpcp.ClientProvider, error) {
+	allowedOriginsValidator operationparser.ObjectValidator, metrics metricsProvider.Metrics,
+) (*orbpcp.ClientProvider, error) {
 	sidetreeCfg := config.Sidetree{
 		MethodContext:                           parameters.methodContext,
 		EnableBase:                              parameters.baseEnabled,
 		UnpublishedOpStore:                      unpublishedOpStore,
-		UnpublishedOperationStoreOperationTypes: parameters.unpublishedOperationStoreOperationTypes,
-		IncludeUnpublishedOperations:            parameters.includeUnpublishedOperations,
-		IncludePublishedOperations:              parameters.includePublishedOperations,
+		UnpublishedOperationStoreOperationTypes: parameters.unpublishedOperations.operationTypes,
+		IncludeUnpublishedOperations:            parameters.unpublishedOperations.includeUnpublished,
+		IncludePublishedOperations:              parameters.unpublishedOperations.includePublished,
 		AllowedOriginsValidator:                 allowedOriginsValidator,
 	}
 
-	registry := factoryregistry.New()
+	r := factoryregistry.New()
 
 	var protocolVersions []protocol.Version
-	for _, version := range parameters.sidetreeProtocolVersions {
-		pv, err := registry.CreateProtocolVersion(version, casClient, casResolver, opStore, provider, &sidetreeCfg, metrics)
+	for _, version := range parameters.sidetree.protocolVersions {
+		pv, err := r.CreateProtocolVersion(version, casClient, casResolver, opStore, provider, &sidetreeCfg, metrics)
 		if err != nil {
-			return nil, fmt.Errorf("error creating protocol version [%s]: %s", version, err)
+			return nil, fmt.Errorf("error creating protocol version [%s]: %w", version, err)
 		}
 
 		protocolVersions = append(protocolVersions, pv)
@@ -1408,8 +1454,8 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 	pcp := orbpcp.New()
 
 	var pcOpts []orbpc.Option
-	if parameters.currentSidetreeProtocolVersion != "" {
-		pcOpts = append(pcOpts, orbpc.WithCurrentProtocolVersion(parameters.currentSidetreeProtocolVersion))
+	if parameters.sidetree.currentProtocolVersion != "" {
+		pcOpts = append(pcOpts, orbpc.WithCurrentProtocolVersion(parameters.sidetree.currentProtocolVersion))
 	}
 
 	pc, err := orbpc.New(protocolVersions, pcOpts...)
@@ -1417,13 +1463,12 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 		return nil, err
 	}
 
-	pcp.Add(parameters.didNamespace, pc)
+	pcp.Add(parameters.sidetree.didNamespace, pc)
 
 	return pcp, nil
 }
 
-func createActivityPubStore(storageProvider dbProvider,
-	serviceEndpoint string) (activitypubspi.Store, error) {
+func createActivityPubStore(storageProvider dbProvider, serviceEndpoint string) (activitypubspi.Store, error) {
 	switch strings.ToLower(storageProvider.DBType()) {
 	case databaseTypeMongoDBOption:
 		apStore, err := apariesstore.New(serviceEndpoint, storageProvider, true)
@@ -1530,14 +1575,14 @@ type storageProviders struct {
 func createStoreProviders(parameters *orbParameters, metrics metricsProvider.Metrics) (*storageProviders, error) {
 	var edgeServiceProvs storageProviders
 
-	switch { //nolint: dupl
+	switch {
 	case strings.EqualFold(parameters.dbParameters.databaseType, databaseTypeMemOption):
 		edgeServiceProvs.provider = &storageProvider{ariesmemstorage.NewProvider(), databaseTypeMemOption}
 	case strings.EqualFold(parameters.dbParameters.databaseType, databaseTypeCouchDBOption):
-		couchDBProvider, err :=
-			ariescouchdbstorage.NewProvider(parameters.dbParameters.databaseURL,
-				ariescouchdbstorage.WithDBPrefix(parameters.dbParameters.databasePrefix),
-				ariescouchdbstorage.WithLogger(logger.Sugar()))
+		couchDBProvider, err := ariescouchdbstorage.NewProvider(
+			parameters.dbParameters.databaseURL,
+			ariescouchdbstorage.WithDBPrefix(parameters.dbParameters.databasePrefix),
+			ariescouchdbstorage.WithLogger(logger.Sugar()))
 		if err != nil {
 			return &storageProviders{}, err
 		}
@@ -1550,7 +1595,7 @@ func createStoreProviders(parameters *orbParameters, metrics metricsProvider.Met
 		mongoDBProvider, err := ariesmongodbstorage.NewProvider(parameters.dbParameters.databaseURL,
 			ariesmongodbstorage.WithDBPrefix(parameters.dbParameters.databasePrefix),
 			ariesmongodbstorage.WithLogger(logger.Sugar()),
-			ariesmongodbstorage.WithTimeout(parameters.databaseTimeout))
+			ariesmongodbstorage.WithTimeout(parameters.dbParameters.databaseTimeout))
 		if err != nil {
 			return nil, fmt.Errorf("create MongoDB storage provider: %w", err)
 		}
@@ -1569,13 +1614,13 @@ func createStoreProviders(parameters *orbParameters, metrics metricsProvider.Met
 		return &edgeServiceProvs, nil
 	}
 
-	switch { //nolint: dupl
+	switch {
 	case strings.EqualFold(parameters.kmsParams.kmsSecretsDatabaseType, databaseTypeMemOption):
 		edgeServiceProvs.kmsSecretsProvider = ariesmemstorage.NewProvider()
 	case strings.EqualFold(parameters.kmsParams.kmsSecretsDatabaseType, databaseTypeCouchDBOption):
-		couchDBProvider, err :=
-			ariescouchdbstorage.NewProvider(parameters.kmsParams.kmsSecretsDatabaseURL,
-				ariescouchdbstorage.WithDBPrefix(parameters.kmsParams.kmsSecretsDatabasePrefix))
+		couchDBProvider, err := ariescouchdbstorage.NewProvider(
+			parameters.kmsParams.kmsSecretsDatabaseURL,
+			ariescouchdbstorage.WithDBPrefix(parameters.kmsParams.kmsSecretsDatabasePrefix))
 		if err != nil {
 			return &storageProviders{}, err
 		}
@@ -1585,7 +1630,7 @@ func createStoreProviders(parameters *orbParameters, metrics metricsProvider.Met
 		mongoDBProvider, err := ariesmongodbstorage.NewProvider(parameters.kmsParams.kmsSecretsDatabaseURL,
 			ariesmongodbstorage.WithDBPrefix(parameters.kmsParams.kmsSecretsDatabasePrefix),
 			ariesmongodbstorage.WithLogger(logger.Sugar()),
-			ariesmongodbstorage.WithTimeout(parameters.databaseTimeout))
+			ariesmongodbstorage.WithTimeout(parameters.dbParameters.databaseTimeout))
 		if err != nil {
 			return nil, fmt.Errorf("create MongoDB storage provider: %w", err)
 		}
@@ -1599,8 +1644,7 @@ func createStoreProviders(parameters *orbParameters, metrics metricsProvider.Met
 	return &edgeServiceProvs, nil
 }
 
-func getOrInit(cfg storage.Store, keyID string, v interface{}, initFn func() (interface{}, error),
-	timeout uint64) error {
+func getOrInit(cfg storage.Store, keyID string, v interface{}, initFn func() (interface{}, error), timeout uint64) error {
 	src, err := cfg.Get(keyID)
 	if err != nil && !errors.Is(err, storage.ErrDataNotFound) {
 		return fmt.Errorf("get config value for %q: %w", keyID, err)
@@ -1621,7 +1665,7 @@ func getOrInit(cfg storage.Store, keyID string, v interface{}, initFn func() (in
 		}
 
 		if reflect.DeepEqual(src, src2) {
-			return json.Unmarshal(src, v) //nolint: wrapcheck
+			return json.Unmarshal(src, v)
 		}
 
 		return getOrInit(cfg, keyID, v, initFn, timeout)
@@ -1669,8 +1713,7 @@ func mustParseURL(basePath, relativePath string) *url.URL {
 	return u
 }
 
-func getActivityPubPublicKey(pubKeyBytes []byte, keyType kms.KeyType,
-	apServiceParams *apServiceParams) (*vocab.PublicKeyType, error) {
+func getActivityPubPublicKey(pubKeyBytes []byte, keyType kms.KeyType, apServiceParams *apServiceParams) (*vocab.PublicKeyType, error) {
 	publicKeyID, err := url.Parse(apServiceParams.publicKeyIRI())
 	if err != nil {
 		return nil, fmt.Errorf("parse public key ID: %w", err)
@@ -1700,9 +1743,8 @@ type signatureVerifier interface {
 	VerifyRequest(req *http.Request) (bool, *url.URL, error)
 }
 
-func getActivityPubSigners(parameters *orbParameters, km keyManager,
-	cr crypto) (getSigner signer, postSigner signer) {
-	if parameters.httpSignaturesEnabled {
+func getActivityPubSigners(parameters *orbParameters, km keyManager, cr crypto) (getSigner, postSigner signer) {
+	if parameters.auth.httpSignaturesEnabled {
 		getSigner = httpsig.NewSigner(httpsig.DefaultGetSignerConfig(), cr, km, parameters.kmsParams.httpSignActiveKeyID)
 		postSigner = httpsig.NewSigner(httpsig.DefaultPostSignerConfig(), cr, km, parameters.kmsParams.httpSignActiveKeyID)
 	} else {
@@ -1728,9 +1770,8 @@ func (r *noOpRetriever) HealthCheck() error {
 	return vct.ErrDisabled
 }
 
-func getActivityPubVerifier(parameters *orbParameters, km keyManager,
-	cr crypto, apClient *client.Client) signatureVerifier {
-	if parameters.httpSignaturesEnabled {
+func getActivityPubVerifier(parameters *orbParameters, km keyManager, cr crypto, apClient *client.Client) signatureVerifier {
+	if parameters.auth.httpSignaturesEnabled {
 		return httpsig.NewVerifier(apClient, cr, km)
 	}
 
@@ -1743,22 +1784,6 @@ type noOpVerifier struct{}
 
 func (v *noOpVerifier) VerifyRequest(req *http.Request) (bool, *url.URL, error) {
 	return true, nil, nil
-}
-
-type httpHandler struct {
-	a ariesrest.Handler
-}
-
-func (h *httpHandler) Path() string {
-	return h.a.Path()
-}
-
-func (h *httpHandler) Method() string {
-	return h.a.Method()
-}
-
-func (h *httpHandler) Handler() restcommon.HTTPRequestHandler {
-	return restcommon.HTTPRequestHandler(h.a.Handle())
 }
 
 type ldStoreProvider struct {
@@ -1774,8 +1799,7 @@ func (p *ldStoreProvider) JSONLDRemoteProviderStore() ldstore.RemoteProviderStor
 	return p.RemoteProviderStore
 }
 
-func createJSONLDDocumentLoader(ldStore *ldStoreProvider, httpClient *http.Client,
-	providerURLs []string) (jsonld.DocumentLoader, error) {
+func createJSONLDDocumentLoader(ldStore *ldStoreProvider, httpClient *http.Client, providerURLs []string) (jsonld.DocumentLoader, error) {
 	loaderOpts := []ld.DocumentLoaderOpts{ld.WithExtraContexts(ldcontext.MustGetAll()...)}
 
 	for _, u := range providerURLs {
@@ -1794,8 +1818,8 @@ func createJSONLDDocumentLoader(ldStore *ldStoreProvider, httpClient *http.Clien
 	return loader, nil
 }
 
-func NewAcceptRejectHandler(targetType string, policy acceptRejectPolicy, configStore storage.Store) apspi.ActorAuth {
-	switch policy {
+func newAcceptRejectHandler(targetType string, p acceptRejectPolicy, configStore storage.Store) apspi.ActorAuth {
+	switch p {
 	case acceptListPolicy:
 		return activityhandler.NewAcceptListAuthHandler(targetType, acceptlist.NewManager(configStore))
 	default:
@@ -1843,16 +1867,16 @@ func asURIs(strs ...string) ([]*url.URL, error) {
 	return uris, nil
 }
 
-func newMetricsProvider(parameters *orbParameters) (metricsProvider.Provider, error) {
-	switch parameters.metricsProviderName {
+func newMetricsProvider(parameters *orbParameters) metricsProvider.Provider {
+	switch parameters.observability.metrics.providerName {
 	case "prometheus":
-		metricsHttpServer := httpserver.New(
-			parameters.prometheusMetricsProviderParams.url, httpserver.WithHandlers(prometheus.NewHandler()),
+		metricsHTTPServer := httpserver.New(
+			parameters.observability.metrics.url, httpserver.WithHandlers(prometheus.NewHandler()),
 		)
 
-		return prometheus.NewProvider(metricsHttpServer), nil
+		return prometheus.NewProvider(metricsHTTPServer)
 	default:
-		return noopmetrics.NewProvider(), nil
+		return noopmetrics.NewProvider()
 	}
 }
 
