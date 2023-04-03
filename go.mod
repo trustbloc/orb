@@ -28,7 +28,7 @@ require (
 	github.com/ory/dockertest/v3 v3.8.1
 	github.com/piprate/json-gold v0.4.2
 	github.com/prometheus/client_golang v1.11.0
-	github.com/rabbitmq/amqp091-go v1.3.4
+	github.com/rabbitmq/amqp091-go v1.8.0
 	github.com/rs/cors v1.7.0
 	github.com/spf13/cobra v1.3.0
 	github.com/stretchr/testify v1.8.2
