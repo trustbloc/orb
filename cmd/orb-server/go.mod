@@ -97,7 +97,7 @@ require (
 	github.com/prometheus/client_model v0.2.0 // indirect
 	github.com/prometheus/common v0.26.0 // indirect
 	github.com/prometheus/procfs v0.6.0 // indirect
-	github.com/rabbitmq/amqp091-go v1.3.4 // indirect
+	github.com/rabbitmq/amqp091-go v1.8.0 // indirect
 	github.com/rs/cors v1.7.0 // indirect
 	github.com/spacemonkeygo/spacelog v0.0.0-20180420211403-2296661a0572 // indirect
 	github.com/spaolacci/murmur3 v1.1.0 // indirect
