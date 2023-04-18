@@ -2481,6 +2481,194 @@ func TestClient_getEntries(t *testing.T) {
 		require.Equal(t, 3, len(entries))
 	})
 
+	t.Run("success - paging with default settings (4 batches)", func(t *testing.T) {
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		client, err := New(store, nil, map[string]string{})
+		require.NoError(t, err)
+
+		vctClient := vct.New(testLog, vct.WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == getEntriesURL {
+				expected := command.GetEntriesResponse{
+					Entries: []command.LeafEntry{
+						{
+							LeafInput: []byte("leafInput"),
+						},
+					},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		})))
+
+		// expecting four batches of 1000 entries (1000-1999,2000-2999,3000-3999, 4000-4073)
+		// for test each batch is simulated with one entry
+		entries, err := client.getLogEntries(testLog, vctClient, 1000, 4073, true)
+		require.NoError(t, err)
+		require.Equal(t, 4, len(entries))
+	})
+
+	t.Run("success - paging with default settings (one batch)", func(t *testing.T) {
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		client, err := New(store, nil, map[string]string{})
+		require.NoError(t, err)
+
+		vctClient := vct.New(testLog, vct.WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == getEntriesURL {
+				expected := command.GetEntriesResponse{
+					Entries: []command.LeafEntry{
+						{
+							LeafInput: []byte("leafInput"),
+						},
+					},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		})))
+
+		entries, err := client.getLogEntries(testLog, vctClient, 27, 73, true)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(entries))
+	})
+
+	t.Run("success - paging with default settings (one batch from 1000)", func(t *testing.T) {
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		client, err := New(store, nil, map[string]string{})
+		require.NoError(t, err)
+
+		vctClient := vct.New(testLog, vct.WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == getEntriesURL {
+				expected := command.GetEntriesResponse{
+					Entries: []command.LeafEntry{
+						{
+							LeafInput: []byte("leafInput"),
+						},
+					},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		})))
+
+		entries, err := client.getLogEntries(testLog, vctClient, 1000, 1073, true)
+		require.NoError(t, err)
+		require.Equal(t, 1, len(entries))
+	})
+
+	t.Run("success - paging with default settings (two batches)", func(t *testing.T) {
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		client, err := New(store, nil, map[string]string{})
+		require.NoError(t, err)
+
+		vctClient := vct.New(testLog, vct.WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == getEntriesURL {
+				expected := command.GetEntriesResponse{
+					Entries: []command.LeafEntry{
+						{
+							LeafInput: []byte("leafInput"),
+						},
+					},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		})))
+
+		entries, err := client.getLogEntries(testLog, vctClient, 2973, 4073, true)
+		require.NoError(t, err)
+		require.Equal(t, 2, len(entries))
+	})
+
+	t.Run("success - paging with invalid range", func(t *testing.T) {
+		store, err := logmonitor.New(mem.NewProvider())
+		require.NoError(t, err)
+
+		client, err := New(store, nil, map[string]string{})
+		require.NoError(t, err)
+
+		vctClient := vct.New(testLog, vct.WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path == getEntriesURL {
+				expected := command.GetEntriesResponse{
+					Entries: []command.LeafEntry{
+						{
+							LeafInput: []byte("leafInput"),
+						},
+					},
+				}
+
+				fakeResp, e := json.Marshal(expected)
+				require.NoError(t, e)
+
+				return &http.Response{
+					Body:       io.NopCloser(bytes.NewBuffer(fakeResp)),
+					StatusCode: http.StatusOK,
+				}, nil
+			}
+
+			return &http.Response{
+				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
+				StatusCode: http.StatusInternalServerError,
+			}, nil
+		})))
+
+		entries, err := client.getLogEntries(testLog, vctClient, 1000, 500, true)
+		require.Error(t, err)
+		require.Nil(t, entries)
+		require.Contains(t, err.Error(), "invalid range for get log entries[1000-500]")
+	})
+
 	t.Run("error - log entries store error", func(t *testing.T) {
 		store, err := logmonitor.New(mem.NewProvider())
 		require.NoError(t, err)
