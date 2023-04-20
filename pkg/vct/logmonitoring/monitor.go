@@ -425,13 +425,20 @@ func (c *Client) verifySTHTree(logURL string, sth *command.GetSTHResponse, vctCl
 func (c *Client) getLogEntries(logURL string, vctClient *vct.Client, start, end uint64, store bool) ([]*command.LeafEntry, error) {
 	var allEntries []*command.LeafEntry
 
-	attempts := int(end) / c.maxGetEntriesRange
+	if start > end {
+		return nil, fmt.Errorf("invalid range for get log entries[%d-%d]", start, end)
+	}
+
+	attempts := int(end-start)/c.maxGetEntriesRange + 1
+
+	logger.Debug("Getting log entries (from-to) in attempts", logfields.WithLogURLString(logURL),
+		logfields.WithFromIndexUint64(start), logfields.WithToIndexUint64(end), logfields.WithDeliveryAttempts(attempts))
 
 	// fetch all the entries in the tree corresponding to the STH
 	// VCT: get-entries allow maximum 1000 entries to be returned
-	for i := 0; i <= attempts; i++ {
+	for i := 0; i < attempts; i++ {
 		attemptStart := start + uint64(i*c.maxGetEntriesRange)
-		attemptEnd := min(uint64((i+1)*c.maxGetEntriesRange-1), end)
+		attemptEnd := min(start+uint64((i+1)*c.maxGetEntriesRange-1), end)
 
 		entries, err := vctClient.GetEntries(context.Background(), attemptStart, attemptEnd)
 		if err != nil {
