@@ -20,6 +20,7 @@ import (
 	apstore "github.com/trustbloc/orb/pkg/activitypub/store/spi"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/lifecycle"
+	"github.com/trustbloc/orb/pkg/store"
 )
 
 var logger = log.New("nodeinfo")
@@ -152,12 +153,7 @@ func (r *Service) updateStatsUsingSingleTagQuery() error {
 		return fmt.Errorf("query ActivityPub outbox: %w", err)
 	}
 
-	defer func() {
-		err = it.Close()
-		if err != nil {
-			log.CloseIteratorError(logger, err)
-		}
-	}()
+	defer store.CloseIterator(it)
 
 	s := &stats{}
 
@@ -225,6 +221,8 @@ func (r *Service) getTotalActivityCount(activityType vocab.Type) (int, error) {
 	if err != nil {
 		return -1, fmt.Errorf("query ActivityPub outbox for %s activities: %w", activityType, err)
 	}
+
+	defer store.CloseIterator(it)
 
 	totalCreateActivities, err := it.TotalItems()
 	if err != nil {

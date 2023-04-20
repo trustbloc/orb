@@ -24,6 +24,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/storeutil"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/observability/tracing"
+	store2 "github.com/trustbloc/orb/pkg/store"
 )
 
 const logModule = "activity_sync"
@@ -335,6 +336,8 @@ func (m *task) getServices(refType store.ReferenceType) ([]*url.URL, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error querying for references of type %s from storage: %w", refType, err)
 	}
+
+	defer store2.CloseIterator(it)
 
 	refs, err := storeutil.ReadReferences(it, 0)
 	if err != nil {

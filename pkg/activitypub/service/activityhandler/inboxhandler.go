@@ -28,6 +28,7 @@ import (
 	"github.com/trustbloc/orb/pkg/hashlink"
 	"github.com/trustbloc/orb/pkg/linkset"
 	"github.com/trustbloc/orb/pkg/observability/tracing"
+	store2 "github.com/trustbloc/orb/pkg/store"
 )
 
 // Inbox handles activities posted to the inbox.
@@ -1062,6 +1063,8 @@ func (h *Inbox) getActivityFromOutbox(activityIRI *url.URL) (*vocab.ActivityType
 	if err != nil {
 		return nil, fmt.Errorf("query outbox: %w", err)
 	}
+
+	defer store2.CloseIterator(it)
 
 	activities, err := storeutil.ReadActivities(it, -1)
 	if err != nil {

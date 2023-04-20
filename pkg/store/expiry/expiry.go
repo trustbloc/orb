@@ -15,6 +15,7 @@ import (
 	"github.com/trustbloc/logutil-go/pkg/log"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
+	storeutil "github.com/trustbloc/orb/pkg/store"
 )
 
 const taskName = "data-expiry"
@@ -119,6 +120,8 @@ func (r *registeredStore) deleteExpiredData() error {
 	if err != nil {
 		return fmt.Errorf("query store for expired data: %w", err)
 	}
+
+	defer storeutil.CloseIterator(iterator)
 
 	var keysToDelete []string
 

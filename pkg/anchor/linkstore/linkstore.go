@@ -130,6 +130,8 @@ func (s *Store) GetLinks(anchorHash string) ([]*url.URL, error) {
 			anchorHash, query, err))
 	}
 
+	defer store.CloseIterator(iter)
+
 	ok, err := iter.Next()
 	if err != nil {
 		return nil, orberrors.NewTransient(fmt.Errorf("iterator error for anchor [%s]: %w", anchorHash, err))

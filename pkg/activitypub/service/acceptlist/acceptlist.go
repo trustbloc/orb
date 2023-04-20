@@ -18,6 +18,7 @@ import (
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/service/spi"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/store"
 )
 
 var logger = log.New("accept_list")
@@ -136,6 +137,8 @@ func (m *Manager) queryByType(acceptType string) ([]*spi.AcceptList, error) {
 	if err != nil {
 		return nil, orberrors.NewTransientf("query by type [%s]: %w", acceptType, err)
 	}
+
+	defer store.CloseIterator(it)
 
 	acceptListMap := make(map[string]*spi.AcceptList)
 

@@ -195,6 +195,8 @@ func (s *Store) deleteInProcessStatus(anchorID string) error { //nolint:cyclop
 			anchorID, query, err)
 	}
 
+	defer store.CloseIterator(iter)
+
 	ok, err := iter.Next()
 	if err != nil {
 		return fmt.Errorf("iterator error for anchor event[%s] statuses: %w", anchorID, err)
@@ -266,6 +268,8 @@ func (s *Store) GetStatus(anchorID string) (proof.AnchorIndexStatus, error) {
 			anchorID, query, err))
 	}
 
+	defer store.CloseIterator(iter)
+
 	ok, err := iter.Next()
 	if err != nil {
 		return "", orberrors.NewTransient(fmt.Errorf("iterator error for anchor [%s] statuses: %w", anchorID, err))
@@ -319,6 +323,8 @@ func (s *Store) CheckInProcessAnchors() {
 
 		return
 	}
+
+	defer store.CloseIterator(iterator)
 
 	more, e := iterator.Next()
 	if e != nil {

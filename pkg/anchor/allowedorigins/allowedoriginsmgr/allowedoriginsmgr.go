@@ -16,6 +16,7 @@ import (
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	storeutil "github.com/trustbloc/orb/pkg/store"
 )
 
 var logger = log.New("allowed-origins-mgr")
@@ -106,6 +107,8 @@ func (s *Manager) Get() ([]*url.URL, error) {
 	if err != nil {
 		return nil, orberrors.NewTransientf("query allowed origins: %w", err)
 	}
+
+	defer storeutil.CloseIterator(it)
 
 	ok, err := it.Next()
 	if err != nil {

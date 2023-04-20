@@ -218,6 +218,8 @@ func (s *Store) getLogs(status status) ([]*LogMonitor, error) {
 		return nil, fmt.Errorf("failed to get '%s' log monitors, query[%s]: %w", status, query, err)
 	}
 
+	defer store.CloseIterator(iter)
+
 	ok, err := iter.Next()
 	if err != nil {
 		return nil, fmt.Errorf("iterator error for get '%s' log monitors: %w", status, err)
