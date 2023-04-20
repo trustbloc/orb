@@ -26,6 +26,7 @@ import (
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	storeutil "github.com/trustbloc/orb/pkg/store"
 	"github.com/trustbloc/orb/pkg/store/logentry"
 	"github.com/trustbloc/orb/pkg/store/logmonitor"
 	"github.com/trustbloc/orb/pkg/vct/logmonitoring/verifier"
@@ -367,6 +368,8 @@ func (c *Client) getStoreEntriesFrom(logURL string, start uint64, maxCount int) 
 	if err != nil {
 		return nil, err
 	}
+
+	defer storeutil.CloseIterator(iter)
 
 	n, err := iter.TotalItems()
 	if err != nil {

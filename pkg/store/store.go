@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
@@ -330,4 +331,11 @@ func contains(tag string, tags []string) bool {
 	}
 
 	return false
+}
+
+// CloseIterator closes the given iterator, logging a warning if the operation fails.
+func CloseIterator(it io.Closer) {
+	if err := it.Close(); err != nil {
+		log.CloseIteratorError(logger, err)
+	}
 }

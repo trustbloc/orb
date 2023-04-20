@@ -37,6 +37,7 @@ import (
 	"github.com/trustbloc/orb/pkg/observability/tracing"
 	"github.com/trustbloc/orb/pkg/pubsub"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
+	store2 "github.com/trustbloc/orb/pkg/store"
 )
 
 const (
@@ -624,6 +625,8 @@ func (h *Outbox) loadReferences(refType store.ReferenceType) ([]*url.URL, error)
 	if err != nil {
 		return nil, fmt.Errorf("error querying for references of type %s from storage: %w", refType, err)
 	}
+
+	defer store2.CloseIterator(it)
 
 	refs, err := storeutil.ReadReferences(it, h.MaxRecipients)
 	if err != nil {

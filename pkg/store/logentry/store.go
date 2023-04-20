@@ -182,6 +182,8 @@ func (s *Store) FailLogEntriesFrom(logURL string, start uint64) error { //nolint
 		return orberrors.NewTransient(fmt.Errorf("failed to query log entry store: %w", e))
 	}
 
+	defer store.CloseIterator(iterator)
+
 	ok, e := iterator.Next()
 	if e != nil {
 		return orberrors.NewTransient(fmt.Errorf("failed to determine if there are more results: %w", e))

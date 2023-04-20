@@ -244,24 +244,9 @@ func (s *Provider) QueryReferences(referenceType spi.ReferenceType,
 func (s *Provider) queryActivitiesByRef(refType spi.ReferenceType,
 	query *spi.Criteria, opts ...spi.QueryOpt,
 ) (spi.ActivityIterator, error) {
-	iterator, err := s.QueryReferences(refType, query, opts...)
+	refs, totalItems, err := s.queryActivityRefs(refType, query, opts...)
 	if err != nil {
 		return nil, err
-	}
-
-	options := storeutil.GetQueryOptions(opts...)
-
-	refs, err := storeutil.ReadReferences(iterator, options.PageSize)
-	if err != nil {
-		return nil, err
-	}
-
-	// The total item count from the activity iterator should reflect the total items from the original reference query,
-	// regardless of page settings.
-	totalItems, err := iterator.TotalItems()
-	if err != nil {
-		return nil,
-			orberrors.NewTransient(fmt.Errorf("failed to get total items from reference iterator: %w", err))
 	}
 
 	if len(refs) == 0 {
@@ -294,6 +279,30 @@ func (s *Provider) queryActivitiesByRef(refType spi.ReferenceType,
 	}
 
 	return memstore.NewActivityIterator(activities, totalItems), nil
+}
+
+func (s *Provider) queryActivityRefs(refType spi.ReferenceType, query *spi.Criteria, opts ...spi.QueryOpt) ([]*url.URL, int, error) {
+	iterator, err := s.QueryReferences(refType, query, opts...)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	defer store.CloseIterator(iterator)
+
+	refs, err := storeutil.ReadReferences(iterator, storeutil.GetQueryOptions(opts...).PageSize)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// The total item count from the activity iterator should reflect the total items from the original reference query,
+	// regardless of page settings.
+	totalItems, err := iterator.TotalItems()
+	if err != nil {
+		return nil, 0,
+			orberrors.NewTransient(fmt.Errorf("failed to get total items from reference iterator: %w", err))
+	}
+
+	return refs, totalItems, nil
 }
 
 type referenceIterator struct {

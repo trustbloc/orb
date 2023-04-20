@@ -116,6 +116,8 @@ func (s *Store) Get(suffix string) ([]*operation.AnchoredOperation, error) {
 		return nil, orberrors.NewTransient(fmt.Errorf("failed to get operations for[%s]: %w", query, err))
 	}
 
+	defer store.CloseIterator(iter)
+
 	ok, err := iter.Next()
 	if err != nil {
 		return nil, orberrors.NewTransient(fmt.Errorf("iterator error for suffix[%s] : %w", suffix, err))
