@@ -954,10 +954,10 @@ github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344 h1:KCEn2RI
 github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344/go.mod h1:B8FIw5LTq6DaULoHsVFRzYIUDkl8yuSwCdZnOZGKL/A=
 github.com/trustbloc/logutil-go v1.0.0-rc1 h1:rRJbvgQfrlUfyej+mY0nuQJymGqjRW4oZEwKi544F4c=
 github.com/trustbloc/logutil-go v1.0.0-rc1/go.mod h1:JlxT0oZfNKgIlSNtgc001WEeDMxlnAvOM43gNm8DQVc=
-github.com/trustbloc/sidetree-core-go v1.0.0-rc4.0.20230309142948-1beaf083096c h1:VQnZZtEN4th2oBpFKPv/qRTnic7kfj3ZSwOSlfbaqaQ=
-github.com/trustbloc/sidetree-core-go v1.0.0-rc4.0.20230309142948-1beaf083096c/go.mod h1:jdxAFuorlIwFOGVW6O455/lZqxg2mZkRHNTEolcZdDI=
-github.com/trustbloc/vct v1.0.0-rc4.0.20230309185732-1db26d5b7c51 h1:dWUO2oeJeKMlAO7somqP89tQLPL3oeC1prvZD85rgq8=
-github.com/trustbloc/vct v1.0.0-rc4.0.20230309185732-1db26d5b7c51/go.mod h1:TrS5PDqw6RPl4q1ISDys/aZZDZ7bglIXXBsvdBv48dM=
+github.com/trustbloc/sidetree-core-go v1.0.0-rc5 h1:GWvQkNBGl6Wi8jy7aOYEpGNqIxTJBMeELC+L1c/qLtc=
+github.com/trustbloc/sidetree-core-go v1.0.0-rc5/go.mod h1:jdxAFuorlIwFOGVW6O455/lZqxg2mZkRHNTEolcZdDI=
+github.com/trustbloc/vct v1.0.0-rc5 h1:fBn5xFi+D+vtDFu/UncsqwwOIuFfy0KANe470GXriOw=
+github.com/trustbloc/vct v1.0.0-rc5/go.mod h1:TrS5PDqw6RPl4q1ISDys/aZZDZ7bglIXXBsvdBv48dM=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=
 github.com/ugorji/go v1.1.4/go.mod h1:uQMGLiO92mf5W77hV/PUCpI3pbzQx3CRekS0kk+RGrc=
 github.com/ugorji/go/codec v0.0.0-20181204163529-d75b2dcb6bc8/go.mod h1:VFNgLljTbGfSG7qAOspJ7OScBnGdDN/yBr0sguwnwf0=

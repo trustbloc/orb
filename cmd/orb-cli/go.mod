@@ -21,8 +21,8 @@ require (
 	github.com/stretchr/testify v1.8.2
 	github.com/trustbloc/logutil-go v1.0.0-rc1
 	github.com/trustbloc/orb v1.0.0-rc3.0.20221110183921-dc5feded4796
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc4.0.20230309142948-1beaf083096c
-	github.com/trustbloc/vct v1.0.0-rc4.0.20230309185732-1db26d5b7c51
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc5
+	github.com/trustbloc/vct v1.0.0-rc5
 )
 
 require (
