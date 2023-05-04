@@ -333,7 +333,7 @@ func (q *Queue) listen() {
 				return
 			}
 
-			q.handleMessage(msg)
+			go q.handleMessage(msg)
 
 		case <-ticker.C:
 			// Update the task time so that other instances don't think I'm down.

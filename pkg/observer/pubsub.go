@@ -155,7 +155,7 @@ func (h *PubSub) listen() {
 			logger.Debug("Got new anchor credential message", logfields.WithMessageID(msg.UUID),
 				logfields.WithMetadata(msg.Metadata), logfields.WithData(msg.Payload))
 
-			h.handleAnchorCredentialMessage(msg)
+			go h.handleAnchorCredentialMessage(msg)
 
 		case msg, ok := <-h.didChan:
 			if !ok {
@@ -166,7 +166,7 @@ func (h *PubSub) listen() {
 
 			logger.Debug("Got new DID message", logfields.WithMessageID(msg.UUID), logfields.WithData(msg.Payload))
 
-			h.handleDIDMessage(msg)
+			go h.handleDIDMessage(msg)
 		}
 	}
 }
