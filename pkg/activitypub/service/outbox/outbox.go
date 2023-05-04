@@ -173,7 +173,7 @@ func (h *Outbox) listen() {
 	for msg := range h.msgChan {
 		h.logger.Debug("Got new message", logfields.WithMessageID(msg.UUID), logfields.WithData(msg.Payload))
 
-		h.handle(msg)
+		go h.handle(msg)
 	}
 
 	h.logger.Debug("Message listener stopped")

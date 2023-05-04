@@ -12,10 +12,6 @@ import (
 )
 
 var (
-	errTransientType = &transientError{}
-
-	errInvalidRequestType = &badRequestError{}
-
 	// ErrContentNotFound is used to indicate that content at a given address could not be found.
 	ErrContentNotFound = errors.New("content not found")
 
@@ -37,6 +33,8 @@ func NewTransientf(format string, a ...interface{}) error {
 
 // IsTransient returns true if the given error is a 'transient' error.
 func IsTransient(err error) bool {
+	errTransientType := &transientError{}
+
 	return errors.As(err, &errTransientType)
 }
 
@@ -53,6 +51,8 @@ func NewBadRequestf(format string, a ...interface{}) error {
 
 // IsBadRequest returns true if the given error is a 'bad request' error.
 func IsBadRequest(err error) bool {
+	errInvalidRequestType := &badRequestError{}
+
 	return errors.As(err, &errInvalidRequestType)
 }
 
