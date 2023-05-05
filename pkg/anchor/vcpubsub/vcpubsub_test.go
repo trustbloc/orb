@@ -26,7 +26,7 @@ var anchorIndexURL = testutil.MustParseURL("hl:uEiBL1RVIr2DdyRE5h6b8bPys-PuVs5mM
 
 func TestNewSubscriber(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		s, err := NewSubscriber(&mocks.PubSub{}, nil)
+		s, err := NewSubscriber(&mocks.PubSub{}, nil, 5)
 		require.NoError(t, err)
 		require.NotNil(t, s)
 	})
@@ -35,9 +35,9 @@ func TestNewSubscriber(t *testing.T) {
 		errExpected := errors.New("injected subscribe error")
 
 		ps := &mocks.PubSub{}
-		ps.SubscribeReturns(nil, errExpected)
+		ps.SubscribeWithOptsReturns(nil, errExpected)
 
-		s, err := NewSubscriber(ps, nil)
+		s, err := NewSubscriber(ps, nil, 5)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 		require.Nil(t, s)
@@ -62,7 +62,7 @@ func TestPubSub(t *testing.T) {
 			mutex.Unlock()
 
 			return nil
-		},
+		}, 5,
 	)
 	require.NoError(t, err)
 	require.NotNil(t, s)
@@ -136,7 +136,7 @@ func TestSubscriberError(t *testing.T) {
 				mutex.Unlock()
 
 				return nil
-			},
+			}, 5,
 		)
 		require.NoError(t, err)
 		require.NotNil(t, s)
@@ -169,7 +169,7 @@ func TestSubscriberError(t *testing.T) {
 					mutex.Unlock()
 
 					return orberrors.NewTransient(errors.New("injected transient error"))
-				},
+				}, 5,
 			)
 			require.NoError(t, err)
 			require.NotNil(t, s)
@@ -197,7 +197,7 @@ func TestSubscriberError(t *testing.T) {
 					mutex.Unlock()
 
 					return errors.New("injected persistent error")
-				},
+				}, 5,
 			)
 			require.NoError(t, err)
 			require.NotNil(t, s)

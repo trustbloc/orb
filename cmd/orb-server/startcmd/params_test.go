@@ -1274,6 +1274,7 @@ func TestGetMQParameters(t *testing.T) {
 		restoreOutboxPoolEnv := setEnv(t, mqOutboxPoolEnvKey, "4")
 		restoreInboxPoolEnv := setEnv(t, mqInboxPoolEnvKey, "7")
 		restoreOpQueuePoolEnv := setEnv(t, mqOPQueuePoolEnvKey, "8")
+		restoreAnchorLinksetPoolEnv := setEnv(t, mqAnchorLinksetPoolEnvKey, "9")
 		restoreChannelPoolEnv := setEnv(t, mqPublisherChannelPoolSizeEnvKey, "321")
 		restoreConfirmDeliveryEnv := setEnv(t, mqPublisherConfirmDeliveryEnvKey, "false")
 		restoreConnectionSubscriptionsEnv := setEnv(t, mqMaxConnectionChannelsEnvKey, "456")
@@ -1289,6 +1290,7 @@ func TestGetMQParameters(t *testing.T) {
 			restoreOutboxPoolEnv()
 			restoreInboxPoolEnv()
 			restoreOpQueuePoolEnv()
+			restoreAnchorLinksetPoolEnv()
 			restoreConnectionSubscriptionsEnv()
 			restoreChannelPoolEnv()
 			restoreConfirmDeliveryEnv()
@@ -1308,6 +1310,7 @@ func TestGetMQParameters(t *testing.T) {
 		require.Equal(t, 4, mqParams.outboxPoolSize)
 		require.Equal(t, 7, mqParams.inboxPoolSize)
 		require.Equal(t, 8, mqParams.opQueuePoolSize)
+		require.Equal(t, 9, mqParams.anchorLinksetPoolSize)
 		require.Equal(t, 456, mqParams.maxConnectionChannels)
 		require.Equal(t, 321, mqParams.publisherChannelPoolSize)
 		require.False(t, mqParams.publisherConfirmDelivery)
@@ -1331,6 +1334,7 @@ func TestGetMQParameters(t *testing.T) {
 		require.Equal(t, mqDefaultOutboxPoolSize, mqParams.outboxPoolSize)
 		require.Equal(t, mqDefaultInboxPoolSize, mqParams.inboxPoolSize)
 		require.Equal(t, mqDefaultOpQueuePoolSize, mqParams.opQueuePoolSize)
+		require.Equal(t, mqDefaultAnchorLinksetPoolSize, mqParams.anchorLinksetPoolSize)
 		require.Equal(t, mqDefaultMaxConnectionSubscriptions, mqParams.maxConnectionChannels)
 		require.Equal(t, mqDefaultPublisherChannelPoolSize, mqParams.publisherChannelPoolSize)
 		require.Equal(t, mqDefaultPublisherConfirmDelivery, mqParams.publisherConfirmDelivery)
@@ -1376,8 +1380,19 @@ func TestGetMQParameters(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid value")
 	})
 
-	t.Run("Invalid pool size value -> error", func(t *testing.T) {
+	t.Run("Invalid op queue pool size value -> error", func(t *testing.T) {
 		restoreEnv := setEnv(t, mqOPQueuePoolEnvKey, "xxx")
+		defer restoreEnv()
+
+		cmd := getTestCmd(t)
+
+		_, err := getMQParameters(cmd)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value")
+	})
+
+	t.Run("Invalid anchor linkset pool size value -> error", func(t *testing.T) {
+		restoreEnv := setEnv(t, mqAnchorLinksetPoolEnvKey, "xxx")
 		defer restoreEnv()
 
 		cmd := getTestCmd(t)

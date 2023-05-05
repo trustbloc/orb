@@ -42,6 +42,7 @@ import (
 	docutil "github.com/trustbloc/orb/pkg/document/util"
 	"github.com/trustbloc/orb/pkg/linkset"
 	"github.com/trustbloc/orb/pkg/observability/tracing"
+	pubsubspi "github.com/trustbloc/orb/pkg/pubsub/spi"
 	resourceresolver "github.com/trustbloc/orb/pkg/resolver/resource"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 	"github.com/trustbloc/orb/pkg/vct"
@@ -184,16 +185,18 @@ type anchorPublisher interface {
 
 type pubSub interface {
 	Publish(topic string, messages ...*message.Message) error
-	Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error)
+	SubscribeWithOpts(ctx context.Context, topic string, opts ...pubsubspi.Option) (<-chan *message.Message, error)
 }
 
 // New returns a new anchor writer.
 func New(namespace string, apServiceIRI, apServiceEndpointURL, casURL *url.URL, dataURIMediaType vocab.MediaType,
-	providers *Providers, anchorPublisher anchorPublisher, pubSub pubSub,
-	maxWitnessDelay time.Duration, signWithLocalWitness bool,
-	resourceResolver *resourceresolver.Resolver,
+	providers *Providers, anchorPublisher anchorPublisher, pubSub pubSub, maxWitnessDelay time.Duration,
+	signWithLocalWitness bool, resourceResolver *resourceresolver.Resolver, subscriberPoolSize int,
 	metrics metricsProvider,
 ) (*Writer, error) {
+	logger.Info("Creating writer", logfields.WithNamespace(namespace), logfields.WithServiceIRI(apServiceIRI),
+		logfields.WithSubscriberPoolSize(subscriberPoolSize), logfields.WithServiceEndpoint(apServiceEndpointURL.String()))
+
 	w := &Writer{
 		Providers:            providers,
 		anchorPublisher:      anchorPublisher,
@@ -209,7 +212,7 @@ func New(namespace string, apServiceIRI, apServiceEndpointURL, casURL *url.URL, 
 		tracer:               tracing.Tracer(tracing.SubsystemAnchor),
 	}
 
-	s, err := vcpubsub.NewSubscriber(pubSub, w.handle)
+	s, err := vcpubsub.NewSubscriber(pubSub, w.handle, subscriberPoolSize)
 	if err != nil {
 		return nil, fmt.Errorf("new subscriber: %w", err)
 	}

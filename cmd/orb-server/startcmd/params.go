@@ -136,6 +136,7 @@ const (
 	mqDefaultOutboxPoolSize                 = 5
 	mqDefaultInboxPoolSize                  = 5
 	mqDefaultOpQueuePoolSize                = 5
+	mqDefaultAnchorLinksetPoolSize          = 5
 	mqDefaultConnectMaxRetries              = 25
 	mqDefaultRedeliveryMaxAttempts          = 30
 	mqDefaultRedeliveryMultiplier           = 1.5
@@ -363,6 +364,11 @@ const (
 	mqOPQueuePoolEnvKey        = "MQ_OPQUEUE_POOL"
 	mqOPQueuePoolFlagUsage     = "The size of the operation queue subscriber pool. If <=1 then a pool will not be created. " +
 		commonEnvVarUsageText + mqOPQueuePoolEnvKey
+
+	mqAnchorLinksetPoolFlagName  = "mq-anchor-linkset-pool"
+	mqAnchorLinksetPoolEnvKey    = "MQ_ANCHOR_LINKSET_POOL"
+	mqAnchorLinksetPoolFlagUsage = "The size of the anchor-linkset subscriber pool. If <=1 then a pool will not be created. " +
+		commonEnvVarUsageText + mqAnchorLinksetPoolEnvKey
 
 	opQueueTaskMonitorIntervalFlagName  = "op-queue-task-monitor-interval"
 	opQueueTaskMonitorIntervalEnvKey    = "OP_QUEUE_TASK_MONITOR_INTERVAL"
@@ -1937,6 +1943,7 @@ type mqParams struct {
 	outboxPoolSize            int
 	inboxPoolSize             int
 	opQueuePoolSize           int
+	anchorLinksetPoolSize     int
 	maxConnectionChannels     int
 	publisherChannelPoolSize  int
 	publisherConfirmDelivery  bool
@@ -1971,6 +1978,11 @@ func getMQParameters(cmd *cobra.Command) (*mqParams, error) {
 	mqOpQueuePoolSize, err := cmdutil.GetInt(cmd, mqOPQueuePoolFlagName, mqOPQueuePoolEnvKey, mqDefaultOpQueuePoolSize)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", mqOPQueuePoolFlagName, err)
+	}
+
+	mqAnchorLinksetPoolSize, err := cmdutil.GetInt(cmd, mqAnchorLinksetPoolFlagName, mqAnchorLinksetPoolEnvKey, mqDefaultAnchorLinksetPoolSize)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", mqAnchorLinksetPoolFlagName, err)
 	}
 
 	mqMaxConnectionChannels, err := cmdutil.GetInt(cmd, mqMaxConnectionChannelsFlagName,
@@ -2026,6 +2038,7 @@ func getMQParameters(cmd *cobra.Command) (*mqParams, error) {
 		observerPoolSize:          mqObserverPoolSize,
 		outboxPoolSize:            mqOutboxPoolSize,
 		inboxPoolSize:             mqInboxPoolSize,
+		anchorLinksetPoolSize:     mqAnchorLinksetPoolSize,
 		maxConnectionChannels:     mqMaxConnectionChannels,
 		publisherChannelPoolSize:  mqPublisherChannelPoolSize,
 		publisherConfirmDelivery:  mqPublisherConfirmDelivery,
@@ -2322,6 +2335,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(mqRedeliveryMultiplierFlagName, "", "", mqRedeliveryMultiplierFlagUsage)
 	startCmd.Flags().StringP(mqRedeliveryMaxIntervalFlagName, "", "", mqRedeliveryMaxIntervalFlagUsage)
 	startCmd.Flags().StringP(mqOPQueuePoolFlagName, mqOPQueuePoolFlagShorthand, "", mqOPQueuePoolFlagUsage)
+	startCmd.Flags().StringP(mqAnchorLinksetPoolFlagName, "", "", mqAnchorLinksetPoolFlagUsage)
 	startCmd.Flags().StringP(opQueueTaskMonitorIntervalFlagName, "", "", opQueueTaskMonitorIntervalFlagUsage)
 	startCmd.Flags().StringP(opQueueTaskExpirationFlagName, "", "", opQueueTaskExpirationFlagUsage)
 	startCmd.Flags().StringP(opQueueMaxOperationsToRepostFlagName, "", "", opQueueMaxOperationsToRepostFlagUsage)
