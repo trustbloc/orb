@@ -19,6 +19,7 @@ import (
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/linkset"
 	"github.com/trustbloc/orb/pkg/pubsub"
+	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
 type (
@@ -35,19 +36,17 @@ type Subscriber struct {
 }
 
 // NewSubscriber returns a new verifiable credential subscriber.
-func NewSubscriber(pubSub pubSub, processor anchorProcessor) (*Subscriber, error) {
+func NewSubscriber(pubSub pubSub, processor anchorProcessor, subscriberPoolSize int) (*Subscriber, error) {
 	h := &Subscriber{
 		processAnchor: processor,
 		jsonUnmarshal: json.Unmarshal,
 	}
 
-	h.Lifecycle = lifecycle.New("anchoreventsubscriber",
-		lifecycle.WithStart(h.start),
-	)
+	h.Lifecycle = lifecycle.New("anchoreventsubscriber", lifecycle.WithStart(h.start))
 
 	logger.Debug("Subscribing to topic", log.WithTopic(anchorTopic))
 
-	vcChan, err := pubSub.Subscribe(context.Background(), anchorTopic)
+	vcChan, err := pubSub.SubscribeWithOpts(context.Background(), anchorTopic, spi.WithPool(subscriberPoolSize))
 	if err != nil {
 		return nil, fmt.Errorf("subscribe to topic [%s]: %w", anchorTopic, err)
 	}
@@ -68,7 +67,7 @@ func (h *Subscriber) listen() {
 	for msg := range h.vcChan {
 		logger.Debug("Got new anchor event message", logfields.WithMessageID(msg.UUID), logfields.WithData(msg.Payload))
 
-		h.handleAnchorMessage(msg)
+		go h.handleAnchorMessage(msg)
 	}
 
 	logger.Debug("Listener stopped.")

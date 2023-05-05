@@ -18,6 +18,7 @@ import (
 	"github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/linkset"
 	"github.com/trustbloc/orb/pkg/pubsub"
+	"github.com/trustbloc/orb/pkg/pubsub/spi"
 )
 
 var logger = log.New("anchor")
@@ -26,7 +27,7 @@ const anchorTopic = "orb.anchor_linkset"
 
 type pubSub interface {
 	Publish(topic string, messages ...*message.Message) error
-	Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error)
+	SubscribeWithOpts(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error)
 }
 
 // Publisher implements a publisher that publishes witnessed verifiable credentials to a message queue.

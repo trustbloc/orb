@@ -954,7 +954,7 @@ func startOrbServices(parameters *orbParameters) error {
 		obsrv.Publisher(), pubSub,
 		parameters.witnessProof.maxWitnessDelay,
 		parameters.witnessProof.signWithLocalWitness,
-		resourceResolver,
+		resourceResolver, parameters.mqParams.anchorLinksetPoolSize,
 		metrics)
 	if err != nil {
 		return fmt.Errorf("failed to create writer: %s", err.Error())

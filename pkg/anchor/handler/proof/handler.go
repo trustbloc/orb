@@ -27,6 +27,7 @@ import (
 	proofapi "github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	"github.com/trustbloc/orb/pkg/datauri"
 	"github.com/trustbloc/orb/pkg/linkset"
+	"github.com/trustbloc/orb/pkg/pubsub/spi"
 	"github.com/trustbloc/orb/pkg/vcsigner"
 	"github.com/trustbloc/orb/pkg/vct"
 )
@@ -35,7 +36,7 @@ var logger = log.New("proof-handler")
 
 type pubSub interface {
 	Publish(topic string, messages ...*message.Message) error
-	Subscribe(ctx context.Context, topic string) (<-chan *message.Message, error)
+	SubscribeWithOpts(ctx context.Context, topic string, opts ...spi.Option) (<-chan *message.Message, error)
 }
 
 type anchorLinkPublisher interface {
@@ -56,7 +57,7 @@ func New(providers *Providers, pubSub pubSub, dataURIMediaType datauri.MediaType
 	}
 }
 
-// Providers contains all of the providers required by the handler.
+// Providers contains the providers required by the handler.
 type Providers struct {
 	AnchorLinkStore anchorEventStore
 	StatusStore     statusStore

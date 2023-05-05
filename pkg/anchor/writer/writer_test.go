@@ -96,7 +96,7 @@ func TestNew(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, &mocks.PubSub{}, testMaxWitnessDelay,
-			signWithLocalWitness, nil, &mocks.MetricsProvider{})
+			signWithLocalWitness, nil, 5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, c)
 	})
@@ -105,11 +105,11 @@ func TestNew(t *testing.T) {
 		errExpected := errors.New("injected subscribe error")
 
 		ps := &mocks.PubSub{}
-		ps.SubscribeReturns(nil, errExpected)
+		ps.SubscribeWithOptsReturns(nil, errExpected)
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
-			nil, &mocks.MetricsProvider{})
+			nil, 5, &mocks.MetricsProvider{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 		require.Nil(t, c)
@@ -180,7 +180,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, false,
 			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}),
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		var testServerURL string
@@ -247,7 +247,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			resourceresolver.New(http.DefaultClient,
 				ipfs.New(testServer.URL, 5*time.Second, 0, &mocks.MetricsProvider{}),
 				&mocks.DomainResolver{},
-			), &mocks.MetricsProvider{})
+			), 5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		opRefs := []*operation.Reference{
@@ -291,7 +291,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, false,
 			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}),
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		var testServerURL string
@@ -348,7 +348,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
 			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}),
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		var testServerURL string
@@ -402,7 +402,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
 			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}),
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		var testServerURL string
@@ -455,7 +455,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			nil, ps, testMaxWitnessDelay, signWithLocalWitness,
 			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}),
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		var testServerURL string
@@ -504,7 +504,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
-			nil, &mocks.MetricsProvider{})
+			nil, 5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		opRefs := []*operation.Reference{
@@ -547,7 +547,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, false,
 			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}),
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		var testServerURL string
@@ -587,7 +587,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
-			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}), &mocks.MetricsProvider{})
+			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}), 5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		var testServerURL string
@@ -632,7 +632,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
-			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}), &mocks.MetricsProvider{})
+			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}), 5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		var testServerURL string
@@ -667,7 +667,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
-			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}), &mocks.MetricsProvider{})
+			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}), 5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		var testServerURL string
@@ -708,7 +708,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
-			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}), &mocks.MetricsProvider{})
+			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}), 5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		var testServerURL string
@@ -751,7 +751,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
-			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}), &mocks.MetricsProvider{})
+			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}), 5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		var testServerURL string
@@ -788,7 +788,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
-			nil, &mocks.MetricsProvider{})
+			nil, 5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		err = c.WriteAnchor("anchor", nil, []*operation.Reference{{UniqueSuffix: testDID, Type: operation.TypeUpdate}}, 0)
@@ -826,7 +826,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers, publisher, ps,
 			testMaxWitnessDelay, false,
-			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}), &mocks.MetricsProvider{})
+			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}), 5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		var testServerURL string
@@ -879,7 +879,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, false,
 			resourceresolver.New(nil, ipfs.New("SomeIPFSNodeURL", time.Second, 0, &mocks.MetricsProvider{}),
 				&mocks.DomainResolver{}),
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		opRefs := []*operation.Reference{
@@ -934,7 +934,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay,
 			false, resourceresolver.New(http.DefaultClient,
-				nil, &mocks.DomainResolver{}), &mocks.MetricsProvider{})
+				nil, &mocks.DomainResolver{}), 5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		hostMetaResponse := discoveryrest.JRD{
@@ -1003,7 +1003,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, false,
 			resourceresolver.New(http.DefaultClient, nil, &mocks.DomainResolver{}),
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		hostMetaResponse := discoveryrest.JRD{
@@ -1089,7 +1089,7 @@ func TestWriter_handle(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness, nil,
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		anchorLinkset := &linkset.Linkset{}
@@ -1120,7 +1120,7 @@ func TestWriter_handle(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
-			nil, &mocks.MetricsProvider{})
+			nil, 5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		anchorLinkset := &linkset.Linkset{}
@@ -1159,7 +1159,7 @@ func TestWriter_handle(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
 			anchorPublisher, ps, testMaxWitnessDelay, signWithLocalWitness, nil,
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		anchorLinkset := &linkset.Linkset{}
@@ -1192,7 +1192,7 @@ func TestWriter_handle(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness, nil,
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		anchorLinkset := &linkset.Linkset{}
@@ -1227,7 +1227,7 @@ func TestWriter_handle(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness, nil,
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		anchorLinkset := &linkset.Linkset{}
@@ -1263,7 +1263,7 @@ func TestWriter_handle(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providersWithErr,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness,
-			nil, &mocks.MetricsProvider{})
+			nil, 5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		anchorLinkset := &linkset.Linkset{}
@@ -1295,7 +1295,7 @@ func TestWriter_handle(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness, nil,
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		anchorLinkset := &linkset.Linkset{}
@@ -1330,7 +1330,7 @@ func TestWriter_handle(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness, nil,
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		anchorLinkset := &linkset.Linkset{}
@@ -1385,7 +1385,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness, nil,
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		err = c.postOfferActivity(context.Background(), anchorLink, nil, []string{"https://abc.com/services/orb"})
@@ -1399,7 +1399,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness, nil,
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		err = c.postOfferActivity(context.Background(), anchorLink, nil, []string{":xyz"})
@@ -1418,7 +1418,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness, nil,
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		err = c.postOfferActivity(context.Background(), anchorLink, nil, []string{"https://abc.com/services/orb"})
@@ -1450,7 +1450,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 
 			c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 				&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness, nil,
-				&mocks.MetricsProvider{})
+				5, &mocks.MetricsProvider{})
 			require.NoError(t, err)
 
 			// test error for batch witness
@@ -1473,7 +1473,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness, nil,
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		err = c.postOfferActivity(context.Background(), anchorLink, nil, []string{"https://abc.com/services/orb"})
@@ -1494,7 +1494,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness, nil,
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		err = c.postOfferActivity(context.Background(), anchorLink, nil, []string{"https://abc.com/services/orb"})
@@ -1514,7 +1514,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness, nil,
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		err = c.postOfferActivity(context.Background(), anchorLink, nil, []string{"https://abc.com/services/orb"})
@@ -1573,7 +1573,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			resourceresolver.New(
 				http.DefaultClient, nil, &mocks.DomainResolver{},
 				resourceresolver.WithCacheLifetime(0),
-			), &mocks.MetricsProvider{})
+			), 5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		opRefs := []*operation.Reference{
@@ -1636,7 +1636,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness, nil,
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		opRefs := []*operation.Reference{
@@ -1663,7 +1663,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness, nil,
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		opRefs := []*operation.Reference{
@@ -1699,7 +1699,7 @@ func TestWriter_getBatchWitnessesIRI(t *testing.T) {
 
 	c, err := New(namespace, apServiceIRI, apServiceIRI, nil, vocab.JSONMediaType, &Providers{WFClient: wfClient},
 		&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, true, nil,
-		&mocks.MetricsProvider{})
+		5, &mocks.MetricsProvider{})
 	require.NoError(t, err)
 
 	t.Run("success", func(t *testing.T) {
@@ -1762,7 +1762,7 @@ func TestWriter_Read(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		c, err := New(namespace, apServiceIRI, apServiceIRI, casIRI, vocab.JSONMediaType, providers,
 			&anchormocks.AnchorPublisher{}, ps, testMaxWitnessDelay, signWithLocalWitness, nil,
-			&mocks.MetricsProvider{})
+			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
 		more, entries := c.Read(-1)
