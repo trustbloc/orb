@@ -18,7 +18,10 @@ import (
 	storeutil "github.com/trustbloc/orb/pkg/store"
 )
 
-const taskName = "data-expiry"
+const (
+	taskName            = "data-expiry"
+	defaultMaxBatchSize = 5000
+)
 
 var logger = log.New("expiry-service")
 
@@ -32,6 +35,7 @@ type registeredStore struct {
 
 	expiryTagName string
 	expiryHandler expiryHandler
+	maxBatchSize  int
 }
 
 // Option is an option for registered store.
@@ -41,6 +45,13 @@ type Option func(opts *registeredStore)
 func WithExpiryHandler(handler expiryHandler) Option {
 	return func(opts *registeredStore) {
 		opts.expiryHandler = handler
+	}
+}
+
+// WithMaxBatchSize sets maximum number of documents to delete in a single batch.
+func WithMaxBatchSize(value int) Option {
+	return func(opts *registeredStore) {
+		opts.maxBatchSize = value
 	}
 }
 
@@ -87,6 +98,7 @@ func (s *Service) Register(store storage.Store, expiryTagName, storeName string,
 		store:         store,
 		name:          storeName,
 		expiryTagName: expiryTagName,
+		maxBatchSize:  defaultMaxBatchSize,
 		expiryHandler: &noopExpiryHandler{},
 	}
 
@@ -114,11 +126,25 @@ func (s *Service) deleteExpiredData() {
 }
 
 func (r *registeredStore) deleteExpiredData() error {
+	more := true
+
+	for more {
+		var err error
+
+		if more, err = r.doDeleteExpiredData(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (r *registeredStore) doDeleteExpiredData() (bool, error) {
 	logger.Debug("Checking for expired data in store", logfields.WithStoreName(r.name))
 
 	iterator, err := r.store.Query(fmt.Sprintf("%s<=%d", r.expiryTagName, time.Now().Unix()))
 	if err != nil {
-		return fmt.Errorf("query store for expired data: %w", err)
+		return false, fmt.Errorf("query store for expired data: %w", err)
 	}
 
 	defer storeutil.CloseIterator(iterator)
@@ -127,13 +153,13 @@ func (r *registeredStore) deleteExpiredData() error {
 
 	more, err := iterator.Next()
 	if err != nil {
-		return fmt.Errorf("get next value from iterator: %w", err)
+		return false, fmt.Errorf("get next value from iterator: %w", err)
 	}
 
 	for more {
 		key, errKey := iterator.Key()
 		if errKey != nil {
-			return fmt.Errorf("get key from iterator: %w", errKey)
+			return false, fmt.Errorf("get key from iterator: %w", errKey)
 		}
 
 		keysToDelete = append(keysToDelete, key)
@@ -142,7 +168,11 @@ func (r *registeredStore) deleteExpiredData() error {
 
 		more, errNext = iterator.Next()
 		if errNext != nil {
-			return fmt.Errorf("get next value from iterator: %w", errNext)
+			return false, fmt.Errorf("get next value from iterator: %w", errNext)
+		}
+
+		if len(keysToDelete) >= r.maxBatchSize {
+			break
 		}
 	}
 
@@ -150,7 +180,7 @@ func (r *registeredStore) deleteExpiredData() error {
 
 	err = r.expiryHandler.HandleExpiredKeys(keysToDelete...)
 	if err != nil {
-		return fmt.Errorf("invoke expiry handler: %w", err)
+		return false, fmt.Errorf("invoke expiry handler: %w", err)
 	}
 
 	if len(keysToDelete) > 0 {
@@ -164,14 +194,14 @@ func (r *registeredStore) deleteExpiredData() error {
 
 		err = r.store.Batch(operations)
 		if err != nil {
-			return fmt.Errorf("delete expired data: %w", err)
+			return false, fmt.Errorf("delete expired data - NumDocuments: %d: %w", len(operations), err)
 		}
 
 		logger.Debug("Successfully deleted expired data.", logfields.WithStoreName(r.name),
 			logfields.WithTotal(len(operations)))
 	}
 
-	return nil
+	return more, nil
 }
 
 type noopExpiryHandler struct{}

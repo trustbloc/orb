@@ -60,7 +60,7 @@ func TestService(t *testing.T) {
 		require.NoError(t, err)
 
 		serviceInfo1, serviceInfo2 := getTestExpiryServices(coordinationStore, storeToRunExpiryChecksOn,
-			expiryTagName, storeToRunExpiryChecksOnName)
+			expiryTagName, storeToRunExpiryChecksOnName, WithMaxBatchSize(2))
 
 		serviceInfo1.taskMgr.Start()
 		defer serviceInfo1.taskMgr.Stop()
