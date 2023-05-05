@@ -135,6 +135,7 @@ const (
 	mqDefaultObserverPoolSize               = 5
 	mqDefaultOutboxPoolSize                 = 5
 	mqDefaultInboxPoolSize                  = 5
+	mqDefaultOpQueuePoolSize                = 5
 	mqDefaultConnectMaxRetries              = 25
 	mqDefaultRedeliveryMaxAttempts          = 30
 	mqDefaultRedeliveryMultiplier           = 1.5
@@ -152,12 +153,14 @@ const (
 
 	defaultTracingServiceName = "orb"
 
-	opQueueDefaultPoolSize            = 5
-	opQueueDefaultTaskMonitorInterval = 10 * time.Second
-	opQueueDefaultTaskExpiration      = 30 * time.Second
-	splitRequestTokenLength           = 2
-	vctReadTokenKey                   = "vct-read"
-	vctWriteTokenKey                  = "vct-write"
+	opQueueDefaultTaskMonitorInterval   = 10 * time.Second
+	opQueueDefaultTaskExpiration        = 30 * time.Second
+	opQueueDefaultMaxOperationsToRepost = 10000
+	opQueueDefaultOperationLifespan     = 24 * time.Hour
+
+	splitRequestTokenLength = 2
+	vctReadTokenKey         = "vct-read"
+	vctWriteTokenKey        = "vct-write"
 
 	commonEnvVarUsageText = "Alternatively, this can be set with the following environment variable: "
 
@@ -355,11 +358,11 @@ const (
 	mqRedeliveryMaxIntervalFlagUsage = "The maximum delay for a redelivery (default is 1m). " +
 		commonEnvVarUsageText + mqRedeliveryMaxIntervalEnvKey
 
-	opQueuePoolFlagName      = "op-queue-pool"
-	opQueuePoolFlagShorthand = "O"
-	opQueuePoolEnvKey        = "OP_QUEUE_POOL"
-	opQueuePoolFlagUsage     = "The size of the operation queue subscriber pool. If <=1 then a pool will not be created. " +
-		commonEnvVarUsageText + opQueuePoolEnvKey
+	mqOPQueuePoolFlagName      = "mq-opqueue-pool"
+	mqOPQueuePoolFlagShorthand = "O"
+	mqOPQueuePoolEnvKey        = "MQ_OPQUEUE_POOL"
+	mqOPQueuePoolFlagUsage     = "The size of the operation queue subscriber pool. If <=1 then a pool will not be created. " +
+		commonEnvVarUsageText + mqOPQueuePoolEnvKey
 
 	opQueueTaskMonitorIntervalFlagName  = "op-queue-task-monitor-interval"
 	opQueueTaskMonitorIntervalEnvKey    = "OP_QUEUE_TASK_MONITOR_INTERVAL"
@@ -373,6 +376,16 @@ const (
 		"repost the operations associated with the task to the queue so that they are processed by another " +
 		"Orb instance (default is 30s). " +
 		commonEnvVarUsageText + opQueueTaskExpirationEnvKey
+
+	opQueueMaxOperationsToRepostFlagName  = "op-queue-max-ops-to-repost"
+	opQueueMaxOperationsToRepostEnvKey    = "OP_QUEUE_MAX_OPS_TO_REPOST"
+	opQueueMaxOperationsToRepostFlagUsage = "The maximum number of operations to repost to the queue after an instance dies (default is 10000). " +
+		commonEnvVarUsageText + opQueueMaxOperationsToRepostEnvKey
+
+	opQueueOperationLifespanFlagName  = "op-queue-operation-lifespan"
+	opQueueOperationLifespanEnvKey    = "OP_QUEUE_OPERATION_LIFESPAN"
+	opQueueOperationLifespanFlagUsage = "The maximum time that an operation can exist in the database before it is deleted (default is 24h). " +
+		commonEnvVarUsageText + opQueueOperationLifespanEnvKey
 
 	cidVersionFlagName  = "cid-version"
 	cidVersionEnvKey    = "CID_VERSION"
@@ -1923,6 +1936,7 @@ type mqParams struct {
 	observerPoolSize          int
 	outboxPoolSize            int
 	inboxPoolSize             int
+	opQueuePoolSize           int
 	maxConnectionChannels     int
 	publisherChannelPoolSize  int
 	publisherConfirmDelivery  bool
@@ -1952,6 +1966,11 @@ func getMQParameters(cmd *cobra.Command) (*mqParams, error) {
 	mqInboxPoolSize, err := cmdutil.GetInt(cmd, mqInboxPoolFlagName, mqInboxPoolEnvKey, mqDefaultInboxPoolSize)
 	if err != nil {
 		return nil, err
+	}
+
+	mqOpQueuePoolSize, err := cmdutil.GetInt(cmd, mqOPQueuePoolFlagName, mqOPQueuePoolEnvKey, mqDefaultOpQueuePoolSize)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", mqOPQueuePoolFlagName, err)
 	}
 
 	mqMaxConnectionChannels, err := cmdutil.GetInt(cmd, mqMaxConnectionChannelsFlagName,
@@ -2015,15 +2034,11 @@ func getMQParameters(cmd *cobra.Command) (*mqParams, error) {
 		redeliveryMultiplier:      mqRedeliveryMultiplier,
 		redeliveryInitialInterval: mqRedeliveryInitialInterval,
 		maxRedeliveryInterval:     mqRedeliveryMaxInterval,
+		opQueuePoolSize:           mqOpQueuePoolSize,
 	}, nil
 }
 
 func getOpQueueParameters(cmd *cobra.Command, mqParams *mqParams) (*opqueue.Config, error) {
-	poolSize, err := cmdutil.GetInt(cmd, opQueuePoolFlagName, opQueuePoolEnvKey, opQueueDefaultPoolSize)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", opQueuePoolFlagName, err)
-	}
-
 	taskMonitorInterval, err := cmdutil.GetDuration(cmd, opQueueTaskMonitorIntervalFlagName,
 		opQueueTaskMonitorIntervalEnvKey, opQueueDefaultTaskMonitorInterval)
 	if err != nil {
@@ -2036,14 +2051,28 @@ func getOpQueueParameters(cmd *cobra.Command, mqParams *mqParams) (*opqueue.Conf
 		return nil, fmt.Errorf("%s: %w", opQueueTaskExpirationFlagName, err)
 	}
 
+	maxOperationsToRepost, err := cmdutil.GetInt(cmd, opQueueMaxOperationsToRepostFlagName, opQueueMaxOperationsToRepostEnvKey,
+		opQueueDefaultMaxOperationsToRepost)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", opQueueMaxOperationsToRepostFlagName, err)
+	}
+
+	operationLifespan, err := cmdutil.GetDuration(cmd, opQueueOperationLifespanFlagName, opQueueOperationLifespanEnvKey,
+		opQueueDefaultOperationLifespan)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", opQueueOperationLifespanFlagName, err)
+	}
+
 	return &opqueue.Config{
-		PoolSize:            poolSize,
-		TaskMonitorInterval: taskMonitorInterval,
-		TaskExpiration:      taskExpiration,
-		MaxRetries:          mqParams.maxRedeliveryAttempts,
-		RetriesInitialDelay: mqParams.redeliveryInitialInterval,
-		RetriesMaxDelay:     mqParams.maxRedeliveryInterval,
-		RetriesMultiplier:   mqParams.redeliveryMultiplier,
+		TaskMonitorInterval:   taskMonitorInterval,
+		TaskExpiration:        taskExpiration,
+		MaxOperationsToRepost: maxOperationsToRepost,
+		OperationLifeSpan:     operationLifespan,
+		PoolSize:              mqParams.opQueuePoolSize,
+		MaxRetries:            mqParams.maxRedeliveryAttempts,
+		RetriesInitialDelay:   mqParams.redeliveryInitialInterval,
+		RetriesMaxDelay:       mqParams.maxRedeliveryInterval,
+		RetriesMultiplier:     mqParams.redeliveryMultiplier,
 	}, nil
 }
 
@@ -2292,9 +2321,11 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(mqRedeliveryInitialIntervalFlagName, "", "", mqRedeliveryInitialIntervalFlagUsage)
 	startCmd.Flags().StringP(mqRedeliveryMultiplierFlagName, "", "", mqRedeliveryMultiplierFlagUsage)
 	startCmd.Flags().StringP(mqRedeliveryMaxIntervalFlagName, "", "", mqRedeliveryMaxIntervalFlagUsage)
-	startCmd.Flags().StringP(opQueuePoolFlagName, opQueuePoolFlagShorthand, "", opQueuePoolFlagUsage)
+	startCmd.Flags().StringP(mqOPQueuePoolFlagName, mqOPQueuePoolFlagShorthand, "", mqOPQueuePoolFlagUsage)
 	startCmd.Flags().StringP(opQueueTaskMonitorIntervalFlagName, "", "", opQueueTaskMonitorIntervalFlagUsage)
 	startCmd.Flags().StringP(opQueueTaskExpirationFlagName, "", "", opQueueTaskExpirationFlagUsage)
+	startCmd.Flags().StringP(opQueueMaxOperationsToRepostFlagName, "", "", opQueueMaxOperationsToRepostFlagUsage)
+	startCmd.Flags().StringP(opQueueOperationLifespanFlagName, "", "", opQueueOperationLifespanFlagUsage)
 	startCmd.Flags().String(cidVersionFlagName, "1", cidVersionFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringArrayP(didAliasesFlagName, didAliasesFlagShorthand, []string{}, didAliasesFlagUsage)

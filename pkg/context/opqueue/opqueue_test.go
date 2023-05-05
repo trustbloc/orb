@@ -31,6 +31,7 @@ import (
 )
 
 //go:generate counterfeiter -o ../mocks/pubsub.gen.go --fake-name PubSub . pubSub
+//go:generate counterfeiter -o ../mocks/DataExpiryService.gen.go --fake-name DataExpiryService . dataExpiryService
 
 // mqURI will get set in the TestMain function.
 var mqURI = ""
@@ -72,7 +73,7 @@ func TestQueue(t *testing.T) {
 			RetriesMaxDelay:     10 * time.Millisecond,
 			RetriesMultiplier:   1.0,
 		},
-		ps1, storageProvider, taskMgr1,
+		ps1, storageProvider, taskMgr1, &ctxmocks.DataExpiryService{},
 		&mocks.MetricsProvider{},
 	)
 	require.NoError(t, err)
@@ -97,7 +98,7 @@ func TestQueue(t *testing.T) {
 			RetriesMultiplier:   1.0,
 		},
 
-		ps2, storageProvider, taskMgr2,
+		ps2, storageProvider, taskMgr2, &ctxmocks.DataExpiryService{},
 		&mocks.MetricsProvider{},
 	)
 	require.NoError(t, err)
@@ -203,7 +204,7 @@ func TestQueue_Error(t *testing.T) {
 
 	t.Run("Not started error", func(t *testing.T) {
 		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
-			taskMgr, &mocks.MetricsProvider{})
+			taskMgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -231,7 +232,7 @@ func TestQueue_Error(t *testing.T) {
 		ps.PublishWithOptsReturns(errExpected)
 
 		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
-			taskMgr, &mocks.MetricsProvider{})
+			taskMgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -250,14 +251,14 @@ func TestQueue_Error(t *testing.T) {
 		ps.SubscribeWithOptsReturns(nil, errExpected)
 
 		_, err := New(Config{}, ps, storage.NewMockStoreProvider(),
-			taskMgr, &mocks.MetricsProvider{})
+			taskMgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
 		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
-			taskMgr, &mocks.MetricsProvider{})
+			taskMgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -277,7 +278,7 @@ func TestQueue_Error(t *testing.T) {
 
 	t.Run("Unmarshal error", func(t *testing.T) {
 		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
-			taskMgr, &mocks.MetricsProvider{})
+			taskMgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -311,7 +312,7 @@ func TestQueue_Error(t *testing.T) {
 		s.(*storage.MockStore).ErrPut = errExpected //nolint:forcetypeassert
 
 		q, err := New(Config{}, ps, p,
-			taskMgr, &mocks.MetricsProvider{})
+			taskMgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 		require.Nil(t, q)
@@ -333,7 +334,7 @@ func TestQueue_Error(t *testing.T) {
 		s.(*storage.MockStore).ErrQuery = errExpected //nolint:forcetypeassert
 
 		q, err := New(Config{}, ps, p,
-			mgr, &mocks.MetricsProvider{})
+			mgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -359,7 +360,7 @@ func TestQueue_Error(t *testing.T) {
 		s.(*storage.MockStore).ErrNext = errExpected //nolint:forcetypeassert
 
 		q, err := New(Config{}, ps, p,
-			mgr, &mocks.MetricsProvider{})
+			mgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -376,7 +377,7 @@ func TestQueue_Error(t *testing.T) {
 		defer mgr.Stop()
 
 		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
-			mgr, &mocks.MetricsProvider{})
+			mgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -399,7 +400,7 @@ func TestQueue_Error(t *testing.T) {
 		ps.PublishWithOptsReturnsOnCall(0, errExpected)
 
 		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
-			taskMgr, &mocks.MetricsProvider{})
+			taskMgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
 
@@ -468,7 +469,7 @@ func TestRepostWithMaxRetries(t *testing.T) {
 			RetriesMaxDelay:     100 * time.Millisecond,
 			RetriesMultiplier:   1.0,
 		},
-		ps, storageProvider, taskMgr,
+		ps, storageProvider, taskMgr, &ctxmocks.DataExpiryService{},
 		&mocks.MetricsProvider{},
 	)
 	require.NoError(t, err)
