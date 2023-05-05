@@ -27,6 +27,7 @@ import (
 	"github.com/trustbloc/orb/pkg/pubsub"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 	"github.com/trustbloc/orb/pkg/store"
+	"github.com/trustbloc/orb/pkg/store/expiry"
 )
 
 const (
@@ -37,14 +38,17 @@ const (
 	storeName        = "operation-queue"
 	tagOpQueueTask   = "taskID"
 	tagServerID      = "serverID"
+	tagExpiryTime    = "expiryTime"
 	detachedServerID = "detached"
 
-	defaultInterval             = 10 * time.Second
-	defaultTaskExpirationFactor = 2
-	defaultMaxRetries           = 10
-	defaultRetryInitialDelay    = 2 * time.Second
-	defaultMaxRetryDelay        = 30 * time.Second
-	defaultRetryMultiplier      = 1.5
+	defaultInterval              = 10 * time.Second
+	defaultTaskExpirationFactor  = 3
+	defaultMaxRetries            = 10
+	defaultRetryInitialDelay     = 2 * time.Second
+	defaultMaxRetryDelay         = 30 * time.Second
+	defaultRetryMultiplier       = 1.5
+	defaultMaxOperationsToRepost = 1000
+	defaultOperationLifespan     = 10 * time.Minute
 )
 
 type pubSub interface {
@@ -71,7 +75,8 @@ type queuedOperation struct {
 type persistedOperation struct {
 	*OperationMessage
 
-	ServerID string `json:"serverID"`
+	ServerID   string `json:"serverID"`
+	ExpiryTime int64  `json:"expiryTime"`
 }
 
 type metricsProvider interface {
@@ -84,6 +89,10 @@ type metricsProvider interface {
 type taskManager interface {
 	InstanceID() string
 	RegisterTask(taskID string, interval time.Duration, task func())
+}
+
+type dataExpiryService interface {
+	Register(store storage.Store, expiryTagName, storeName string, opts ...expiry.Option)
 }
 
 //nolint:tagliatelle
@@ -114,6 +123,12 @@ type Config struct {
 	// RetriesMultiplier is the multiplier for a retry attempt. For example, if set to 1.5 and
 	// the previous retry interval was 2s then the next retry interval is set 3s.
 	RetriesMultiplier float64
+	// MaxOperationsToRepost is the maximum number of operations to repost to the queue after
+	// an instance dies.
+	MaxOperationsToRepost int
+	// OperationLifespan is the maximum time that an operation can exist in the database before
+	// it is deleted
+	OperationLifeSpan time.Duration
 }
 
 // Queue implements an operation queue that uses a publisher/subscriber.
@@ -132,16 +147,21 @@ type Queue struct {
 	taskMonitorInterval       time.Duration
 	taskExpiration            time.Duration
 	taskMgr                   taskManager
+	expiryService             dataExpiryService
 	maxRetries                int
 	redeliveryInitialInterval time.Duration
 	maxRedeliveryInterval     time.Duration
 	redeliveryMultiplier      float64
+	maxOperationsToRepost     int
 	logger                    *log.Log
 	tracer                    trace.Tracer
+	operationLifeSpan         time.Duration
 }
 
 // New returns a new operation queue.
-func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager, metrics metricsProvider) (*Queue, error) {
+func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
+	expiryService dataExpiryService, metrics metricsProvider,
+) (*Queue, error) {
 	logger := log.New(loggerModule, log.WithFields(logfields.WithTaskMgrInstanceID(taskMgr.InstanceID())))
 
 	msgChan, err := pubSub.SubscribeWithOpts(context.Background(), topic, spi.WithPool(cfg.PoolSize))
@@ -151,6 +171,7 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager, met
 
 	s, err := store.Open(p, storeName,
 		store.NewTagGroup(tagOpQueueTask),
+		store.NewTagGroup(tagExpiryTime),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("open store: %w", err)
@@ -160,7 +181,8 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager, met
 
 	logger.Info("Creating operation queue.",
 		log.WithTopic(topic), logfields.WithMaxRetries(cfg.MaxRetries), logfields.WithSubscriberPoolSize(cfg.PoolSize),
-		logfields.WithTaskMonitorInterval(cfg.TaskMonitorInterval), logfields.WithTaskExpiration(cfg.TaskExpiration))
+		logfields.WithTaskMonitorInterval(cfg.TaskMonitorInterval), logfields.WithTaskExpiration(cfg.TaskExpiration),
+		logfields.WithMaxOperationsToRepost(cfg.MaxOperationsToRepost))
 
 	q := &Queue{
 		pubSub:                    pubSub,
@@ -173,10 +195,13 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager, met
 		taskExpiration:            cfg.TaskExpiration,
 		taskMonitorInterval:       cfg.TaskMonitorInterval,
 		taskMgr:                   taskMgr,
+		expiryService:             expiryService,
 		maxRetries:                cfg.MaxRetries,
 		redeliveryInitialInterval: cfg.RetriesInitialDelay,
 		redeliveryMultiplier:      cfg.RetriesMultiplier,
 		maxRedeliveryInterval:     cfg.RetriesMaxDelay,
+		maxOperationsToRepost:     cfg.MaxOperationsToRepost,
+		operationLifeSpan:         cfg.OperationLifeSpan,
 		logger:                    logger,
 		tracer:                    tracing.Tracer(tracing.SubsystemOperationQueue),
 	}
@@ -313,6 +338,7 @@ func (q *Queue) Len() uint {
 
 func (q *Queue) start() {
 	q.taskMgr.RegisterTask(taskID, q.taskMonitorInterval, q.monitorOtherServers)
+	q.expiryService.Register(q.store, tagExpiryTime, storeName)
 
 	go q.listen()
 
@@ -365,6 +391,7 @@ func (q *Queue) handleMessage(msg *message.Message) {
 	pop := persistedOperation{
 		OperationMessage: op,
 		ServerID:         q.serverInstanceID,
+		ExpiryTime:       time.Now().Add(q.operationLifeSpan).Unix(),
 	}
 
 	opBytes, err := json.Marshal(pop)
@@ -379,6 +406,7 @@ func (q *Queue) handleMessage(msg *message.Message) {
 
 	err = q.store.Put(key, opBytes,
 		storage.Tag{Name: tagServerID, Value: q.serverInstanceID},
+		storage.Tag{Name: tagExpiryTime, Value: fmt.Sprintf("%d", pop.ExpiryTime)},
 	)
 	if err != nil {
 		q.logger.Warn("Error storing operation info. Message will be nacked and retried.",
@@ -407,9 +435,9 @@ func (q *Queue) handleMessage(msg *message.Message) {
 func (q *Queue) newAckFunc(items []*queuedOperation) func() uint {
 	return func() uint {
 		if err := q.deleteOperations(items); err != nil {
-			q.logger.Error("Error deleting pending operations.", logfields.WithTotal(len(items)), log.WithError(err))
+			q.logger.Error("Error deleting pending operations after ACK.", logfields.WithTotal(len(items)), log.WithError(err))
 		} else {
-			q.logger.Debug("Deleted operations.", logfields.WithTotal(len(items)))
+			q.logger.Debug("Deleted operations after ACK.", logfields.WithTotal(len(items)))
 		}
 
 		// Batch cut time is the time since the first operation was added (which is the oldest operation in the batch).
@@ -435,8 +463,9 @@ func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 
 		for _, op := range items {
 			if op.Retries >= q.maxRetries {
-				q.logger.Warnc(ctx, "... not re-posting operation since the retry count has reached the limit.",
-					logfields.WithOperationID(op.ID), logfields.WithSuffix(op.Operation.UniqueSuffix), logfields.WithRetries(op.Retries))
+				q.logger.Warnc(ctx, "Not re-posting operation after NACK since the retry count has reached the limit.",
+					logfields.WithOperationID(op.ID), logfields.WithSuffix(op.Operation.UniqueSuffix),
+					logfields.WithRetries(op.Retries), logfields.WithMaxRetries(q.maxRetries))
 
 				operationsToDelete = append(operationsToDelete, op)
 
@@ -445,11 +474,12 @@ func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 
 			op.Retries++
 
-			q.logger.Infoc(ctx, "... re-posting operation ...", logfields.WithOperationID(op.ID),
-				logfields.WithSuffix(op.Operation.UniqueSuffix), logfields.WithRetries(op.Retries))
+			q.logger.Infoc(ctx, "Re-posting operation after NACK", logfields.WithOperationID(op.ID),
+				logfields.WithSuffix(op.Operation.UniqueSuffix), logfields.WithRetries(op.Retries),
+				logfields.WithMaxRetries(q.maxRetries))
 
 			if _, err := q.publish(ctx, op.OperationMessage); err != nil {
-				q.logger.Errorc(ctx, "Error re-posting operation. Operation will be detached from this server instance",
+				q.logger.Errorc(ctx, "Error re-posting operation after NACK. Operation will be detached from this server instance",
 					logfields.WithOperationID(op.ID), log.WithError(err))
 
 				if e := q.detachOperation(op); e != nil {
@@ -466,7 +496,7 @@ func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 
 		if len(operationsToDelete) > 0 {
 			if err := q.deleteOperations(operationsToDelete); err != nil {
-				q.logger.Errorc(ctx, "Error deleting operations. Some (or all) of the operations "+
+				q.logger.Errorc(ctx, "Error deleting operations after NACK. Some (or all) of the operations "+
 					"will be left in the database and potentially reprocessed (which should be harmless). "+
 					"The operations should be deleted (at some point) by the data expiry service.", log.WithError(err))
 			}
@@ -486,12 +516,7 @@ func (q *Queue) monitorOtherServers() {
 		return
 	}
 
-	defer func() {
-		errClose := it.Close()
-		if errClose != nil {
-			log.CloseIteratorError(q.logger, err)
-		}
-	}()
+	defer store.CloseIterator(it)
 
 	for {
 		task, ok, err := q.nextTask(it)
@@ -604,17 +629,14 @@ func (q *Queue) repostOperations(serverID string) error { //nolint:cyclop
 		return fmt.Errorf("query operations with tag [%s]: %w", serverID, err)
 	}
 
-	defer func() {
-		errClose := it.Close()
-		if errClose != nil {
-			log.CloseIteratorError(q.logger, err)
-		}
-	}()
+	defer store.CloseIterator(it)
 
 	span := tracing.NewSpan(q.tracer, context.Background())
 	defer span.End()
 
-	var batchOperations []storage.Operation
+	deleteQueueTask := serverID != detachedServerID
+
+	var operationsToDelete []storage.Operation
 
 	for {
 		key, op, ok, e := q.nextOperation(it)
@@ -628,39 +650,57 @@ func (q *Queue) repostOperations(serverID string) error { //nolint:cyclop
 
 		if op.Retries >= q.maxRetries {
 			q.logger.Warn("Not re-posting operation since the retry count has reached the limit.",
-				logfields.WithOperationID(op.ID), logfields.WithSuffix(op.Operation.UniqueSuffix), logfields.WithRetries(op.Retries))
+				logfields.WithOperationID(op.ID), logfields.WithSuffix(op.Operation.UniqueSuffix),
+				logfields.WithRetries(op.Retries))
+
+			operationsToDelete = append(operationsToDelete, storage.Operation{Key: key})
 
 			continue
 		}
 
 		op.Retries++
 
-		q.logger.Info("Re-posting operation.", logfields.WithOperationID(op.ID),
-			logfields.WithSuffix(op.Operation.UniqueSuffix))
+		q.logger.Info("Re-posting operation for queue task.", logfields.WithOperationID(op.ID),
+			logfields.WithSuffix(op.Operation.UniqueSuffix), logfields.WithPermitHolder(serverID))
 
 		if _, e = q.publish(span.Start("re-post operations"), op); e != nil {
-			return fmt.Errorf("publish operation [%s]: %w", op.ID, e)
+			q.logger.Error("Error re-posting operation", logfields.WithOperationID(op.ID), log.WithError(e),
+				logfields.WithSuffix(op.Operation.UniqueSuffix))
+
+			deleteQueueTask = false
+
+			break
 		}
 
-		batchOperations = append(batchOperations, storage.Operation{Key: key})
+		operationsToDelete = append(operationsToDelete, storage.Operation{Key: key})
+
+		if len(operationsToDelete) >= q.maxOperationsToRepost {
+			q.logger.Info("Reached max number of operations to re-post in this task run", log.WithError(e),
+				logfields.WithOperationID(op.ID), logfields.WithSuffix(op.Operation.UniqueSuffix),
+				logfields.WithMaxOperationsToRepost(q.maxOperationsToRepost))
+
+			deleteQueueTask = false
+
+			break
+		}
 	}
 
-	if len(batchOperations) > 0 {
-		q.logger.Info("Deleting operations for queue task.", logfields.WithTotal(len(batchOperations)),
+	if len(operationsToDelete) > 0 {
+		q.logger.Info("Deleting operations for queue task after re-posting to MQ.", logfields.WithTotal(len(operationsToDelete)),
 			logfields.WithPermitHolder(serverID))
 
-		err = q.store.Batch(batchOperations)
+		err = q.store.Batch(operationsToDelete)
 		if err != nil {
 			return fmt.Errorf("delete operations: %w", err)
 		}
 	}
 
-	if serverID != detachedServerID {
+	if deleteQueueTask {
 		q.logger.Info("Deleting operation queue task.", logfields.WithPermitHolder(serverID))
 
 		err = q.store.Delete(serverID)
 		if err != nil {
-			return fmt.Errorf("delete operation queue task [%s]: %w", q.serverInstanceID, err)
+			return fmt.Errorf("delete operation queue task [%s]: %w", serverID, err)
 		}
 	}
 
@@ -766,7 +806,7 @@ func resolveConfig(cfg Config) Config {
 
 	if cfg.TaskExpiration == 0 {
 		// Set the task expiration to a factor of the monitoring interval. So, if the monitoring interval is 10s and
-		// the expiration factor is 2 then the task is considered to have expired after 20s.
+		// the expiration factor is 3 then the task is considered to have expired after 60s.
 		cfg.TaskExpiration = cfg.TaskMonitorInterval * defaultTaskExpirationFactor
 	}
 
@@ -784,6 +824,14 @@ func resolveConfig(cfg Config) Config {
 
 	if cfg.RetriesMaxDelay == 0 {
 		cfg.RetriesMaxDelay = defaultMaxRetryDelay
+	}
+
+	if cfg.MaxOperationsToRepost == 0 {
+		cfg.MaxOperationsToRepost = defaultMaxOperationsToRepost
+	}
+
+	if cfg.OperationLifeSpan == 0 {
+		cfg.OperationLifeSpan = defaultOperationLifespan
 	}
 
 	return cfg

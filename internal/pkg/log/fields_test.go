@@ -62,6 +62,7 @@ func TestStandardFields(t *testing.T) {
 			WithProof([]byte(`{"id":"https://example.com/proof1"}`)),
 			WithCreatedTime(now), WithWitnessURI(u1), WithWitnessURIs(u1, u2), WithWitnessPolicy("some policy"),
 			WithAnchorOrigin(u1.String()), WithOperationType("Create"), WithCoreIndex("1234"),
+			WithMaxOperationsToRepost(300),
 		)
 
 		t.Logf(stdOut.String())
@@ -117,6 +118,7 @@ func TestStandardFields(t *testing.T) {
 		require.Equal(t, u1.String(), l.AnchorOrigin)
 		require.Equal(t, "Create", l.OperationType)
 		require.Equal(t, "1234", l.CoreIndex)
+		require.Equal(t, 300, l.MaxOperationsToRepost)
 	})
 
 	t.Run("json fields 2", func(t *testing.T) {
@@ -442,6 +444,7 @@ type logData struct {
 	Age                    string              `json:"age"`
 	MinAge                 string              `json:"minAge"`
 	LogSpec                string              `json:"logSpec"`
+	MaxOperationsToRepost  int                 `json:"maxOperationsToRepost"`
 }
 
 func unmarshalLogData(t *testing.T, b []byte) *logData {

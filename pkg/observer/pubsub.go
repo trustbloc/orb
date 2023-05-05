@@ -66,7 +66,7 @@ func NewPubSub(pubSub pubSub, anchorProcessor anchorProcessor, didProcessor didP
 		lifecycle.WithStart(h.start),
 	)
 
-	logger.Info("Subscribing to topic", log.WithTopic(anchorTopic))
+	logger.Info("Subscribing to topic", log.WithTopic(anchorTopic), logfields.WithSubscriberPoolSize(poolSize))
 
 	anchorCredChan, err := pubSub.SubscribeWithOpts(context.Background(), anchorTopic, spi.WithPool(poolSize))
 	if err != nil {

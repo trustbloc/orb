@@ -146,6 +146,7 @@ const (
 	FieldMinAge                 = "minAge"
 	FieldLogSpec                = "logSpec"
 	FieldTracingProvider        = "tracingProvider"
+	FieldMaxOperationsToRepost  = "maxOperationsToRepost"
 )
 
 // WithMessageID sets the message-id field.
@@ -863,6 +864,11 @@ func WithLogSpec(value string) zap.Field {
 // WithTracingProvider sets the tracingProvider field.
 func WithTracingProvider(value string) zap.Field {
 	return zap.String(FieldTracingProvider, value)
+}
+
+// WithMaxOperationsToRepost sets the maxOperationsToRepost field.
+func WithMaxOperationsToRepost(value int) zap.Field {
+	return zap.Int(FieldMaxOperationsToRepost, value)
 }
 
 type jsonMarshaller struct {
