@@ -17,7 +17,6 @@ import (
 	"sort"
 	"time"
 
-	"github.com/bluele/gcache"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/trustbloc/logutil-go/pkg/log"
@@ -26,9 +25,11 @@ import (
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
+	"github.com/trustbloc/orb/pkg/cache"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
 	docutil "github.com/trustbloc/orb/pkg/document/util"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/observability/tracing"
 	cryptoutil "github.com/trustbloc/orb/pkg/util"
 )
@@ -36,8 +37,8 @@ import (
 var logger = log.New("activitypub_client")
 
 const (
-	defaultCacheSize       = 100
-	defaultCacheExpiration = time.Minute
+	defaultCacheExpiration    = time.Minute
+	defaultMaxRefreshAttempts = 60
 )
 
 // ErrNotFound is returned when the object is not found or the iterator has reached the end.
@@ -89,17 +90,28 @@ type serviceResolver interface {
 
 // Config contains configuration parameters for the client.
 type Config struct {
-	CacheSize       int
-	CacheExpiration time.Duration
+	// Deprecated
+	CacheSize int
+
+	CacheRefreshInterval    time.Duration
+	CacheMaxRefreshAttempts int
+	CacheRetryBackoff       time.Duration
+}
+
+type refreshingCache interface {
+	Get(key interface{}) (interface{}, error)
+	Start()
+	Stop()
 }
 
 // Client implements an ActivityPub client which retrieves ActivityPub objects (such as actors, activities,
 // and collections) from remote sources.
 type Client struct {
 	httpTransport
+	*lifecycle.Lifecycle
 
-	actorCache     gcache.Cache
-	publicKeyCache gcache.Cache
+	actorCache     refreshingCache
+	publicKeyCache refreshingCache
 	fetchPublicKey verifiable.PublicKeyFetcher
 	resolver       serviceResolver
 	tracer         trace.Tracer
@@ -114,31 +126,39 @@ func New(cfg Config, t httpTransport, fetchPublicKey verifiable.PublicKeyFetcher
 		tracer:         tracing.Tracer(tracing.SubsystemActivityPub),
 	}
 
-	cacheSize := cfg.CacheSize
+	config := resolveConfig(&cfg)
 
-	if cacheSize == 0 {
-		cacheSize = defaultCacheSize
+	cacheOpts := []cache.Opt{
+		cache.WithRefreshInterval(config.CacheRefreshInterval),
+		cache.WithMonitorInterval(config.CacheRefreshInterval / 2),
+		cache.WithMaxLoadAttempts(uint(config.CacheMaxRefreshAttempts)),
+		cache.WithRetryBackoff(config.CacheRetryBackoff),
 	}
 
-	cacheExpiration := cfg.CacheExpiration
+	c.actorCache = cache.New(
+		func(key interface{}) (interface{}, error) {
+			return c.loadActor(key.(string)) //nolint:forcetypeassert
+		},
+		append(cacheOpts, cache.WithName("activitypub-actor-cache"))...,
+	)
 
-	if cacheExpiration == 0 {
-		cacheExpiration = defaultCacheExpiration
-	}
+	c.publicKeyCache = cache.New(
+		func(key interface{}) (interface{}, error) {
+			return c.loadPublicKey(key.(string)) //nolint:forcetypeassert
+		},
+		append(cacheOpts, cache.WithName("activitypub-public-key-cache"))...,
+	)
 
-	logger.Debug("Creating actor cache", logfields.WithSize(cacheSize), logfields.WithCacheExpiration(cacheExpiration))
-
-	c.actorCache = gcache.New(cacheSize).ARC().
-		Expiration(cacheExpiration).
-		LoaderFunc(func(i interface{}) (interface{}, error) {
-			return c.loadActor(i.(string)) //nolint:forcetypeassert
-		}).Build()
-
-	c.publicKeyCache = gcache.New(cacheSize).ARC().
-		Expiration(cacheExpiration).
-		LoaderFunc(func(i interface{}) (interface{}, error) {
-			return c.loadPublicKey(i.(string)) //nolint:forcetypeassert
-		}).Build()
+	c.Lifecycle = lifecycle.New("activitypub-client",
+		lifecycle.WithStart(func() {
+			c.actorCache.Start()
+			c.publicKeyCache.Start()
+		}),
+		lifecycle.WithStop(func() {
+			c.actorCache.Stop()
+			c.publicKeyCache.Stop()
+		}),
+	)
 
 	return c
 }
@@ -773,4 +793,22 @@ func reverseSort(items []*vocab.ActivityType) []*vocab.ActivityType {
 	)
 
 	return items
+}
+
+func resolveConfig(cfg *Config) *Config {
+	c := *cfg
+
+	if c.CacheRefreshInterval == 0 {
+		c.CacheRefreshInterval = defaultCacheExpiration
+	}
+
+	if c.CacheRetryBackoff == 0 {
+		c.CacheRetryBackoff = c.CacheRefreshInterval
+	}
+
+	if c.CacheMaxRefreshAttempts == 0 {
+		c.CacheMaxRefreshAttempts = defaultMaxRefreshAttempts
+	}
+
+	return &c
 }

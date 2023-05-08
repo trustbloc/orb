@@ -765,8 +765,8 @@ func startOrbServices(parameters *orbParameters) error {
 	resourceResolver := resource.New(httpClient, ipfsReader, endpointClient)
 
 	apClient := client.New(client.Config{
-		CacheSize:       parameters.activityPub.clientCacheSize,
-		CacheExpiration: parameters.activityPub.clientCacheExpiration,
+		CacheSize:            parameters.activityPub.clientCacheSize,
+		CacheRefreshInterval: parameters.activityPub.clientCacheExpiration,
 	}, httpTransport, publicKeyFetcher, resourceResolver)
 
 	apSigVerifier := getActivityPubVerifier(parameters, km, cr, apClient)
@@ -1190,7 +1190,7 @@ func startOrbServices(parameters *orbParameters) error {
 		httpserver.WithHandlers(handlers...),
 	)
 
-	err = run(httpServer, activityPubService, opQueue, obsrv, batchWriter, taskMgr,
+	err = run(httpServer, activityPubService, opQueue, obsrv, batchWriter, taskMgr, apClient,
 		nodeInfoService, newMPLifecycleWrapper(mp), tracerProvider)
 	if err != nil {
 		return err
