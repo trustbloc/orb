@@ -57,6 +57,9 @@ func TestClient_GetActor(t *testing.T) {
 		c := newMockClient(httpClient)
 		require.NotNil(t, c)
 
+		c.Start()
+		defer c.Stop()
+
 		actor, e := c.GetActor(actorIRI)
 		require.NoError(t, e)
 		require.NotNil(t, actor)
@@ -78,6 +81,9 @@ func TestClient_GetActor(t *testing.T) {
 
 		c := newMockClient(httpClient)
 		require.NotNil(t, t, c)
+
+		c.Start()
+		defer c.Stop()
 
 		actor, e := c.GetActor(actorIRI)
 		require.Error(t, e)
@@ -141,11 +147,14 @@ func TestClient_GetActor(t *testing.T) {
 			httpClient.GetReturnsOnCall(0, result, nil)
 			httpClient.GetReturnsOnCall(1, nil, errExpected)
 
-			c := New(Config{CacheExpiration: time.Second}, httpClient,
+			c := New(Config{CacheRefreshInterval: time.Second}, httpClient,
 				func(issuerID, keyID string) (*verifier.PublicKey, error) {
 					return &verifier.PublicKey{}, nil
 				}, &wellKnownResolver{})
 			require.NotNil(t, t, c)
+
+			c.Start()
+			defer c.Stop()
 
 			actor, e := c.GetActor(actorIRI)
 			require.NoError(t, e)
@@ -171,22 +180,29 @@ func TestClient_GetActor(t *testing.T) {
 			httpClient := &mocks.HTTPTransport{}
 			httpClient.GetReturnsOnCall(0, result, nil)
 			httpClient.GetReturnsOnCall(1, nil, errExpected)
+			httpClient.GetReturns(nil, errExpected)
 
-			c := New(Config{CacheExpiration: time.Nanosecond}, httpClient,
+			c := New(Config{CacheRefreshInterval: 50 * time.Millisecond}, httpClient,
 				func(issuerID, keyID string) (*verifier.PublicKey, error) {
 					return &verifier.PublicKey{}, nil
 				}, &wellKnownResolver{})
 			require.NotNil(t, t, c)
+
+			c.Start()
+			defer c.Stop()
 
 			actor, e := c.GetActor(actorIRI)
 			require.NoError(t, e)
 			require.NotNil(t, actor)
 			require.Equal(t, actorIRI.String(), actor.ID().String())
 
+			time.Sleep(100 * time.Millisecond)
+
+			// Should use old value.
 			actor, e = c.GetActor(actorIRI)
-			require.Error(t, e)
-			require.Nil(t, actor)
-			require.True(t, errors.Is(e, errExpected))
+			require.NoError(t, e)
+			require.NotNil(t, actor)
+			require.Equal(t, actorIRI.String(), actor.ID().String())
 
 			require.NoError(t, result.Body.Close())
 		})

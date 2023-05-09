@@ -37,10 +37,11 @@ const (
 	FieldRequestURL             = "requestUrl"
 	FieldRequestHeaders         = "requestHeaders"
 	FieldRequestBody            = "requestBody"
-	FieldResponse               = "response"
 	FieldSize                   = "size"
 	FieldMaxSize                = "maxSize"
 	FieldCacheExpiration        = "cacheExpiration"
+	FieldCacheRefreshInterval   = "cacheRefreshInterval"
+	FieldCacheRefreshAttempts   = "cacheRefreshAttempts"
 	FieldTarget                 = "target"
 	FieldTargets                = "targets"
 	FieldHTTPMethod             = "httpMethod"
@@ -166,6 +167,10 @@ func WithMetadata(value interface{}) zap.Field {
 
 // WithRequestURL sets the request-url field.
 func WithRequestURL(value fmt.Stringer) zap.Field {
+	if value == nil {
+		return zap.String(FieldRequestURL, "")
+	}
+
 	return zap.Stringer(FieldRequestURL, value)
 }
 
@@ -253,6 +258,16 @@ func WithMaxSizeUInt64(value uint64) zap.Field {
 // WithCacheExpiration sets the cache-expiration field.
 func WithCacheExpiration(value time.Duration) zap.Field {
 	return zap.Duration(FieldCacheExpiration, value)
+}
+
+// WithCacheRefreshInterval sets the cacheRefreshInterval field.
+func WithCacheRefreshInterval(value time.Duration) zap.Field {
+	return zap.Duration(FieldCacheRefreshInterval, value)
+}
+
+// WithCacheRefreshAttempts sets the cacheRefreshAttempts field.
+func WithCacheRefreshAttempts(value int) zap.Field {
+	return zap.Int(FieldCacheRefreshAttempts, value)
 }
 
 // WithTarget sets the target field.
