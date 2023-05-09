@@ -67,9 +67,9 @@ func TestService(t *testing.T) {
 		taskMgr := New(coordinationStore, time.Millisecond)
 
 		err := taskMgr.run(&registration{
-			handle:   func() {},
-			id:       "test-task",
-			interval: time.Millisecond,
+			handle:          func() time.Duration { return 0 },
+			id:              "test-task",
+			defaultInterval: time.Millisecond,
 		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "get permit from DB for task [test-task]: get error")
@@ -83,9 +83,9 @@ func TestService(t *testing.T) {
 		taskMgr := New(coordinationStore, time.Millisecond)
 
 		err := taskMgr.run(&registration{
-			handle:   func() {},
-			id:       "test-task",
-			interval: time.Millisecond,
+			handle:          func() time.Duration { return 0 },
+			id:              "test-task",
+			defaultInterval: time.Millisecond,
 		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(),

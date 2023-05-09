@@ -11,7 +11,6 @@ import (
 	"errors"
 	"fmt"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -103,14 +102,26 @@ func (s *Manager) InstanceID() string {
 }
 
 // RegisterTask registers a task to be periodically run at the given interval.
-func (s *Manager) RegisterTask(id string, interval time.Duration, task func()) {
+func (s *Manager) RegisterTask(id string, interval time.Duration, run func()) {
+	s.RegisterTaskEx(id, interval, func() time.Duration {
+		run()
+
+		return 0
+	})
+}
+
+// RegisterTaskEx registers a task to be periodically run at the given interval.
+// The task returns an override of the default interval. For example, if 5s is returned then the task
+// will run again in 5 seconds. If 0 is returned then the task will run at the default interval.
+func (s *Manager) RegisterTaskEx(id string, defaultInterval time.Duration, task func() time.Duration) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
 	s.tasks[id] = &registration{
-		handle:   task,
-		id:       id,
-		interval: interval,
+		handle:          task,
+		id:              id,
+		defaultInterval: defaultInterval,
+		nextInterval:    defaultInterval,
 	}
 }
 
@@ -153,7 +164,7 @@ func (s *Manager) stop() {
 }
 
 func (s *Manager) run(t *registration) error {
-	if t.isRunning() {
+	if t.Running() {
 		s.logger.Debug("Task is still running. Updating timestamp in the permit to tell others that I'm still alive.",
 			logfields.WithTaskID(t.id))
 
@@ -228,10 +239,10 @@ func (s *Manager) shouldRun(t *registration) (bool, error) {
 	timeSinceLastUpdate := time.Since(timeOfLastUpdate).Truncate(time.Second)
 
 	if currentPermit.CurrentHolder == s.instanceID {
-		if timeSinceLastUpdate < t.interval {
+		if timeSinceLastUpdate < t.NextInterval() {
 			s.logger.Debug("It's currently my duty to run this task but it's not time for it to run.",
 				logfields.WithTaskID(t.id), logfields.WithTimeSinceLastUpdate(timeSinceLastUpdate),
-				logfields.WithTaskMonitorInterval(t.interval))
+				logfields.WithTaskMonitorInterval(t.NextInterval()))
 
 			return false, nil
 		}
@@ -249,7 +260,7 @@ func (s *Manager) shouldRun(t *registration) (bool, error) {
 	// within the cluster have the same interval setting (which they should).
 	// So, "unusually long time" means that the 'last update' time is greater than the Task Manager check interval plus
 	// the task's run interval, in which case we'll assume that the other instance is dead and will take over.
-	maxTime := s.interval + t.interval
+	maxTime := s.interval + t.DefaultInterval()
 
 	if timeSinceLastUpdate > maxTime {
 		s.logger.Info("The current permit holder for this task has not updated the permit in an "+
@@ -299,23 +310,48 @@ func getPermitKey(taskID string) string {
 }
 
 type registration struct {
-	handle   func()
-	running  uint32
-	id       string
-	interval time.Duration
+	handle          func() time.Duration
+	running         bool
+	id              string
+	defaultInterval time.Duration
+	nextInterval    time.Duration
+	mutex           sync.RWMutex
 }
 
 func (r *registration) run() {
-	if !atomic.CompareAndSwapUint32(&r.running, 0, 1) {
+	if r.Running() {
 		// Already running.
 		return
 	}
 
-	r.handle()
+	nextInterval := r.handle()
 
-	atomic.StoreUint32(&r.running, 0)
+	if nextInterval == 0 {
+		nextInterval = r.defaultInterval
+	}
+
+	r.mutex.Lock()
+
+	r.running = false
+	r.nextInterval = nextInterval
+
+	r.mutex.Unlock()
 }
 
-func (r *registration) isRunning() bool {
-	return atomic.LoadUint32(&r.running) == 1
+func (r *registration) Running() bool {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	return r.running
+}
+
+func (r *registration) DefaultInterval() time.Duration {
+	return r.defaultInterval
+}
+
+func (r *registration) NextInterval() time.Duration {
+	r.mutex.RLock()
+	defer r.mutex.RUnlock()
+
+	return r.nextInterval
 }

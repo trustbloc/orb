@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"net/url"
 	"time"
 
@@ -32,8 +33,10 @@ const logModule = "activity_sync"
 var logger = log.New(logModule)
 
 const (
-	defaultInterval       = time.Minute
-	defaultMinActivityAge = time.Minute
+	defaultInterval            = time.Minute
+	defaultAcceleratedInterval = 15 * time.Second
+	defaultMinActivityAge      = time.Minute
+	defaultMaxActivitiesToSync = math.MaxInt
 
 	taskName = "activity-sync"
 )
@@ -51,60 +54,53 @@ type activityPubClient interface {
 }
 
 type taskManager interface {
-	RegisterTask(taskType string, interval time.Duration, task func())
+	RegisterTaskEx(taskType string, interval time.Duration, task func() time.Duration)
 }
 
 // Config contains configuration parameters for the anchor event synchronization task.
 type Config struct {
-	ServiceIRI     *url.URL
-	Interval       time.Duration
-	MinActivityAge time.Duration
+	ServiceIRI          *url.URL
+	Interval            time.Duration
+	AcceleratedInterval time.Duration
+	MinActivityAge      time.Duration
+	MaxActivitiesToSync int
 }
 
 type task struct {
-	serviceIRI       *url.URL
-	apClient         activityPubClient
-	store            *syncStore
-	getHandler       func() spi.InboxHandler
-	activityPubStore store.Store
-	closed           chan struct{}
-	minActivityAge   time.Duration
-	tracer           trace.Tracer
+	serviceIRI          *url.URL
+	apClient            activityPubClient
+	store               *syncStore
+	getHandler          func() spi.InboxHandler
+	activityPubStore    store.Store
+	closed              chan struct{}
+	minActivityAge      time.Duration
+	maxActivitiesToSync int
+	acceleratedInterval time.Duration
+	tracer              trace.Tracer
 }
 
 // Register registers the anchor event synchronization task.
 func Register(cfg Config, taskMgr taskManager, apClient activityPubClient, apStore store.Store,
 	storageProvider storage.Provider, handlerFactory func() spi.InboxHandler,
 ) error {
-	interval := cfg.Interval
+	config := resolveConfig(&cfg)
 
-	if interval == 0 {
-		interval = defaultInterval
-	}
-
-	minActivityAge := cfg.MinActivityAge
-
-	if minActivityAge == 0 {
-		minActivityAge = defaultMinActivityAge
-	}
-
-	t, err := newTask(cfg.ServiceIRI, apClient, apStore, storageProvider, minActivityAge, handlerFactory)
+	t, err := newTask(config, apClient, apStore, storageProvider, handlerFactory)
 	if err != nil {
 		return fmt.Errorf("create task: %w", err)
 	}
 
 	logger.Info("Registering activity-sync task.",
-		logfields.WithServiceIRI(cfg.ServiceIRI), logfields.WithTaskMonitorInterval(interval),
-		logfields.WithMinAge(minActivityAge))
+		logfields.WithServiceIRI(config.ServiceIRI), logfields.WithTaskMonitorInterval(config.Interval),
+		logfields.WithMinAge(config.MinActivityAge), logfields.WithMaxActivitiesToSync(config.MaxActivitiesToSync))
 
-	taskMgr.RegisterTask(taskName, interval, t.run)
+	taskMgr.RegisterTaskEx(taskName, config.Interval, t.run)
 
 	return nil
 }
 
-func newTask(serviceIRI *url.URL, apClient activityPubClient, apStore store.Store,
-	storageProvider storage.Provider, minActivityAge time.Duration,
-	handlerFactory func() spi.InboxHandler,
+func newTask(cfg *Config, apClient activityPubClient, apStore store.Store,
+	storageProvider storage.Provider, handlerFactory func() spi.InboxHandler,
 ) (*task, error) {
 	s, err := newSyncStore(storageProvider)
 	if err != nil {
@@ -112,68 +108,132 @@ func newTask(serviceIRI *url.URL, apClient activityPubClient, apStore store.Stor
 	}
 
 	return &task{
-		serviceIRI:       serviceIRI,
-		apClient:         apClient,
-		store:            s,
-		activityPubStore: apStore,
-		getHandler:       handlerFactory,
-		minActivityAge:   minActivityAge,
-		closed:           make(chan struct{}),
-		tracer:           tracing.Tracer(tracing.SubsystemActivityPub),
+		serviceIRI:          cfg.ServiceIRI,
+		apClient:            apClient,
+		store:               s,
+		activityPubStore:    apStore,
+		getHandler:          handlerFactory,
+		minActivityAge:      cfg.MinActivityAge,
+		maxActivitiesToSync: cfg.MaxActivitiesToSync,
+		acceleratedInterval: cfg.AcceleratedInterval,
+		closed:              make(chan struct{}),
+		tracer:              tracing.Tracer(tracing.SubsystemActivityPub),
 	}, nil
 }
 
-func (m *task) run() {
+func (m *task) run() time.Duration {
+	numFromFollowers, err := m.syncFollowers(m.maxActivitiesToSync)
+	if err != nil {
+		logger.Error("Error synchronizing activities", log.WithError(err))
+
+		return 0
+	}
+
+	var numFromFollowing int
+
+	if numFromFollowers < m.maxActivitiesToSync {
+		numFromFollowing, err = m.syncFollowing(m.maxActivitiesToSync - numFromFollowers)
+		if err != nil {
+			logger.Error("Error synchronizing activities", log.WithError(err))
+
+			return 0
+		}
+	}
+
+	numTotal := numFromFollowers + numFromFollowing
+
+	if numTotal > 0 {
+		if numTotal >= m.maxActivitiesToSync {
+			logger.Info("Reached the maximum number of activities to sync. Will continue syncing in the next run.",
+				logfields.WithNumActivitiesSynced(numTotal), logfields.WithNextActivitySyncInterval(m.acceleratedInterval))
+
+			return m.acceleratedInterval
+		}
+
+		logger.Info("Done synchronizing activities", logfields.WithNumActivitiesSynced(numTotal))
+	}
+
+	return 0
+}
+
+func (m *task) syncFollowers(maxActivitiesToSync int) (int, error) {
 	followers, err := m.getServices(store.Follower)
 	if err != nil {
 		logger.Error("Error retrieving my followers list", log.WithError(err))
 
-		return
+		return 0, err
 	}
 
-	if len(followers) > 0 {
-		for _, serviceIRI := range followers {
-			err = m.sync(serviceIRI, inbox, func(a *vocab.ActivityType) bool {
-				// Only sync Create activities that were originated by this service.
-				return a.Type().Is(vocab.TypeCreate) && a.Actor().String() == m.serviceIRI.String()
-			})
-			if err != nil {
-				logger.Warn("Error processing activities from inbox of service",
-					logfields.WithServiceIRI(serviceIRI), log.WithError(err))
+	if len(followers) == 0 {
+		return 0, nil
+	}
+
+	var numProcessed int
+
+	for _, serviceIRI := range followers {
+		num, err := m.sync(serviceIRI, inbox, maxActivitiesToSync-numProcessed, func(a *vocab.ActivityType) bool {
+			// Only sync Create activities that were originated by this service.
+			return a.Type().Is(vocab.TypeCreate) && a.Actor().String() == m.serviceIRI.String()
+		})
+		if err != nil {
+			logger.Warn("Error processing activities from inbox of service",
+				logfields.WithServiceIRI(serviceIRI), log.WithError(err))
+		} else {
+			numProcessed += num
+
+			if numProcessed >= maxActivitiesToSync {
+				break
 			}
 		}
-
-		logger.Debug("Done synchronizing activities with services that are following me.",
-			logfields.WithTotal(len(followers)))
 	}
 
+	logger.Debug("Done synchronizing activities with services that are following me.", logfields.WithTotal(len(followers)),
+		logfields.WithNumActivitiesSynced(numProcessed))
+
+	return numProcessed, nil
+}
+
+func (m *task) syncFollowing(maxActivitiesToSync int) (int, error) {
 	following, err := m.getServices(store.Following)
 	if err != nil {
-		logger.Error("Error retrieving my following list", log.WithError(err))
-
-		return
+		return 0, fmt.Errorf("retrieve following list: %w", err)
 	}
 
-	if len(following) > 0 {
-		for _, serviceIRI := range following {
-			err = m.sync(serviceIRI, outbox, func(a *vocab.ActivityType) bool {
-				return a.Type().IsAny(vocab.TypeCreate, vocab.TypeAnnounce)
-			})
-			if err != nil {
-				logger.Warn("Error processing activities from outbox of service",
-					logfields.WithServiceIRI(serviceIRI), log.WithError(err))
+	if len(following) == 0 {
+		return 0, nil
+	}
+
+	var numProcessed int
+
+	for _, serviceIRI := range following {
+		num, err := m.sync(serviceIRI, outbox, maxActivitiesToSync-numProcessed, func(a *vocab.ActivityType) bool {
+			return a.Type().IsAny(vocab.TypeCreate, vocab.TypeAnnounce)
+		})
+		if err != nil {
+			logger.Warn("Error processing activities from outbox of service",
+				logfields.WithServiceIRI(serviceIRI), log.WithError(err))
+		} else {
+			numProcessed += num
+
+			if numProcessed >= maxActivitiesToSync {
+				break
 			}
 		}
-
-		logger.Debug("Done synchronizing activities with services that I'm following.", logfields.WithTotal(len(following)))
 	}
+
+	logger.Debug("Done synchronizing activities with services that I'm following.", logfields.WithTotal(len(following)),
+		logfields.WithNumActivitiesSynced(numProcessed))
+
+	return numProcessed, nil
 }
 
 //nolint:cyclop
-func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vocab.ActivityType) bool) error {
+func (m *task) sync(serviceIRI *url.URL, src activitySource, maxNumActivitiesToProcess int,
+	shouldSync func(*vocab.ActivityType) bool,
+) (int, error) {
 	it, lastSyncedPage, lastSyncedIndex, err := m.getNewActivities(serviceIRI, src)
 	if err != nil {
-		return fmt.Errorf("get new activities: %w", err)
+		return 0, fmt.Errorf("get new activities: %w", err)
 	}
 
 	page, index := lastSyncedPage, lastSyncedIndex
@@ -192,7 +252,7 @@ func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vo
 				break
 			}
 
-			return fmt.Errorf("next activity: %w", e)
+			return numProcessed, fmt.Errorf("next activity: %w", e)
 		}
 
 		currentPage := it.CurrentPage()
@@ -219,7 +279,7 @@ func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vo
 
 		n, e := m.syncActivity(span.Start("sync activities"), serviceIRI, currentPage, a)
 		if e != nil {
-			return fmt.Errorf("sync activity [%s]: %w", a.ID(), e)
+			return numProcessed, fmt.Errorf("sync activity [%s]: %w", a.ID(), e)
 		}
 
 		numProcessed += n
@@ -227,6 +287,10 @@ func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vo
 		progress.Log(n, page, currentPage)
 
 		page, index = currentPage, it.NextIndex()-1
+
+		if numProcessed >= maxNumActivitiesToProcess {
+			break
+		}
 	}
 
 	if page.String() != lastSyncedPage.String() || index != lastSyncedIndex {
@@ -241,7 +305,7 @@ func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vo
 
 		err = m.store.PutLastSyncedPage(serviceIRI, src, page, index)
 		if err != nil {
-			return fmt.Errorf("update last synced page [%s] at index [%d]: %w", page, index, err)
+			return numProcessed, fmt.Errorf("update last synced page [%s] at index [%d]: %w", page, index, err)
 		}
 	} else {
 		logger.Debug("Processed missing anchor events ending at page/index.",
@@ -249,7 +313,7 @@ func (m *task) sync(serviceIRI *url.URL, src activitySource, shouldSync func(*vo
 			logfields.WithURL(page), logfields.WithIndex(index))
 	}
 
-	return nil
+	return numProcessed, nil
 }
 
 func (m *task) syncActivity(ctx context.Context, serviceIRI, currentPage *url.URL, a *vocab.ActivityType) (int, error) {
@@ -391,6 +455,28 @@ func (m *task) getLastSyncedPage(serviceIRI *url.URL, src activitySource) (*url.
 	}
 
 	return actor.Outbox(), 0, nil
+}
+
+func resolveConfig(cfg *Config) *Config {
+	config := *cfg
+
+	if config.Interval == 0 {
+		config.Interval = defaultInterval
+	}
+
+	if config.AcceleratedInterval == 0 {
+		config.AcceleratedInterval = defaultAcceleratedInterval
+	}
+
+	if config.MinActivityAge == 0 {
+		config.MinActivityAge = defaultMinActivityAge
+	}
+
+	if config.MaxActivitiesToSync == 0 {
+		config.MaxActivitiesToSync = defaultMaxActivitiesToSync
+	}
+
+	return &config
 }
 
 type progressLogger struct {
