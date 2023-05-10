@@ -102,12 +102,19 @@ func TestRun(t *testing.T) {
 		WithActivities(activities)
 
 	t.Run("Success", func(t *testing.T) {
+		cfg := resolveConfig(&Config{
+			ServiceIRI:          serviceIRI,
+			MinActivityAge:      time.Second,
+			MaxActivitiesToSync: 2,
+			AcceleratedInterval: time.Millisecond,
+		})
+
 		handler := &mockHandler{}
 
 		handler.duplicateAnchors = append(handler.duplicateAnchors, announceActivities[1], createActivities[1])
 
 		task, err := newTask(
-			serviceIRI, apClient, apStore, storage.NewMockStoreProvider(), time.Second,
+			cfg, apClient, apStore, storage.NewMockStoreProvider(),
 			func() spi.InboxHandler {
 				return handler
 			},
@@ -122,12 +129,19 @@ func TestRun(t *testing.T) {
 
 		time.Sleep(time.Second)
 
+		// Split into two runs with MaxActivitiesToSync=2.
+		task.run()
 		task.run()
 
 		require.Equal(t, 3, len(handler.activities))
 	})
 
 	t.Run("QueryReferences error", func(t *testing.T) {
+		cfg := resolveConfig(&Config{
+			ServiceIRI:     serviceIRI,
+			MinActivityAge: time.Nanosecond,
+		})
+
 		errExpected := errors.New("injected query error")
 
 		s := &mocks.ActivityStore{}
@@ -136,7 +150,7 @@ func TestRun(t *testing.T) {
 		handler := &mockHandler{}
 
 		task, err := newTask(
-			serviceIRI, apClient, s, storage.NewMockStoreProvider(), time.Nanosecond,
+			cfg, apClient, s, storage.NewMockStoreProvider(),
 			func() spi.InboxHandler {
 				return handler
 			},
@@ -150,6 +164,11 @@ func TestRun(t *testing.T) {
 	})
 
 	t.Run("ReferenceIterator error", func(t *testing.T) {
+		cfg := resolveConfig(&Config{
+			ServiceIRI:     serviceIRI,
+			MinActivityAge: time.Nanosecond,
+		})
+
 		errExpected := errors.New("injected iterator error")
 
 		it := &mocks2.ReferenceIterator{}
@@ -161,7 +180,7 @@ func TestRun(t *testing.T) {
 		handler := &mockHandler{}
 
 		task, err := newTask(
-			serviceIRI, apClient, s, storage.NewMockStoreProvider(), time.Nanosecond,
+			cfg, apClient, s, storage.NewMockStoreProvider(),
 			func() spi.InboxHandler {
 				return handler
 			},
@@ -175,6 +194,11 @@ func TestRun(t *testing.T) {
 	})
 
 	t.Run("GetActor error", func(t *testing.T) {
+		cfg := resolveConfig(&Config{
+			ServiceIRI:     serviceIRI,
+			MinActivityAge: time.Nanosecond,
+		})
+
 		errExpected := errors.New("injected client error")
 
 		apClient := mocks.NewActivitPubClient().WithError(errExpected)
@@ -182,7 +206,7 @@ func TestRun(t *testing.T) {
 		handler := &mockHandler{}
 
 		task, err := newTask(
-			serviceIRI, apClient, apStore, storage.NewMockStoreProvider(), time.Nanosecond,
+			cfg, apClient, apStore, storage.NewMockStoreProvider(),
 			func() spi.InboxHandler {
 				return handler
 			},

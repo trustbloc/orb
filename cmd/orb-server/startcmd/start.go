@@ -873,9 +873,11 @@ func startOrbServices(parameters *orbParameters) error {
 
 	err = anchorsynctask.Register(
 		anchorsynctask.Config{
-			ServiceIRI:     parameters.apServiceParams.serviceIRI(),
-			Interval:       parameters.activityPub.anchorSyncPeriod,
-			MinActivityAge: parameters.activityPub.anchorSyncMinActivityAge,
+			ServiceIRI:          parameters.apServiceParams.serviceIRI(),
+			Interval:            parameters.activityPub.anchorSyncPeriod,
+			AcceleratedInterval: parameters.activityPub.anchorSyncAcceleratedPeriod,
+			MinActivityAge:      parameters.activityPub.anchorSyncMinActivityAge,
+			MaxActivitiesToSync: parameters.activityPub.anchorSyncMaxActivities,
 		},
 		taskMgr, apClient, apStore, storeProviders.provider,
 		func() apspi.InboxHandler {

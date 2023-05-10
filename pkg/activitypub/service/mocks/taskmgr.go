@@ -77,7 +77,7 @@ func (m *TaskManager) stop() {
 
 type task struct {
 	interval    time.Duration
-	run         func()
+	run         func() time.Duration
 	lastRunTime time.Time
 }
 
@@ -95,7 +95,16 @@ func (m *TaskManager) InstanceID() string {
 }
 
 // RegisterTask registers the given task to be run at the given interval.
-func (m *TaskManager) RegisterTask(_ string, interval time.Duration, run func()) {
+func (m *TaskManager) RegisterTask(id string, interval time.Duration, run func()) {
+	m.RegisterTaskEx(id, interval, func() time.Duration {
+		run()
+
+		return 0
+	})
+}
+
+// RegisterTaskEx registers the given task to be run at the given interval.
+func (m *TaskManager) RegisterTaskEx(_ string, interval time.Duration, run func() time.Duration) {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
