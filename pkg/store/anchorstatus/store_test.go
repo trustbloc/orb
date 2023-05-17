@@ -166,6 +166,7 @@ func TestStore_Get(t *testing.T) {
 		status, err := s.GetStatus(vcID)
 		require.Error(t, err)
 		require.Empty(t, status)
+		require.True(t, errors.Is(err, orberrors.ErrContentNotFound))
 		require.Contains(t, err.Error(), "not found")
 	})
 
@@ -289,6 +290,12 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 
 		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime,
 			WithCheckStatusAfterTime(time.Second))
+		require.NoError(t, err)
+
+		err = s.AddStatus(vcID, proof.AnchorIndexStatusCompleted)
+		require.NoError(t, err)
+
+		err = s.AddStatus(vcID, proof.AnchorIndexStatusInProcess)
 		require.NoError(t, err)
 
 		err = s.AddStatus(vcID, proof.AnchorIndexStatusInProcess)
@@ -581,7 +588,7 @@ func TestStore_processIndex(t *testing.T) {
 		require.Contains(t, err.Error(), "failed to re-evaluate policy for anchorID[vcID]: policy error")
 	})
 
-	t.Run("error - status not found", func(t *testing.T) {
+	t.Run("ignore - status not found", func(t *testing.T) {
 		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
 		defer stopMongo()
 
@@ -593,8 +600,30 @@ func TestStore_processIndex(t *testing.T) {
 		require.NoError(t, err)
 
 		err = s.processIndex(encoder.EncodeToString([]byte(vcID)))
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "failed to get status for anchorID[vcID]")
+		require.NoError(t, err)
+	})
+
+	t.Run("ignore - status completed", func(t *testing.T) {
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
+
+		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
+		require.NoError(t, err)
+
+		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		require.NoError(t, err)
+
+		err = s.AddStatus(vcID, proof.AnchorIndexStatusCompleted)
+		require.NoError(t, err)
+
+		err = s.AddStatus(vcID, proof.AnchorIndexStatusInProcess)
+		require.NoError(t, err)
+
+		err = s.AddStatus(vcID, proof.AnchorIndexStatusInProcess)
+		require.NoError(t, err)
+
+		err = s.processIndex(encoder.EncodeToString([]byte(vcID)))
+		require.NoError(t, err)
 	})
 }
 

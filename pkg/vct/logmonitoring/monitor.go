@@ -480,7 +480,7 @@ func min(a, b uint64) uint64 {
 
 func (c *Client) verifySTHConsistency(logURL string, storedSTH, sth *command.GetSTHResponse, vctClient *vct.Client) error {
 	if storedSTH.TreeSize > 0 {
-		logger.Debug("Getting STH consistency for stored[%d] and latest[%d]",
+		logger.Debug("Getting STH consistency for stored and latest",
 			logfields.WithLogURLString(logURL), zap.Uint64("stored-size", storedSTH.TreeSize),
 			logfields.WithSizeUint64(sth.TreeSize))
 
@@ -489,7 +489,7 @@ func (c *Client) verifySTHConsistency(logURL string, storedSTH, sth *command.Get
 			return fmt.Errorf("get STH consistency: %w", err)
 		}
 
-		logger.Debug("Found %d consistencies in STH consistency response", logfields.WithLogURLString(logURL),
+		logger.Debug("Found consistencies in STH consistency response", logfields.WithLogURLString(logURL),
 			zap.Int("consistency-size", len(sthConsistency.Consistency)))
 
 		err = c.logVerifier.VerifyConsistencyProof(int64(storedSTH.TreeSize), int64(sth.TreeSize),

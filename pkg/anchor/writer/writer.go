@@ -652,8 +652,8 @@ func (c *Writer) postOfferActivity(ctx context.Context, anchorLink *linkset.Link
 		return fmt.Errorf("store witnesses: %w", err)
 	}
 
-	logger.Debug("Created 'Offer' activity for anchor", logfields.WithAnchorURI(anchorLink.Anchor()),
-		logfields.WithActivityID(activityID))
+	logger.Info("Posted 'Offer' activity to witnesses", logfields.WithAnchorURI(anchorLink.Anchor()),
+		logfields.WithActivityID(activityID), logfields.WithWitnessURIs(selectedWitnessesIRIs...))
 
 	if len(selectedWitnessesIRIs) == 1 {
 		// The Offer was posted only to the public IRI. This means that it will be persisted

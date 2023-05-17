@@ -221,7 +221,7 @@ const (
 	anchorStatusInProcessGracePeriodFlagName  = "anchor-status-in-process-grace-period"
 	anchorStatusInProcessGracePeriodEnvKey    = "ANCHOR_STATUS_IN_PROCESS_GRACE_PERIOD"
 	anchorStatusInProcessGracePeriodFlagUsage = "The period in which witnesses will not be re-selected for 'in-process' anchors." +
-		"Defaults to 1m if not set. " +
+		"Defaults to 30s if not set. " +
 		commonEnvVarUsageText + anchorStatusInProcessGracePeriodEnvKey
 
 	externalEndpointFlagName      = "external-endpoint"

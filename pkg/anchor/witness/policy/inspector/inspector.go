@@ -127,7 +127,7 @@ func (c *Inspector) postOfferActivity(ctx context.Context, anchorLink *linkset.L
 		return fmt.Errorf("failed to post additional offer for anchor[%s]: %w", anchorLink.Anchor(), err)
 	}
 
-	logger.Info("Created additional 'Offer' activity for anchor", logfields.WithAnchorURI(anchorLink.Anchor()),
+	logger.Info("Posted 'Offer' activity to additional witnesses", logfields.WithAnchorURI(anchorLink.Anchor()),
 		logfields.WithActivityID(activityID), logfields.WithWitnessURIs(witnessesIRI...))
 
 	return nil

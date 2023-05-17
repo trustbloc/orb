@@ -9,6 +9,7 @@ package proof
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"reflect"
@@ -26,6 +27,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/vcpubsub"
 	proofapi "github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	"github.com/trustbloc/orb/pkg/datauri"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/linkset"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
 	"github.com/trustbloc/orb/pkg/vcsigner"
@@ -147,7 +149,9 @@ func (h *WitnessProofHandler) HandleProof(ctx context.Context, witness *url.URL,
 
 	status, err := h.StatusStore.GetStatus(anchor)
 	if err != nil {
-		return fmt.Errorf("failed to get status for anchor [%s]: %w", anchor, err)
+		if !errors.Is(err, orberrors.ErrContentNotFound) {
+			return fmt.Errorf("failed to get status for anchor [%s]: %w", anchor, err)
+		}
 	}
 
 	if status == proofapi.AnchorIndexStatusCompleted {
@@ -208,7 +212,8 @@ func (h *WitnessProofHandler) handleWitnessPolicy(ctx context.Context, anchorLin
 
 	// Witness policy has been satisfied so add witness proofs to anchor, set 'complete' status for anchor
 	// publish witnessed anchor to batch writer channel for further processing
-	logger.Info("Witness policy has been satisfied for anchor", logfields.WithAnchorURIString(anchorID))
+	logger.Info("Witness policy has been satisfied for anchor", logfields.WithAnchorURIString(anchorID),
+		logfields.WithVerifiableCredentialID(vc.ID))
 
 	vc, err = addProofs(vc, witnessProofs)
 	if err != nil {
@@ -217,11 +222,14 @@ func (h *WitnessProofHandler) handleWitnessPolicy(ctx context.Context, anchorLin
 
 	status, err := h.StatusStore.GetStatus(anchorID)
 	if err != nil {
-		return fmt.Errorf("failed to get status for anchor [%s]: %w", anchorID, err)
+		if !errors.Is(err, orberrors.ErrContentNotFound) {
+			return fmt.Errorf("failed to get status for anchor [%s]: %w", anchorID, err)
+		}
 	}
 
 	if status == proofapi.AnchorIndexStatusCompleted {
-		logger.Info("Anchor status has already been marked as completed for", logfields.WithAnchorURIString(anchorID))
+		logger.Info("Anchor status has already been marked as completed for", logfields.WithAnchorURIString(anchorID),
+			logfields.WithVerifiableCredentialID(vc.ID))
 
 		return nil
 	}
@@ -230,7 +238,8 @@ func (h *WitnessProofHandler) handleWitnessPolicy(ctx context.Context, anchorLin
 	// then this handler would be invoked on another server instance. So, we want the status to remain in-process,
 	// otherwise the handler on the other instance would not publish the VC because it would think that is has
 	// already been processed.
-	logger.Debug("Publishing anchor", logfields.WithAnchorURIString(anchorID))
+	logger.Debug("Publishing anchor", logfields.WithAnchorURIString(anchorID),
+		logfields.WithVerifiableCredentialID(vc.ID))
 
 	vcBytes, err := canonicalizer.MarshalCanonical(vc)
 	if err != nil {
@@ -254,11 +263,13 @@ func (h *WitnessProofHandler) handleWitnessPolicy(ctx context.Context, anchorLin
 		return fmt.Errorf("publish credential[%s]: %w", anchorID, err)
 	}
 
-	logger.Debug("Setting anchor status to completed", logfields.WithAnchorURIString(anchorID))
+	logger.Info("Setting anchor status to completed", logfields.WithAnchorURIString(anchorID),
+		logfields.WithVerifiableCredentialID(vc.ID))
 
 	err = h.StatusStore.AddStatus(anchorID, proofapi.AnchorIndexStatusCompleted)
 	if err != nil {
-		return fmt.Errorf("failed to change status to 'completed' for anchor [%s]: %w", anchorID, err)
+		return fmt.Errorf("failed to change status to 'completed' for anchor [%s], VC [%s]: %w",
+			anchorID, vc.ID, err)
 	}
 
 	if vc.Issued != nil {
