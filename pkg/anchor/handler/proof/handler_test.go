@@ -615,7 +615,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
 		require.Error(t, err)
 		require.Contains(t, err.Error(), fmt.Sprintf(
-			"failed to change status to 'completed' for anchor [%s]: add status error", al.Anchor().String()))
+			"failed to change status to 'completed' for anchor [%s]", al.Anchor().String()))
 	})
 
 	t.Run("status already completed", func(t *testing.T) {
@@ -731,8 +731,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		proofHandler := New(providers, ps, datauri.MediaTypeDataURIGzipBase64, defaultClockSkew)
 
 		err = proofHandler.HandleProof(context.Background(), witness1IRI, al.Anchor().String(), expiryTime, []byte(witnessProofJSONWebSignature))
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "status not found for anchor [hl:uEiABbKSeh3rb4MOjS1Era2_62bBPwP9EytPSg5tIkNYiSQ]")
+		require.NoError(t, err)
 	})
 
 	t.Run("error - store error", func(t *testing.T) {

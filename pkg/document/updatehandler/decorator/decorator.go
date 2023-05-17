@@ -77,7 +77,9 @@ type metricsProvider interface {
 }
 
 // Decorate will validate local state against anchor origin for update/recover/deactivate.
-func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Operation, error) { //nolint:cyclop
+//
+//nolint:funlen
+func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Operation, error) {
 	startTime := time.Now()
 
 	defer func() {
@@ -132,7 +134,8 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 
 	anchorOriginResponse, err := d.resolveDocumentFromAnchorOrigin(ctx, canonicalID, localAnchorOrigin)
 	if err != nil {
-		logger.Debugc(ctx, "Failed to resolve document from anchor origin", logfields.WithDID(canonicalID), log.WithError(err))
+		logger.Warnc(ctx, "Failed to resolve document from anchor origin. The local document will be used.",
+			logfields.WithDID(canonicalID), log.WithError(err))
 
 		return op, nil
 	}

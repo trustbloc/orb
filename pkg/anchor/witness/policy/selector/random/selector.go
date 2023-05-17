@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 )
 
 // New returns new random selector.
@@ -29,7 +30,8 @@ func (s *Selector) Select(witnesses []*proof.Witness, n int) ([]*proof.Witness, 
 	l := len(witnesses)
 
 	if n > l {
-		return nil, fmt.Errorf("unable to select %d witnesses from witness array of length %d", n, len(witnesses))
+		return nil, fmt.Errorf("unable to select %d witnesses from witness array of length %d: %w",
+			n, len(witnesses), orberrors.ErrWitnessesNotFound)
 	}
 
 	if n == l {

@@ -513,7 +513,8 @@ func (h *Inbox) HandleAnnounceActivity(ctx context.Context, source *url.URL, ann
 }
 
 func (h *Inbox) handleOfferActivity(ctx context.Context, offer *vocab.ActivityType) error {
-	h.logger.Debug("Handling 'Offer' activity", logfields.WithActivityID(offer.ID()))
+	h.logger.Info("Handling 'Offer' activity", logfields.WithActivityID(offer.ID()),
+		logfields.WithActorIRI(offer.Actor()))
 
 	anchorLink, err := h.validateAndUnmarshalOfferActivity(offer)
 	if err != nil {
@@ -570,7 +571,8 @@ func (h *Inbox) handleOfferActivity(ctx context.Context, offer *vocab.ActivityTy
 }
 
 func (h *Inbox) handleAcceptOfferActivity(ctx context.Context, accept, offer *vocab.ActivityType) error {
-	h.logger.Debug("Handling 'Accept' offer activity", logfields.WithActivityID(accept.ID()))
+	h.logger.Info("Handling 'Accept' offer activity", logfields.WithActivityID(accept.ID()),
+		logfields.WithActorIRI(accept.Actor()))
 
 	err := h.validateAcceptOfferActivity(accept)
 	if err != nil {

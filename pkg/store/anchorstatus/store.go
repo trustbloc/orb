@@ -125,10 +125,12 @@ func (s *Store) AddStatus(anchorID string, status proof.AnchorIndexStatus) error
 	}
 
 	if status == proof.AnchorIndexStatusCompleted {
+		logger.Info("Anchor has completed processing", logfields.WithAnchorURIString(anchorID))
+
 		delErr := s.deleteInProcessStatus(anchorID)
 		if delErr != nil {
 			// no need to stop processing for this
-			logger.Debug("Failed to delete in-process statuses after receiving complete status",
+			logger.Warn("Failed to delete in-process statuses after receiving complete status",
 				log.WithError(delErr))
 		}
 	}
@@ -276,7 +278,7 @@ func (s *Store) GetStatus(anchorID string) (proof.AnchorIndexStatus, error) {
 	}
 
 	if !ok {
-		return "", fmt.Errorf("status not found for anchor [%s]", anchorID)
+		return "", fmt.Errorf("status not found for anchor [%s]: %w", anchorID, orberrors.ErrContentNotFound)
 	}
 
 	var status proof.AnchorIndexStatus
@@ -352,12 +354,7 @@ func (s *Store) CheckInProcessAnchors() {
 
 		e = s.processIndex(status.AnchorID)
 		if e != nil {
-			if errors.Is(e, orberrors.ErrWitnessesNotFound) {
-				// This is not a critical error. Log it as info.
-				logger.Info("Failed to process anchor index", log.WithError(e))
-			} else {
-				logger.Error("Failed to process anchor index", log.WithError(e))
-			}
+			logger.Error("Failed to process anchor index", log.WithError(e))
 		}
 
 		more, e = iterator.Next()
@@ -381,20 +378,50 @@ func (s *Store) processIndex(encodedAnchorID string) error {
 
 	status, err := s.GetStatus(anchorID)
 	if err != nil {
-		return fmt.Errorf("failed to get status for anchorID[%s]: %w", anchorID, err)
+		if !errors.Is(err, orberrors.ErrContentNotFound) {
+			return fmt.Errorf("failed to get status for anchorID[%s]: %w", anchorID, err)
+		}
+
+		logger.Info("Status not found for anchor. No further processing will be performed for this anchor.",
+			logfields.WithAnchorURIString(anchorID))
+
+		return nil
 	}
 
 	if status == proof.AnchorIndexStatusCompleted {
-		// already completed - nothing to do
+		logger.Info("Anchor status is already set to completed. No processing required.",
+			logfields.WithAnchorURIString(anchorID))
+
+		// Delete all in-process status records
+		err = s.deleteInProcessStatus(anchorID)
+		if err != nil {
+			logger.Warn("Error deleting in process anchor status", log.WithError(err),
+				logfields.WithAnchorURIString(anchorID))
+		}
+
 		return nil
 	}
 
 	err = s.policyHandler.CheckPolicy(anchorID)
 	if err != nil {
-		return fmt.Errorf("failed to re-evaluate policy for anchorID[%s]: %w", anchorID, err)
+		if !errors.Is(err, orberrors.ErrWitnessesNotFound) {
+			return fmt.Errorf("failed to re-evaluate policy for anchorID[%s]: %w", anchorID, err)
+		}
+
+		logger.Info("No additional witnesses found for anchor. No further processing will be performed for this anchor.",
+			logfields.WithAnchorURIString(anchorID), log.WithError(err))
+
+		// Delete all in-process status records
+		err = s.deleteInProcessStatus(anchorID)
+		if err != nil {
+			logger.Warn("Error deleting in process anchor status", log.WithError(err),
+				logfields.WithAnchorURIString(anchorID))
+		}
+
+		return nil
 	}
 
-	logger.Debug("Successfully re-evaluated policy for anchor", logfields.WithAnchorURIString(anchorID))
+	logger.Info("Successfully re-evaluated policy for anchor", logfields.WithAnchorURIString(anchorID))
 
 	return nil
 }
