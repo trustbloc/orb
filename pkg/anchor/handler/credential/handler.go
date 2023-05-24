@@ -32,7 +32,8 @@ import (
 var logger = log.New("anchor-credential-handler")
 
 type anchorLinkStore interface {
-	GetLinks(anchorHash string) ([]*url.URL, error)
+	GetProcessedAndPendingLinks(anchorHash string) ([]*url.URL, error)
+	PutPendingLinks(links []*url.URL) error
 }
 
 type generatorRegistry interface {
@@ -195,10 +196,10 @@ func (h *AnchorEventHandler) ensureParentAnchorsAreProcessed(ctx context.Context
 		return fmt.Errorf("get unprocessed parent anchors for [%s]: %w", anchorRef, err)
 	}
 
-	logger.Debugc(ctx, "Processing parents of anchor", logfields.WithTotal(len(unprocessedParents)),
-		logfields.WithAnchorURI(anchorRef), logfields.WithParents(unprocessedParents.HashLinks()))
-
 	if len(unprocessedParents) > 0 {
+		logger.Infoc(ctx, "Processing parents of anchor", logfields.WithTotal(len(unprocessedParents)),
+			logfields.WithAnchorURI(anchorRef), logfields.WithParents(unprocessedParents.HashLinks()))
+
 		spanCtx, span := h.tracer.Start(ctx, "process parent anchors",
 			trace.WithAttributes(tracing.AnchorEventURIAttribute(anchorRef.String())))
 		defer span.End()
@@ -252,17 +253,22 @@ func (h *AnchorEventHandler) getUnprocessedParentAnchors(hl string, anchorLink *
 			continue
 		}
 
-		processed, info, err := h.getUnprocessedParentAnchor(hl, parentHL)
+		processedOrPending, info, err := h.getUnprocessedParentAnchor(hl, parentHL)
 		if err != nil {
 			return nil, err
 		}
 
-		if processed {
+		if processedOrPending {
 			continue
 		}
 
 		logger.Debug("Adding parent of anchor event to the unprocessed list",
 			logfields.WithAnchorEventURIString(hl), logfields.WithParentURI(parentHL))
+
+		err = h.anchorLinkStore.PutPendingLinks([]*url.URL{parentHL})
+		if err != nil {
+			return nil, fmt.Errorf("store pending parent anchor %s: %w", parentHL, err)
+		}
 
 		// Add the parent to the head of the list since it needs to be processed first.
 		unprocessed = append([]*anchorInfo{info}, unprocessed...)
@@ -350,7 +356,7 @@ func (h *AnchorEventHandler) isAnchorProcessed(hl *url.URL) (bool, error) {
 		return false, fmt.Errorf("parse hashlink: %w", err)
 	}
 
-	links, err := h.anchorLinkStore.GetLinks(hash)
+	links, err := h.anchorLinkStore.GetProcessedAndPendingLinks(hash)
 	if err != nil {
 		return false, fmt.Errorf("get anchor event: %w", err)
 	}

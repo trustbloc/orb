@@ -153,6 +153,7 @@ const (
 	defaultWitnessPolicyCacheExpiration     = 30 * time.Second
 	defaultDataURIMediaType                 = datauri.MediaTypeDataURIGzipBase64
 	defaultAllowedOriginsCacheExpiration    = time.Minute
+	defaultAnchorRefPendingRecordLifespan   = 24 * time.Hour
 
 	defaultTracingServiceName = "orb"
 
@@ -682,9 +683,9 @@ const (
 	serverReadHeaderTimeoutFlagUsage = "The timeout for server read header timeout. For example, '30s' for a 30 second timeout. " +
 		commonEnvVarUsageText + serverReadHeaderTimeoutEnvKey
 
-	witnessPolicyCacheExpirationFlagName  = "witness-policy-cache-expiration"
-	witnessPolicyCacheExpirationEnvKey    = "WITNESS_POLICY_CACHE_EXPIRATION"
-	witnessPolicyCacheExpirationFlagUsage = "The expiration time of witness policy cache. " +
+	anchorRefPendingRecordLifespanFlagName  = "anchor-ref-pending-record-lifespan"
+	anchorRefPendingRecordLifespanEnvKey    = "ANCHOR_REF_PENDING_RECORD_LIFESPAN"
+	anchorRefPendingRecordLifespanFlagUsage = "The lifespan of an anchor reference in PENDING state. " +
 		commonEnvVarUsageText + witnessPolicyCacheExpirationEnvKey
 
 	dataURIMediaTypeFlagName  = "anchor-data-uri-media-type"
@@ -710,6 +711,11 @@ const (
 	requestTokensEnvKey    = "ORB_REQUEST_TOKENS" //nolint: gosec
 	requestTokensFlagUsage = "Tokens used for http request supported tokens (vct-read and vct-write) " +
 		commonEnvVarUsageText + requestTokensEnvKey
+
+	witnessPolicyCacheExpirationFlagName  = "witness-policy-cache-expiration"
+	witnessPolicyCacheExpirationEnvKey    = "WITNESS_POLICY_CACHE_EXPIRATION"
+	witnessPolicyCacheExpirationFlagUsage = "The expiration time of witness policy cache. " +
+		commonEnvVarUsageText + witnessPolicyCacheExpirationEnvKey
 
 	metricsProviderFlagName         = "metrics-provider-name"
 	metricsProviderEnvKey           = "ORB_METRICS_PROVIDER_NAME"
@@ -791,6 +797,7 @@ type orbParameters struct {
 	requestTokens                    map[string]string
 	allowedDIDWebDomains             []*url.URL
 	observability                    *observabilityParams
+	anchorRefPendingRecordLifespan   time.Duration
 }
 
 type observabilityParams struct {
@@ -1140,6 +1147,12 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 
 	anchorCredentialParams := getAnchorCredentialParameters(cmd, httpParams.externalEndpoint, apServiceParams.serviceIRI().String())
 
+	anchorRefPendingRecordLifespan, err := cmdutil.GetDuration(cmd, anchorRefPendingRecordLifespanFlagName,
+		anchorRefPendingRecordLifespanEnvKey, defaultAnchorRefPendingRecordLifespan)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", anchorRefPendingRecordLifespanFlagName, err)
+	}
+
 	return &orbParameters{
 		http:                             httpParams,
 		sidetree:                         sidetreeParams,
@@ -1179,6 +1192,7 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		kmsParams:                        kmsParams,
 		requestTokens:                    requestTokens,
 		observability:                    observabilityParams,
+		anchorRefPendingRecordLifespan:   anchorRefPendingRecordLifespan,
 	}, nil
 }
 
@@ -2434,6 +2448,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringArray(requestTokensFlagName, []string{}, requestTokensFlagUsage)
 	startCmd.Flags().StringP(allowedOriginsCacheExpirationFlagName, "", "", allowedOriginsCacheExpirationFlagUsage)
 	startCmd.Flags().String(kmsRegionFlagName, "", kmsRegionFlagUsage)
+	startCmd.Flags().String(anchorRefPendingRecordLifespanFlagName, "", anchorRefPendingRecordLifespanFlagUsage)
 	startCmd.Flags().StringP(metricsProviderFlagName, "", "", allowedMetricsProviderFlagUsage)
 	startCmd.Flags().StringP(promHTTPURLFlagName, "", "", allowedPromHTTPURLFlagNameUsage)
 	startCmd.Flags().StringP(tracingProviderFlagName, "", "", tracingProviderFlagUsage)

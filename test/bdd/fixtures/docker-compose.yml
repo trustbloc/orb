@@ -154,6 +154,9 @@ services:
       - INCLUDE_PUBLISHED_OPERATIONS_IN_METADATA=true
       - ORB_REQUEST_TOKENS=vct-read=vctread,vct-write=vctwrite
       - VCT_LOG_ENTRIES_STORE_ENABLED=true
+      # The lifespan of an anchor reference in PENDING state.
+      # Default value: 24h (24 hours)
+      - ANCHOR_REF_PENDING_RECORD_LIFESPAN=5m
     ports:
       - 48326:443
       - 48327:48327

@@ -29,7 +29,7 @@ func TestService(t *testing.T) {
 		// This is a timing-based test.
 		// Here's the timeline:
 		// t=0s   --->  test data stored, expiry services started
-		// t=4s   --->  data 1 is now expired, will get deleted on next check by service1 (within 1s)
+		// t=4s   --->  data 1 is now expired, but will not get deleted since the handler prevents it from deleting
 		// t=6s   --->  check to make sure data 1 was deleted
 		// t=8s   --->  data 2 is now expired, will get deleted on next check by service1 (within 1s)
 		// t=10s  --->  check to make sure data 2 was deleted and then stop service1, simulating server going down
@@ -60,7 +60,8 @@ func TestService(t *testing.T) {
 		require.NoError(t, err)
 
 		serviceInfo1, serviceInfo2 := getTestExpiryServices(coordinationStore, storeToRunExpiryChecksOn,
-			expiryTagName, storeToRunExpiryChecksOnName, WithMaxBatchSize(2))
+			expiryTagName, storeToRunExpiryChecksOnName, WithMaxBatchSize(2),
+			WithExpiryHandler(&mockExpiryHandler{KeysToLeaveAlone: map[string]struct{}{"Key1": {}}}))
 
 		serviceInfo1.taskMgr.Start()
 		defer serviceInfo1.taskMgr.Stop()
@@ -265,7 +266,7 @@ func runTimedChecks(t *testing.T, storeToRunExpiryChecksOn storage.Store, taskMg
 	t.Logf("Finished waiting %s seconds. Checking to see if Key1 was "+
 		"deleted as expected (while Key2, Key3, and Key4 remain since they haven't expired yet).", waitTime.String())
 
-	doFirstSetOfChecks(t, storeToRunExpiryChecksOn)
+	check(t, storeToRunExpiryChecksOn, map[string]bool{"Key1": true, "Key2": true, "Key3": true, "Key4": true})
 
 	t.Logf("Waiting %s.", waitTime.String())
 
@@ -276,7 +277,7 @@ func runTimedChecks(t *testing.T, storeToRunExpiryChecksOn storage.Store, taskMg
 	t.Logf("Finished waiting %s. Checking to see if Key2 "+
 		"was deleted as expected (while Key3 and Key4 remain since they haven't expired yet).", waitTime.String())
 
-	doSecondSetOfChecks(t, storeToRunExpiryChecksOn)
+	check(t, storeToRunExpiryChecksOn, map[string]bool{"Key2": false, "Key3": true, "Key4": true})
 
 	// Simulate what happens if an Orb instance goes down.
 	// service1 should currently be holding the permit that gives it the responsibility to do the expired data cleanup.
@@ -294,75 +295,43 @@ func runTimedChecks(t *testing.T, storeToRunExpiryChecksOn storage.Store, taskMg
 	t.Logf("Finished waiting %s. Checking service2's logs to make sure it took over.",
 		waitTime.String())
 
-	doFinalSetOfChecks(t, storeToRunExpiryChecksOn)
+	check(t, storeToRunExpiryChecksOn, map[string]bool{"Key3": false, "Key4": true})
 }
 
-func doFirstSetOfChecks(t *testing.T, storeToRunExpiryChecksOn storage.Store) {
+func check(t *testing.T, storeToRunExpiryChecksOn storage.Store, expect map[string]bool) {
 	t.Helper()
 
-	_, err := storeToRunExpiryChecksOn.Get("Key1")
-	require.Equal(t, storage.ErrDataNotFound, err, "Expected Key1 to be deleted.")
+	for key, ok := range expect {
+		_, err := storeToRunExpiryChecksOn.Get(key)
+		if !ok {
+			require.Equal(t, storage.ErrDataNotFound, err, "Expected %s to be deleted.", key)
 
-	t.Logf("Key1 was deleted as expected.")
+			t.Logf("%s was deleted as expected.", key)
+		} else {
+			require.NoError(t, err, "Expected %s to be found.", key)
 
-	_, err = storeToRunExpiryChecksOn.Get("Key2")
-	require.NoError(t, err, "Expected Key2 to be found.")
-
-	t.Logf("Key2 still remains as expected.")
-
-	_, err = storeToRunExpiryChecksOn.Get("Key3")
-	require.NoError(t, err, "Expected Key3 to be found.")
-
-	t.Logf("Key3 still remains as expected.")
-
-	_, err = storeToRunExpiryChecksOn.Get("Key4")
-	require.NoError(t, err, "Expected Key4 to be found.")
-
-	t.Logf("Key4 still remains as expected.")
-}
-
-func doSecondSetOfChecks(t *testing.T, storeToRunExpiryChecksOn storage.Store) {
-	t.Helper()
-
-	_, err := storeToRunExpiryChecksOn.Get("Key2")
-	require.Equal(t, storage.ErrDataNotFound, err, "Expected Key2 to be deleted.")
-
-	t.Logf("Key2 was deleted as expected.")
-
-	_, err = storeToRunExpiryChecksOn.Get("Key3")
-	require.NoError(t, err, "Expected Key3 to be found.")
-
-	t.Logf("Key3 still remains as expected.")
-
-	_, err = storeToRunExpiryChecksOn.Get("Key4")
-	require.NoError(t, err, "Expected Key4 to be found.")
-
-	t.Logf("Key4 still remains as expected.")
-}
-
-func doFinalSetOfChecks(t *testing.T, storeToRunExpiryChecksOn storage.Store) {
-	t.Helper()
-
-	t.Logf("service2's logs confirm that it took over and deleted a piece of data (should be Key3).")
-
-	t.Logf("Checking to see if Key3 was deleted as expected (while Key4 remains since it " +
-		"hasn't expired yet).")
-
-	_, err := storeToRunExpiryChecksOn.Get("Key3")
-	require.Equal(t, storage.ErrDataNotFound, err, "Expected Key3 to be deleted.")
-
-	t.Logf("Key3 was deleted as expected.")
-
-	_, err = storeToRunExpiryChecksOn.Get("Key4")
-	require.NoError(t, err, "Expected Key4 to be found.")
-
-	t.Logf("Key4 still remains as expected.")
+			t.Logf("%s still remains as expected.", key)
+		}
+	}
 }
 
 type mockExpiryHandler struct {
-	Err error
+	Err              error
+	KeysToLeaveAlone map[string]struct{}
 }
 
-func (m *mockExpiryHandler) HandleExpiredKeys(_ ...string) error {
-	return m.Err
+func (m *mockExpiryHandler) HandleExpiredKeys(keys ...string) ([]string, error) {
+	if m.Err != nil {
+		return nil, m.Err
+	}
+
+	var keysToDelete []string
+
+	for _, key := range keys {
+		if _, ok := m.KeysToLeaveAlone[key]; !ok {
+			keysToDelete = append(keysToDelete, key)
+		}
+	}
+
+	return keysToDelete, nil
 }

@@ -461,8 +461,9 @@ func TestStore_HandleExpiryKeys(t *testing.T) {
 		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		err = s.HandleExpiredKeys("key")
+		keys, err := s.HandleExpiredKeys("key")
 		require.NoError(t, err)
+		require.Len(t, keys, 1)
 	})
 
 	t.Run("error - failed to decode tag value (ignored)", func(t *testing.T) {
@@ -475,8 +476,9 @@ func TestStore_HandleExpiryKeys(t *testing.T) {
 		s, err := New(provider, testutil.GetExpiryService(t), expiryTime)
 		require.NoError(t, err)
 
-		err = s.HandleExpiredKeys("key")
+		keys, err := s.HandleExpiredKeys("key")
 		require.NoError(t, err)
+		require.Len(t, keys, 1)
 	})
 }
 

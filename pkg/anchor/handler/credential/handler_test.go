@@ -29,6 +29,7 @@ import (
 	"github.com/trustbloc/orb/pkg/activitypub/store/memstore"
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator"
+	"github.com/trustbloc/orb/pkg/anchor/handler/mocks"
 	"github.com/trustbloc/orb/pkg/anchor/info"
 	anchormocks "github.com/trustbloc/orb/pkg/anchor/mocks"
 	"github.com/trustbloc/orb/pkg/cas/extendedcasclient"
@@ -44,6 +45,7 @@ import (
 )
 
 //go:generate counterfeiter -o ../../mocks/anchorPublisher.gen.go --fake-name AnchorPublisher . anchorPublisher
+//go:generate counterfeiter -o ../mocks/anchorlinkstore.gen.go --fake-name AnchorLinkStore . anchorLinkStore
 
 func TestNew(t *testing.T) {
 	newAnchorEventHandler(t, createInMemoryCAS(t))
@@ -119,7 +121,7 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 
 	t.Run("All parents processed -> Success", func(t *testing.T) {
 		casResolver := &mocks2.CASResolver{}
-		anchorLinkStore := &orbmocks.AnchorLinkStore{}
+		anchorLinkStore := &mocks.AnchorLinkStore{}
 
 		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
 			time.Second, anchorLinkStore, registry)
@@ -129,7 +131,7 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 
 		require.NoError(t, json.Unmarshal([]byte(sampleParentAnchorEvent), anchorEvent))
 
-		anchorLinkStore.GetLinksReturns([]*url.URL{vocab.MustParseURL(grandparentHL)}, nil)
+		anchorLinkStore.GetProcessedAndPendingLinksReturns([]*url.URL{vocab.MustParseURL(grandparentHL)}, nil)
 
 		anchorLinksetDoc := anchorEvent.Object().Document()
 		require.NotNil(t, anchorLinksetDoc)
@@ -145,9 +147,9 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 
 	t.Run("Two parents unprocessed -> Success", func(t *testing.T) {
 		casResolver := &mocks2.CASResolver{}
-		anchorLinkStore := &orbmocks.AnchorLinkStore{}
+		anchorLinkStore := &mocks.AnchorLinkStore{}
 
-		anchorLinkStore.GetLinksReturns(nil, nil)
+		anchorLinkStore.GetProcessedAndPendingLinksReturns(nil, nil)
 
 		casResolver.ResolveReturnsOnCall(0, []byte(testutil.GetCanonical(t, sampleParentAnchorLinkset)),
 			parentHL, nil)
@@ -178,13 +180,13 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 
 	t.Run("Duplicate parents -> Success", func(t *testing.T) {
 		casResolver := &mocks2.CASResolver{}
-		anchorLinkStore := &orbmocks.AnchorLinkStore{}
+		anchorLinkStore := &mocks.AnchorLinkStore{}
 
 		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
 			time.Second, anchorLinkStore, registry)
 		require.NotNil(t, handler)
 
-		anchorLinkStore.GetLinksReturns(nil, nil)
+		anchorLinkStore.GetProcessedAndPendingLinksReturns(nil, nil)
 
 		casResolver.ResolveReturns([]byte(testutil.GetCanonical(t, sampleGrandparentAnchorLinkset)), grandparentHL, nil)
 
@@ -198,7 +200,7 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 
 	t.Run("Unmarshal -> Error", func(t *testing.T) {
 		casResolver := &mocks2.CASResolver{}
-		anchorLinkStore := &orbmocks.AnchorLinkStore{}
+		anchorLinkStore := &mocks.AnchorLinkStore{}
 
 		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
 			time.Second, anchorLinkStore, registry)
@@ -221,7 +223,7 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 		anchorLink := anchorLinkset.Link()
 		require.NotNil(t, anchorLink)
 
-		anchorLinkStore.GetLinksReturns(nil, nil)
+		anchorLinkStore.GetProcessedAndPendingLinksReturns(nil, nil)
 
 		casResolver.ResolveReturns([]byte(testutil.GetCanonical(t, sampleAnchorEvent)), grandparentHL, nil)
 
@@ -232,7 +234,7 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 
 	t.Run("Invalid parent hashlink -> Error", func(t *testing.T) {
 		casResolver := &mocks2.CASResolver{}
-		anchorLinkStore := &orbmocks.AnchorLinkStore{}
+		anchorLinkStore := &mocks.AnchorLinkStore{}
 
 		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
 			time.Second, anchorLinkStore, registry)
@@ -241,7 +243,7 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(sampleAnchorLinksetInvalidParent), anchorLinkset))
 
-		anchorLinkStore.GetLinksReturns(nil, nil)
+		anchorLinkStore.GetProcessedAndPendingLinksReturns(nil, nil)
 
 		_, err := handler.getUnprocessedParentAnchors(parentHL, anchorLinkset.Link())
 		require.Error(t, err)
@@ -250,7 +252,7 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 
 	t.Run("GetLinks -> Error", func(t *testing.T) {
 		casResolver := &mocks2.CASResolver{}
-		anchorLinkStore := &orbmocks.AnchorLinkStore{}
+		anchorLinkStore := &mocks.AnchorLinkStore{}
 
 		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
 			time.Second, anchorLinkStore, registry)
@@ -258,7 +260,7 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 
 		errExpected := errors.New("injected GetLinks error")
 
-		anchorLinkStore.GetLinksReturns(nil, errExpected)
+		anchorLinkStore.GetProcessedAndPendingLinksReturns(nil, errExpected)
 
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(sampleParentAnchorLinkset), anchorLinkset))
@@ -270,7 +272,7 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 
 	t.Run("CAS Resolver -> Error", func(t *testing.T) {
 		casResolver := &mocks2.CASResolver{}
-		anchorLinkStore := &orbmocks.AnchorLinkStore{}
+		anchorLinkStore := &mocks.AnchorLinkStore{}
 
 		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
 			time.Second, anchorLinkStore, registry)
@@ -291,7 +293,7 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 
 func TestAnchorEventHandler_processAnchorEvent(t *testing.T) {
 	casResolver := &mocks2.CASResolver{}
-	anchorLinkStore := &orbmocks.AnchorLinkStore{}
+	anchorLinkStore := &mocks.AnchorLinkStore{}
 
 	handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
 		time.Second, anchorLinkStore, generator.NewRegistry())
@@ -367,7 +369,7 @@ func newAnchorEventHandler(t *testing.T, client extendedcasclient.Client) *Ancho
 			webfingerclient.New(), "https"),
 		&orbmocks.MetricsProvider{})
 
-	anchorLinkStore := &orbmocks.AnchorLinkStore{}
+	anchorLinkStore := &mocks.AnchorLinkStore{}
 
 	anchorEventHandler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
 		time.Second, anchorLinkStore, generator.NewRegistry())

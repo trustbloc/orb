@@ -838,7 +838,8 @@ func startOrbServices(parameters *orbParameters) error {
 
 	logMonitorHandler := handler.New(logMonitorStore, wfClient)
 
-	anchorLinkStore, err := linkstore.New(storeProviders.provider)
+	anchorLinkStore, err := linkstore.New(storeProviders.provider, expiryService,
+		linkstore.WithPendingRecordLifespan(parameters.anchorRefPendingRecordLifespan))
 	if err != nil {
 		return fmt.Errorf("open store: %w", err)
 	}

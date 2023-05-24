@@ -340,6 +340,26 @@ func TestMongoDBQuery(t *testing.T) {
 		require.Equal(t, "value1", doc["field1"])
 	})
 
+	t.Run("exists -> success", func(t *testing.T) {
+		mit := &mocks.MongoDBIterator{}
+		mit.NextReturns(true, nil)
+		mit.ValueAsRawMapReturns(map[string]interface{}{"field1": "value1"}, nil)
+
+		store.QueryCustomReturns(mit, nil)
+
+		it, err := s.Query("field1:xxx&&field2")
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		it, err = s.Query("field1:xxx&&!field2")
+		require.NoError(t, err)
+		require.NotNil(t, it)
+
+		it, err = s.Query("!field1:xxx")
+		require.NoError(t, err)
+		require.NotNil(t, it)
+	})
+
 	t.Run("invalid expression", func(t *testing.T) {
 		it, err := s.Query(">")
 		require.Error(t, err)
