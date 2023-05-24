@@ -420,9 +420,9 @@ func (s *Store) storeWitness(key string, w *proof.Witness, anchorIDEncoded strin
 }
 
 // HandleExpiredKeys is expired keys inspector/handler.
-func (s *Store) HandleExpiredKeys(keys ...string) error {
+func (s *Store) HandleExpiredKeys(keys ...string) ([]string, error) {
 	if len(keys) == 0 {
-		return nil
+		return keys, nil
 	}
 
 	uniqueAnchors := make(map[string]bool)
@@ -432,7 +432,7 @@ func (s *Store) HandleExpiredKeys(keys ...string) error {
 		if err != nil {
 			logger.Error("Error getting tags for expired key", logfields.WithKeyID(key), log.WithError(err))
 
-			return nil
+			return keys, nil
 		}
 
 		entry := &Entry{}
@@ -448,7 +448,7 @@ func (s *Store) HandleExpiredKeys(keys ...string) error {
 		if err != nil {
 			logger.Error("Failed to decode encoded anchor", logfields.WithAnchorURIString(entry.AnchorID), log.WithError(err))
 
-			return nil
+			return keys, nil
 		}
 
 		uniqueAnchors[string(anchor)] = true
@@ -461,7 +461,7 @@ func (s *Store) HandleExpiredKeys(keys ...string) error {
 
 	logger.Error("Failed to process anchors", logfields.WithAnchorURIStrings(anchors...))
 
-	return nil
+	return keys, nil
 }
 
 func getWitnessesMap(witnesses []*url.URL) map[string]bool {

@@ -903,6 +903,19 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "allowed-did-web-domains: parse \":domain.com\": missing protocol scheme")
 	})
+
+	t.Run("anchor ref pending record lifespan", func(t *testing.T) {
+		restoreEnv := setEnv(t, anchorRefPendingRecordLifespanEnvKey, "xxx")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value for anchor-ref-pending-record-lifespan [xxx]")
+	})
 }
 
 func TestStartCmdWithBlankEnvVar(t *testing.T) {

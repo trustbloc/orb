@@ -17,6 +17,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/logutil-go/pkg/log"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
 	mongoopts "go.mongodb.org/mongo-driver/mongo/options"
 	"go.uber.org/zap"
@@ -213,7 +214,7 @@ func (s *mongoDBWrapper) Query(expression string, options ...storage.QueryOption
 		return nil, fmt.Errorf("convert expression [%s] to MongoDB filter: %w", expression, err)
 	}
 
-	iterator, err := s.ms.QueryCustom(filter, s.ms.CreateMongoDBFindOptions(options, true))
+	iterator, err := s.ms.QueryCustom(postProcess(filter), s.ms.CreateMongoDBFindOptions(options, true))
 	if err != nil {
 		return nil, fmt.Errorf("query MongoDB store [%s] - expression [%s]: %w",
 			s.namespace, expression, err)
@@ -338,4 +339,34 @@ func CloseIterator(it io.Closer) {
 	if err := it.Close(); err != nil {
 		log.CloseIteratorError(logger, err)
 	}
+}
+
+// postProcess modifies the filter to add support for "not exists". For example, the query expression, "!key1",
+// generates a BSON that assumes $exists=true and will be transformed as follows:
+// {Key: "!key1", Value: [{Key: "$exists", Value: true}}} ==> {Key: "key1", Value: [{Key: "$exists", Value: false}}}
+// TODO: Remove this hack when support for 'not exists' is added to ariesframework-go-ext.
+func postProcess(filter bson.D) bson.D {
+	for i, f := range filter {
+		if f.Key == "" || f.Key[0] != '!' {
+			continue
+		}
+
+		d, ok := f.Value.(primitive.D)
+		if !ok {
+			continue
+		}
+
+		for j, dv := range d {
+			if dv.Key != "$exists" {
+				continue
+			}
+
+			f.Key = f.Key[1:]
+			d[j].Value = false
+
+			filter[i] = f
+		}
+	}
+
+	return filter
 }

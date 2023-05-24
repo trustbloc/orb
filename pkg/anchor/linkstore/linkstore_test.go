@@ -12,17 +12,24 @@ import (
 	"fmt"
 	"net/url"
 	"testing"
+	"time"
 
+	"github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb"
 	"github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/stretchr/testify/require"
 
+	"github.com/trustbloc/orb/pkg/context/mocks"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
+	"github.com/trustbloc/orb/pkg/internal/testutil/mongodbtestutil"
 )
+
+//go:generate counterfeiter -o ../../mocks/expiryservice.gen.go --fake-name ExpiryService . dataExpiryService
 
 func TestNew(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
-		s, err := New(storage.NewMockStoreProvider())
+		s, err := New(storage.NewMockStoreProvider(), &mocks.DataExpiryService{},
+			WithPendingRecordLifespan(5*time.Minute))
 		require.NoError(t, err)
 		require.NotNil(t, s)
 	})
@@ -34,7 +41,7 @@ func TestNew(t *testing.T) {
 
 		provider.ErrOpenStoreHandle = errExpected
 
-		s, err := New(provider)
+		s, err := New(provider, &mocks.DataExpiryService{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 		require.Nil(t, s)
@@ -47,7 +54,7 @@ func TestNew(t *testing.T) {
 
 		provider.ErrSetStoreConfig = errExpected
 
-		s, err := New(provider)
+		s, err := New(provider, &mocks.DataExpiryService{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 		require.Nil(t, s)
@@ -57,7 +64,7 @@ func TestNew(t *testing.T) {
 func TestStore_PutLinks(t *testing.T) {
 	provider := storage.NewMockStoreProvider()
 
-	s, err := New(provider)
+	s, err := New(provider, &mocks.DataExpiryService{})
 	require.NoError(t, err)
 	require.NotNil(t, s)
 
@@ -106,33 +113,56 @@ func TestStore_GetLinks(t *testing.T) {
 		hash2 = "uEiBUQDRI5ttIzXbe1LZKUaZWb6yFsnMnrgDksAtQ-wCaKw"
 	)
 
-	provider := storage.NewMockStoreProvider()
+	mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+	defer stopMongo()
 
-	s, err := New(provider)
+	provider, err := mongodb.NewProvider(mongoDBConnString)
+	require.NoError(t, err)
+
+	s, err := New(provider, &mocks.DataExpiryService{})
 	require.NoError(t, err)
 	require.NotNil(t, s)
 
-	t.Run("Success", func(t *testing.T) {
-		link1 := fmt.Sprintf("hl:%s:uoQ-BeEtodUZzbk1ucmdEa3NBdFEtd0NhS3c", hash1)
-		link2 := fmt.Sprintf("hl:%s:uoQ-BeEtodWJRbWI2SzZ4OVhtYkNTZjRfTWc", hash1)
-		link3 := fmt.Sprintf("hl:%s:uoQ-BeEtodUZzbk1ucmdEa3NBdFEtd0NhS3c", hash2)
+	link1 := fmt.Sprintf("hl:%s:uoQ-BeEtodUZzbk1ucmdEa3NBdFEtd0NhS3c", hash1)
+	link2 := fmt.Sprintf("hl:%s:uoQ-BeEtodWJRbWI2SzZ4OVhtYkNTZjRfTWc", hash1)
+	link3 := fmt.Sprintf("hl:%s:uoQ-BeEtodUZzbk1ucmdEa3NBdFEtd0NhS3c", hash2)
+	link4 := fmt.Sprintf("hl:%s:uoQ-BeEtodUZzbl1ucmdEa3NBdFEtd0NhS3c", hash2)
 
-		require.NoError(t, s.PutLinks(
-			[]*url.URL{
-				testutil.MustParseURL(link1),
-				testutil.MustParseURL(link2),
-				testutil.MustParseURL(link3),
-			},
-		))
+	require.NoError(t, s.PutLinks(
+		[]*url.URL{
+			testutil.MustParseURL(link1),
+			testutil.MustParseURL(link2),
+			testutil.MustParseURL(link3),
+		},
+	))
 
-		links, err := s.GetLinks(hash1)
-		require.NoError(t, err)
-		require.Len(t, links, 2)
+	require.NoError(t, s.PutPendingLinks(
+		[]*url.URL{
+			testutil.MustParseURL(link4),
+		},
+	))
 
-		links, err = s.GetLinks(hash2)
-		require.NoError(t, err)
-		require.Len(t, links, 1)
-	})
+	links, err := s.GetLinks(hash1)
+	require.NoError(t, err)
+	require.Len(t, links, 2)
+
+	links, err = s.GetLinks(hash2)
+	require.NoError(t, err)
+	require.Len(t, links, 1)
+
+	links, err = s.GetProcessedAndPendingLinks(hash2)
+	require.NoError(t, err)
+	require.Len(t, links, 2)
+}
+
+func TestStore_GetLinksError(t *testing.T) {
+	const hash1 = "uEiALYp_C4wk2WegpfnCSoSTBdKZ1MVdDadn4rdmZl5GKzQ"
+
+	provider := storage.NewMockStoreProvider()
+
+	s, err := New(provider, &mocks.DataExpiryService{})
+	require.NoError(t, err)
+	require.NotNil(t, s)
 
 	t.Run("Query error", func(t *testing.T) {
 		errExpected := errors.New("injected query error")
@@ -170,7 +200,7 @@ func TestStore_GetLinks(t *testing.T) {
 
 		require.NoError(t, s.PutLinks([]*url.URL{testutil.MustParseURL(link1)}))
 
-		links, err := s.GetLinks(hash1)
+		links, err := s.GetProcessedAndPendingLinks(hash1)
 		require.Error(t, err)
 		require.Len(t, links, 0)
 		require.Contains(t, err.Error(), errExpected.Error())
@@ -186,7 +216,7 @@ func TestStore_GetLinks(t *testing.T) {
 
 		require.NoError(t, s.PutLinks([]*url.URL{testutil.MustParseURL(link1)}))
 
-		links, err := s.GetLinks(hash1)
+		links, err := s.GetProcessedAndPendingLinks(hash1)
 		require.Error(t, err)
 		require.Len(t, links, 0)
 		require.Contains(t, err.Error(), errExpected.Error())
@@ -197,7 +227,7 @@ func TestStore_GetLinks(t *testing.T) {
 func TestStore_DeleteLinks(t *testing.T) {
 	provider := storage.NewMockStoreProvider()
 
-	s, err := New(provider)
+	s, err := New(provider, &mocks.DataExpiryService{})
 	require.NoError(t, err)
 	require.NotNil(t, s)
 
@@ -226,5 +256,61 @@ func TestStore_DeleteLinks(t *testing.T) {
 		err := s.DeleteLinks([]*url.URL{testutil.MustParseURL("hl:xxx")})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
+	})
+}
+
+func TestStore_HandleExpiredKeys(t *testing.T) {
+	const (
+		key1 = "key1"
+		key2 = "key2"
+		key3 = "key3"
+	)
+
+	t.Run("Success", func(t *testing.T) {
+		s, err := New(storage.NewMockStoreProvider(), &mocks.DataExpiryService{},
+			WithPendingRecordLifespan(5*time.Minute))
+		require.NoError(t, err)
+		require.NotNil(t, s)
+
+		require.NoError(t, s.store.Put(key1, testutil.MarshalCanonical(t, &anchorLinkRef{Status: statusPending})))
+		require.NoError(t, s.store.Put(key2, testutil.MarshalCanonical(t, &anchorLinkRef{Status: statusProcessed})))
+		require.NoError(t, s.store.Put(key3, testutil.MarshalCanonical(t, &anchorLinkRef{Status: statusPending})))
+
+		keys, err := s.HandleExpiredKeys(key1, key2, key3)
+		require.NoError(t, err)
+		require.Equal(t, []string{key1, key3}, keys)
+	})
+
+	t.Run("Store error", func(t *testing.T) {
+		provider := storage.NewMockStoreProvider()
+		provider.Store.ErrGet = errors.New("injected get error")
+
+		s, err := New(provider, &mocks.DataExpiryService{},
+			WithPendingRecordLifespan(5*time.Minute))
+		require.NoError(t, err)
+		require.NotNil(t, s)
+
+		keys, err := s.HandleExpiredKeys(key1, key2, key3)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), provider.Store.ErrGet.Error())
+		require.Empty(t, keys)
+	})
+
+	t.Run("Unmarshal error", func(t *testing.T) {
+		s, err := New(storage.NewMockStoreProvider(), &mocks.DataExpiryService{},
+			WithPendingRecordLifespan(5*time.Minute))
+		require.NoError(t, err)
+		require.NotNil(t, s)
+
+		errExpected := errors.New("injected unmarshal error")
+
+		s.unmarshal = func(data []byte, v interface{}) error { return errExpected }
+
+		require.NoError(t, s.store.Put(key1, testutil.MarshalCanonical(t, &anchorLinkRef{Status: statusPending})))
+
+		keys, err := s.HandleExpiredKeys(key1)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+		require.Empty(t, keys)
 	})
 }
