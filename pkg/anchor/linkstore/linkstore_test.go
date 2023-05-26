@@ -153,6 +153,13 @@ func TestStore_GetLinks(t *testing.T) {
 	links, err = s.GetProcessedAndPendingLinks(hash2)
 	require.NoError(t, err)
 	require.Len(t, links, 2)
+
+	err = s.DeletePendingLinks(links)
+	require.NoError(t, err)
+
+	links, err = s.GetProcessedAndPendingLinks(hash2)
+	require.NoError(t, err)
+	require.Len(t, links, 1)
 }
 
 func TestStore_GetLinksError(t *testing.T) {

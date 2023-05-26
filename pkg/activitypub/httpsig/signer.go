@@ -83,7 +83,7 @@ func NewSigner(cfg SignerConfig, cr crypto, km keyManager, keyID string) *Signer
 func (s *Signer) SignRequest(pubKeyID string, req *http.Request) error {
 	req.Header.Add(dateHeader, date())
 
-	logger.Debug("Signing request for %s. Public key ID [%s]. Headers: %s", logfields.WithRequestURLString(req.RequestURI),
+	logger.Debug("Signing request", logfields.WithRequestURLString(req.RequestURI),
 		logfields.WithKeyID(pubKeyID), logfields.WithRequestHeaders(req.Header))
 
 	if err := s.signer().Sign(pubKeyID, req); err != nil {
