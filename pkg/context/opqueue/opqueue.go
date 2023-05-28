@@ -480,14 +480,15 @@ func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 
 			if _, err := q.publish(ctx, op.OperationMessage); err != nil {
 				q.logger.Errorc(ctx, "Error re-posting operation after NACK. Operation will be detached from this server instance",
-					logfields.WithOperationID(op.ID), log.WithError(err))
+					logfields.WithOperationID(op.ID), logfields.WithSuffix(op.Operation.UniqueSuffix), log.WithError(err))
 
 				if e := q.detachOperation(op); e != nil {
 					q.logger.Errorc(ctx, "Failed to detach operation from this server instance",
-						logfields.WithOperationID(op.ID), log.WithError(e))
+						logfields.WithOperationID(op.ID), logfields.WithSuffix(op.Operation.UniqueSuffix), log.WithError(e))
 				} else {
 					q.logger.Infoc(ctx, "Operation was detached from this server instance since it could not be "+
-						"published to the queue. It will be retried at a later time.", logfields.WithOperationID(op.ID))
+						"published to the queue. It will be retried at a later time.",
+						logfields.WithOperationID(op.ID), logfields.WithSuffix(op.Operation.UniqueSuffix))
 				}
 			} else {
 				operationsToDelete = append(operationsToDelete, op)
@@ -499,6 +500,8 @@ func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 				q.logger.Errorc(ctx, "Error deleting operations after NACK. Some (or all) of the operations "+
 					"will be left in the database and potentially reprocessed (which should be harmless). "+
 					"The operations should be deleted (at some point) by the data expiry service.", log.WithError(err))
+			} else {
+				q.logger.Debugc(ctx, "Deleted operations after NACK", logfields.WithTotal(len(operationsToDelete)))
 			}
 		}
 
@@ -665,7 +668,7 @@ func (q *Queue) repostOperations(serverID string) error { //nolint:cyclop
 
 		if _, e = q.publish(span.Start("re-post operations"), op); e != nil {
 			q.logger.Error("Error re-posting operation", logfields.WithOperationID(op.ID), log.WithError(e),
-				logfields.WithSuffix(op.Operation.UniqueSuffix))
+				logfields.WithSuffix(op.Operation.UniqueSuffix), logfields.WithPermitHolder(serverID))
 
 			deleteQueueTask = false
 
@@ -677,7 +680,7 @@ func (q *Queue) repostOperations(serverID string) error { //nolint:cyclop
 		if len(operationsToDelete) >= q.maxOperationsToRepost {
 			q.logger.Info("Reached max number of operations to re-post in this task run", log.WithError(e),
 				logfields.WithOperationID(op.ID), logfields.WithSuffix(op.Operation.UniqueSuffix),
-				logfields.WithMaxOperationsToRepost(q.maxOperationsToRepost))
+				logfields.WithMaxOperationsToRepost(q.maxOperationsToRepost), logfields.WithPermitHolder(serverID))
 
 			deleteQueueTask = false
 
@@ -766,6 +769,7 @@ func (q *Queue) detachOperation(op *queuedOperation) error {
 	pop := &persistedOperation{
 		OperationMessage: op.OperationMessage,
 		ServerID:         detachedServerID,
+		ExpiryTime:       time.Now().Add(q.operationLifeSpan).Unix(),
 	}
 
 	opBytes, err := q.marshal(pop)
@@ -774,10 +778,8 @@ func (q *Queue) detachOperation(op *queuedOperation) error {
 	}
 
 	return q.store.Put(op.key, opBytes,
-		storage.Tag{
-			Name:  tagServerID,
-			Value: detachedServerID,
-		},
+		storage.Tag{Name: tagServerID, Value: detachedServerID},
+		storage.Tag{Name: tagExpiryTime, Value: fmt.Sprintf("%d", pop.ExpiryTime)},
 	)
 }
 

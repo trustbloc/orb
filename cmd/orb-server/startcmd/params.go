@@ -158,7 +158,7 @@ const (
 	defaultTracingServiceName = "orb"
 
 	opQueueDefaultTaskMonitorInterval   = 10 * time.Second
-	opQueueDefaultTaskExpiration        = 30 * time.Second
+	opQueueDefaultTaskExpiration        = time.Minute
 	opQueueDefaultMaxOperationsToRepost = 10000
 	opQueueDefaultOperationLifespan     = 24 * time.Hour
 
