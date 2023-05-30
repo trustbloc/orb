@@ -21,6 +21,7 @@ import (
 	"github.com/trustbloc/vct/pkg/client/vct"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/store"
 	"github.com/trustbloc/orb/pkg/webfinger/model"
 )
@@ -38,6 +39,9 @@ const (
 	vctWriteTokenKey = "vct-write"
 
 	vctV1LedgerType = "vct-v1"
+
+	defaultMonitoringInterval = 10 * time.Second
+	defaultMaxRecordsPerRun   = 50
 )
 
 // httpClient represents HTTP client.
@@ -51,20 +55,52 @@ type webfingerClient interface {
 
 // Client for the monitoring.
 type Client struct {
+	*lifecycle.Lifecycle
+	*options
+
 	documentLoader ld.DocumentLoader
 	store          storage.Store
 	http           httpClient
 	wfClient       webfingerClient
-	requestTokens  map[string]string
 }
 
 type taskManager interface {
 	RegisterTask(taskType string, interval time.Duration, task func())
 }
 
+type options struct {
+	monitoringInterval    time.Duration
+	requestTokens         map[string]string
+	maxRecordsPerInterval int
+}
+
+// Opt specifies a proof monitoring option.
+type Opt func(opts *options)
+
+// WithMonitoringInterval sets the proof monitoring interval.
+func WithMonitoringInterval(value time.Duration) Opt {
+	return func(opts *options) {
+		opts.monitoringInterval = value
+	}
+}
+
+// WithRequestTokens sets the request bearer tokens for HTTP requests to the VCT service.
+func WithRequestTokens(value map[string]string) Opt {
+	return func(opts *options) {
+		opts.requestTokens = value
+	}
+}
+
+// WithMaxRecordsPerInterval sets the maximum number of records to check in a single monitoring interval.
+func WithMaxRecordsPerInterval(value int) Opt {
+	return func(opts *options) {
+		opts.maxRecordsPerInterval = value
+	}
+}
+
 // New returns monitoring client.
 func New(provider storage.Provider, documentLoader ld.DocumentLoader, wfClient webfingerClient,
-	httpClient httpClient, taskMgr taskManager, interval time.Duration, requestTokens map[string]string,
+	httpClient httpClient, taskMgr taskManager, opts ...Opt,
 ) (*Client, error) {
 	s, err := store.Open(provider, storeName,
 		store.NewTagGroup(tagStatus),
@@ -73,17 +109,23 @@ func New(provider storage.Provider, documentLoader ld.DocumentLoader, wfClient w
 		return nil, fmt.Errorf("open store: %w", err)
 	}
 
+	options := resolveOptions(opts)
+
 	client := &Client{
+		Lifecycle:      lifecycle.New("proof-monitor"),
+		options:        options,
 		documentLoader: documentLoader,
 		store:          s,
 		http:           httpClient,
 		wfClient:       wfClient,
-		requestTokens:  requestTokens,
 	}
 
-	logger.Info("Registering task with Task Manager", logfields.WithTaskID(taskID), logfields.WithTaskMonitorInterval(interval))
+	client.Start()
 
-	taskMgr.RegisterTask(taskID, interval, client.worker)
+	logger.Info("Registering task with Task Manager", logfields.WithTaskID(taskID),
+		logfields.WithTaskMonitorInterval(options.monitoringInterval))
+
+	taskMgr.RegisterTask(taskID, options.monitoringInterval, client.worker)
 
 	return client, nil
 }
@@ -164,26 +206,45 @@ func Next(records interface{ Next() (bool, error) }) bool {
 	return ok
 }
 
-func (c *Client) handleEntities() error { //nolint:cyclop
+func (c *Client) handleEntities() error {
+	if c.Lifecycle.State() != lifecycle.StateStarted {
+		logger.Info("Proof monitor service is not in state 'started'. Exiting.")
+
+		return nil
+	}
+
 	expr := fmt.Sprintf("%s:%s", tagStatus, statusUnconfirmed)
 
-	records, err := c.store.Query(expr)
+	it, err := c.store.Query(expr)
 	if err != nil {
 		return fmt.Errorf("query %s: %w", expr, err)
 	}
 
-	defer func() {
-		if e := records.Close(); e != nil {
-			log.CloseIteratorError(logger, e)
-		}
-	}()
+	defer store.CloseIterator(it)
 
-	for Next(records) {
+	numProcessed := 0
+
+	for Next(it) {
+		if c.Lifecycle.State() != lifecycle.StateStarted {
+			logger.Info("Proof monitor service is not in state 'started'. Exiting.")
+
+			return nil
+		}
+
+		if numProcessed >= c.maxRecordsPerInterval {
+			logger.Info("Reached the maximum number of proof monitor records per interval. Exiting.",
+				logfields.WithMaxProofMonitorRecords(c.maxRecordsPerInterval))
+
+			return nil
+		}
+
 		var src []byte
 
-		if src, err = records.Value(); err != nil {
+		if src, err = it.Value(); err != nil {
 			return fmt.Errorf("get entity value: %w", err)
 		}
+
+		numProcessed++
 
 		var e *entity
 		if err = json.Unmarshal(src, &e); err != nil {
@@ -317,4 +378,17 @@ func key(id string) string {
 
 func isLedgerTypeSupported(lt string) bool {
 	return lt == vctV1LedgerType
+}
+
+func resolveOptions(opts []Opt) *options {
+	options := &options{
+		monitoringInterval:    defaultMonitoringInterval,
+		maxRecordsPerInterval: defaultMaxRecordsPerRun,
+	}
+
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	return options
 }

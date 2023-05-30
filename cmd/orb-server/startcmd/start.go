@@ -771,8 +771,10 @@ func startOrbServices(parameters *orbParameters) error {
 
 	apSigVerifier := getActivityPubVerifier(parameters, km, cr, apClient)
 
-	proofMonitoringSvc, err := proofmonitoring.New(storeProviders.provider, orbDocumentLoader, wfClient,
-		httpClient, taskMgr, parameters.vct.proofMonitoringInterval, parameters.requestTokens)
+	proofMonitoringSvc, err := proofmonitoring.New(storeProviders.provider, orbDocumentLoader, wfClient, httpClient, taskMgr,
+		proofmonitoring.WithMonitoringInterval(parameters.vct.proofMonitoringInterval),
+		proofmonitoring.WithRequestTokens(parameters.requestTokens),
+		proofmonitoring.WithMaxRecordsPerInterval(parameters.vct.proofMonitoringMaxRecords))
 	if err != nil {
 		return fmt.Errorf("new VCT monitoring service: %w", err)
 	}
@@ -1194,7 +1196,7 @@ func startOrbServices(parameters *orbParameters) error {
 	)
 
 	err = run(httpServer, activityPubService, opQueue, obsrv, batchWriter, taskMgr, apClient,
-		nodeInfoService, newMPLifecycleWrapper(mp), tracerProvider)
+		nodeInfoService, newMPLifecycleWrapper(mp), tracerProvider, proofMonitoringSvc)
 	if err != nil {
 		return err
 	}

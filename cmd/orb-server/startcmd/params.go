@@ -117,7 +117,7 @@ const (
 	defaultServerIdleTimeout                = 20 * time.Second
 	defaultServerReadHeaderTimeout          = 20 * time.Second
 	defaultHTTPTimeout                      = 20 * time.Second
-	defaultUnpublishedOperationLifespan     = time.Minute * 5
+	defaultUnpublishedOperationLifespan     = time.Hour
 	defaultTaskMgrCheckInterval             = 10 * time.Second
 	defaultDataExpiryCheckInterval          = time.Minute
 	defaultAnchorSyncInterval               = time.Minute
@@ -125,6 +125,7 @@ const (
 	defaultAnchorSyncMinActivityAge         = 10 * time.Minute
 	defaultAnchorSyncMaxActivities          = 500
 	defaultVCTProofMonitoringInterval       = 10 * time.Second
+	defaultVCTProofMonitoringMaxRecords     = 500
 	defaultVCTLogMonitoringInterval         = 10 * time.Second
 	defaultVCTLogMonitoringMaxTreeSize      = 50000
 	defaultVCTLogMonitoringGetEntriesRange  = 1000
@@ -183,6 +184,12 @@ const (
 	vctProofMonitoringIntervalFlagUsage = "The interval in which VCTs are monitored to ensure that proofs are anchored. " +
 		"Defaults to 10s if not set. " +
 		commonEnvVarUsageText + vctProofMonitoringIntervalEnvKey
+
+	vctProofMonitoringMaxRecordsFlagName  = "vct-proof-monitoring-max-records"
+	vctProofMonitoringMaxRecordsEnvKey    = "VCT_PROOF_MONITORING_MAX_RECORDS"
+	vctProofMonitoringMaxRecordsFlagUsage = "The maximum number of VCT records to check in a single monitoring interval. " +
+		"Defaults to 500 if not set. " +
+		commonEnvVarUsageText + vctProofMonitoringMaxRecordsEnvKey
 
 	vctProofMonitoringExpiryPeriodFlagName  = "vct-proof-monitoring-expiry-period"
 	vctProofMonitoringExpiryPeriodEnvKey    = "VCT_PROOF_MONITORING_EXPIRY_PERIOD"
@@ -1553,6 +1560,7 @@ func getAuthParams(cmd *cobra.Command) (*authParams, error) {
 
 type vctParams struct {
 	proofMonitoringInterval      time.Duration
+	proofMonitoringMaxRecords    int
 	logMonitoringInterval        time.Duration
 	logMonitoringTreeSize        uint64
 	logMonitoringGetEntriesRange int
@@ -1564,6 +1572,12 @@ func getVCTParams(cmd *cobra.Command) (*vctParams, error) {
 		defaultVCTProofMonitoringInterval)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %w", vctProofMonitoringIntervalFlagName, err)
+	}
+
+	vctProofMonitoringMaxRecords, err := cmdutil.GetInt(cmd, vctProofMonitoringMaxRecordsFlagName, vctProofMonitoringMaxRecordsEnvKey,
+		defaultVCTProofMonitoringMaxRecords)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", vctProofMonitoringMaxRecordsFlagName, err)
 	}
 
 	vctLogMonitoringInterval, err := cmdutil.GetDuration(cmd, vctLogMonitoringIntervalFlagName, vctLogMonitoringIntervalEnvKey,
@@ -1604,6 +1618,7 @@ func getVCTParams(cmd *cobra.Command) (*vctParams, error) {
 
 	return &vctParams{
 		proofMonitoringInterval:      vctProofMonitoringInterval,
+		proofMonitoringMaxRecords:    vctProofMonitoringMaxRecords,
 		logMonitoringInterval:        vctLogMonitoringInterval,
 		logMonitoringTreeSize:        vctLogMonitoringMaxTreeSize,
 		logMonitoringGetEntriesRange: vctLogMonitoringGetEntriesRange,
@@ -2427,6 +2442,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(anchorSyncMaxActivitiesFlagName, "", "", anchorSyncMaxActivitiesFlagUsage)
 	startCmd.Flags().StringP(anchorSyncMinActivityAgeFlagName, "", "", anchorSyncMinActivityAgeFlagUsage)
 	startCmd.Flags().StringP(vctProofMonitoringIntervalFlagName, "", "", vctProofMonitoringIntervalFlagUsage)
+	startCmd.Flags().StringP(vctProofMonitoringMaxRecordsFlagName, "", "", vctProofMonitoringMaxRecordsFlagUsage)
 	startCmd.Flags().StringP(vctProofMonitoringExpiryPeriodFlagName, "", "", vctProofMonitoringExpiryPeriodFlagUsage)
 	startCmd.Flags().StringP(vctLogMonitoringIntervalFlagName, "", "", vctLogMonitoringIntervalFlagUsage)
 	startCmd.Flags().StringP(vctLogMonitoringMaxTreeSizeFlagName, "", "", vctLogMonitoringMaxTreeSizeFlagUsage)
