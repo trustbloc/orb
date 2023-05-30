@@ -113,7 +113,7 @@ func TestCache_Get(t *testing.T) {
 			},
 			WithName("test-cache"),
 			WithMonitorInterval(10*time.Millisecond),
-			WithRefreshInterval(20*time.Millisecond),
+			WithRefreshInterval(25*time.Millisecond),
 			WithRetryBackoff(50*time.Millisecond),
 			WithMaxLoadAttempts(5),
 		)

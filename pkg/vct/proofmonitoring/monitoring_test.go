@@ -42,17 +42,17 @@ const (
 func TestNew(t *testing.T) {
 	taskMgr := mocks.NewTaskManager("vct-monitor")
 
-	client, err := New(mem.NewProvider(), nil, nil, nil, taskMgr, time.Second, map[string]string{})
+	client, err := New(mem.NewProvider(), nil, nil, nil, taskMgr, WithMonitoringInterval(time.Second))
 	require.NoError(t, err)
 	require.NotNil(t, client)
 
 	client, err = New(&mockstore.Provider{ErrOpenStore: errors.New("error")}, nil, nil, nil,
-		taskMgr, time.Second, map[string]string{})
+		taskMgr, WithMonitoringInterval(time.Second))
 	require.EqualError(t, err, "open store: open store [proof-monitor]: error")
 	require.Nil(t, client)
 
 	client, err = New(&mockstore.Provider{ErrSetStoreConfig: errors.New("error")}, nil, nil, nil,
-		taskMgr, time.Second, map[string]string{})
+		taskMgr, WithMonitoringInterval(time.Second))
 	require.EqualError(t, err, "open store: set store configuration for [proof-monitor]: error")
 	require.Nil(t, client)
 }
@@ -81,7 +81,7 @@ func TestClient_Watch(t *testing.T) { //nolint:cyclop,maintidx
 		defer taskMgr.Stop()
 
 		client, err := New(mem.NewProvider(), nil, wfClient, httpClient, taskMgr,
-			time.Second, map[string]string{})
+			WithMonitoringInterval(time.Second))
 		require.NoError(t, err)
 
 		require.EqualError(t, client.Watch(&verifiable.Credential{},
@@ -98,7 +98,7 @@ func TestClient_Watch(t *testing.T) { //nolint:cyclop,maintidx
 		taskMgr.Start()
 		defer taskMgr.Stop()
 
-		client, err := New(db, testutil.GetLoader(t), wfClient, httpClient, taskMgr, time.Second, map[string]string{})
+		client, err := New(db, testutil.GetLoader(t), wfClient, httpClient, taskMgr, WithMonitoringInterval(time.Second))
 		require.NoError(t, err)
 
 		ID1 := "https://orb.domain.com/" + uuid.New().String()
@@ -154,7 +154,7 @@ func TestClient_Watch(t *testing.T) { //nolint:cyclop,maintidx
 				Body:       io.NopCloser(bytes.NewBufferString(`{}`)),
 				StatusCode: http.StatusInternalServerError,
 			}, nil
-		}), taskMgr, time.Second, map[string]string{})
+		}), taskMgr, WithMonitoringInterval(time.Second))
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -207,7 +207,7 @@ func TestClient_Watch(t *testing.T) { //nolint:cyclop,maintidx
 			default:
 				return nil, errors.New("unexpected HTTP request")
 			}
-		}), taskMgr, time.Second, map[string]string{})
+		}), taskMgr, WithMonitoringInterval(time.Second))
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -243,7 +243,7 @@ func TestClient_Watch(t *testing.T) { //nolint:cyclop,maintidx
 				Body:       io.NopCloser(bytes.NewBufferString(`{"tree_size":0}`)),
 				StatusCode: http.StatusOK,
 			}, nil
-		}), taskMgr, time.Second, map[string]string{})
+		}), taskMgr, WithMonitoringInterval(time.Second))
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -295,7 +295,7 @@ func TestClient_Watch(t *testing.T) { //nolint:cyclop,maintidx
 			default:
 				return nil, errors.New("unexpected HTTP request")
 			}
-		}), taskMgr, time.Second, map[string]string{})
+		}), taskMgr, WithMonitoringInterval(time.Second))
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -347,7 +347,7 @@ func TestClient_Watch(t *testing.T) { //nolint:cyclop,maintidx
 			default:
 				return nil, errors.New("unexpected HTTP request")
 			}
-		}), taskMgr, time.Second, map[string]string{})
+		}), taskMgr, WithMonitoringInterval(time.Second))
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -399,7 +399,7 @@ func TestClient_Watch(t *testing.T) { //nolint:cyclop,maintidx
 				Body:       io.NopCloser(bytes.NewBufferString(<-responses)),
 				StatusCode: http.StatusOK,
 			}, nil
-		}), taskMgr, time.Second, map[string]string{})
+		}), taskMgr, WithMonitoringInterval(time.Second), WithMaxRecordsPerInterval(5))
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -453,8 +453,11 @@ func TestClient_Watch(t *testing.T) { //nolint:cyclop,maintidx
 		store, err := db.OpenStore(storeName)
 		require.NoError(t, err)
 
-		responses := make(chan string, 7)
+		responses := make(chan string, 10)
 		responses <- webfingerPayload
+		responses <- `{}`
+		responses <- `{}`
+		responses <- `{}`
 		responses <- `{}`
 		responses <- `{}`
 		responses <- `{}`
@@ -473,20 +476,33 @@ func TestClient_Watch(t *testing.T) { //nolint:cyclop,maintidx
 				Body:       io.NopCloser(bytes.NewBufferString(<-responses)),
 				StatusCode: http.StatusOK,
 			}, nil
-		}), taskMgr, time.Second, map[string]string{})
+		}), taskMgr, WithMonitoringInterval(time.Second), WithMaxRecordsPerInterval(1))
 		require.NoError(t, err)
 
-		ID := "https://orb.domain.com/" + uuid.New().String()
+		ID1 := "https://orb.domain.com/" + uuid.New().String()
+		ID2 := "https://orb.domain.com/" + uuid.New().String()
 
 		require.NoError(t, client.Watch(&verifiable.Credential{
-			ID:      ID,
+			ID:      ID1,
 			Context: []string{"https://www.w3.org/2018/credentials/v1"},
-			Subject: ID,
-			Issuer:  verifiable.Issuer{ID: ID},
+			Subject: ID1,
+			Issuer:  verifiable.Issuer{ID: ID1},
 			Issued:  &util.TimeWrapper{},
 			Types:   []string{"VerifiableCredential"},
 		},
 			time.Now().Add(time.Millisecond*100),
+			"https://vct.com", time.Now()),
+		)
+
+		require.NoError(t, client.Watch(&verifiable.Credential{
+			ID:      ID2,
+			Context: []string{"https://www.w3.org/2018/credentials/v1"},
+			Subject: ID2,
+			Issuer:  verifiable.Issuer{ID: ID2},
+			Issued:  &util.TimeWrapper{},
+			Types:   []string{"VerifiableCredential"},
+		},
+			time.Now().Add(time.Millisecond*50),
 			"https://vct.com", time.Now()),
 		)
 
@@ -500,13 +516,60 @@ func TestClient_Watch(t *testing.T) { //nolint:cyclop,maintidx
 			}
 
 			if count != 0 {
-				return errors.New("expecting empty queue")
+				return fmt.Errorf("expecting empty queue but got %d items", count)
 			}
 
 			return nil
-		}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 4)))
+		}, backoff.WithMaxRetries(backoff.NewConstantBackOff(time.Second), 8)))
 		checkQueue(t, db, 0)
 		require.Nil(t, db.mockStore.errDelete)
+	})
+
+	t.Run("Worker handles queue (stopped)", func(t *testing.T) {
+		db := newDBMock(t)
+
+		responses := make(chan string, 7)
+		responses <- webfingerPayload
+		responses <- `{}`
+		responses <- `{}`
+		responses <- `{}`
+		responses <- `{}`
+		responses <- `{}`
+
+		dl := testutil.GetLoader(t)
+
+		taskMgr := mocks.NewTaskManager("vct-monitor").WithInterval(100 * time.Millisecond)
+
+		taskMgr.Start()
+		defer taskMgr.Stop()
+
+		client, err := New(db, dl, wfClient, httpMock(func(req *http.Request) (*http.Response, error) {
+			return &http.Response{
+				Body:       io.NopCloser(bytes.NewBufferString(<-responses)),
+				StatusCode: http.StatusOK,
+			}, nil
+		}), taskMgr, WithMonitoringInterval(100*time.Millisecond))
+		require.NoError(t, err)
+
+		client.Stop()
+
+		ID1 := "https://orb.domain.com/" + uuid.New().String()
+
+		require.NoError(t, client.Watch(&verifiable.Credential{
+			ID:      ID1,
+			Context: []string{"https://www.w3.org/2018/credentials/v1"},
+			Subject: ID1,
+			Issuer:  verifiable.Issuer{ID: ID1},
+			Issued:  &util.TimeWrapper{},
+			Types:   []string{"VerifiableCredential"},
+		},
+			time.Now().Add(time.Millisecond*100),
+			"https://vct.com", time.Now()),
+		)
+
+		time.Sleep(500 * time.Millisecond)
+
+		checkQueue(t, db, 1)
 	})
 
 	t.Run("Success", func(t *testing.T) {
@@ -522,7 +585,7 @@ func TestClient_Watch(t *testing.T) { //nolint:cyclop,maintidx
 				Body:       io.NopCloser(bytes.NewBufferString(`{"audit_path":[[]]}`)),
 				StatusCode: http.StatusOK,
 			}, nil
-		}), taskMgr, time.Second, map[string]string{})
+		}), taskMgr, WithMonitoringInterval(time.Second))
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -555,7 +618,7 @@ func TestClient_Watch(t *testing.T) { //nolint:cyclop,maintidx
 				Body:       io.NopCloser(bytes.NewBufferString(`{"audit_path":[[]]}`)),
 				StatusCode: http.StatusOK,
 			}, nil
-		}), taskMgr, time.Second, map[string]string{})
+		}), taskMgr, WithMonitoringInterval(time.Second))
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -591,7 +654,7 @@ func TestClient_Watch(t *testing.T) { //nolint:cyclop,maintidx
 				}, nil
 			})))
 
-		client, err := New(db, dl, notFoundWebfingerClient, httpClient, taskMgr, time.Second, map[string]string{})
+		client, err := New(db, dl, notFoundWebfingerClient, httpClient, taskMgr, WithMonitoringInterval(time.Second))
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -630,7 +693,7 @@ func TestClient_Watch(t *testing.T) { //nolint:cyclop,maintidx
 				}, nil
 			})))
 
-		client, err := New(db, dl, noLegerTypeWebfingerClient, httpClient, taskMgr, time.Second, map[string]string{})
+		client, err := New(db, dl, noLegerTypeWebfingerClient, httpClient, taskMgr, WithMonitoringInterval(time.Second))
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()
@@ -668,7 +731,7 @@ func TestClient_Watch(t *testing.T) { //nolint:cyclop,maintidx
 				}, nil
 			})))
 
-		client, err := New(db, dl, wrongLegerTypeWebfingerClient, httpClient, taskMgr, time.Second, map[string]string{})
+		client, err := New(db, dl, wrongLegerTypeWebfingerClient, httpClient, taskMgr, WithMonitoringInterval(time.Second))
 		require.NoError(t, err)
 
 		ID := "https://orb.domain.com/" + uuid.New().String()

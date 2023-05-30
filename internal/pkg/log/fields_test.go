@@ -63,7 +63,7 @@ func TestStandardFields(t *testing.T) {
 			WithCreatedTime(now), WithWitnessURI(u1), WithWitnessURIs(u1, u2), WithWitnessPolicy("some policy"),
 			WithAnchorOrigin(u1.String()), WithOperationType("Create"), WithCoreIndex("1234"),
 			WithMaxOperationsToRepost(300), WithMaxActivitiesToSync(11), WithNextActivitySyncInterval(3*time.Second),
-			WithNumActivitiesSynced(123),
+			WithNumActivitiesSynced(123), WithMaxProofMonitorRecords(23),
 		)
 
 		t.Logf(stdOut.String())
@@ -123,6 +123,7 @@ func TestStandardFields(t *testing.T) {
 		require.Equal(t, 11, l.MaxActivitiesToSync)
 		require.Equal(t, "3s", l.NextActivitySyncInterval)
 		require.Equal(t, 123, l.NumActivitiesSynced)
+		require.Equal(t, 23, l.MaxProofMonitorRecords)
 	})
 
 	t.Run("json fields 2", func(t *testing.T) {
@@ -452,6 +453,7 @@ type logData struct {
 	MaxActivitiesToSync      int                 `json:"maxActivitiesToSync"`
 	NextActivitySyncInterval string              `json:"nextActivitySyncInterval"`
 	NumActivitiesSynced      int                 `json:"numActivitiesSynced"`
+	MaxProofMonitorRecords   int                 `json:"maxProofMonitorRecords"`
 }
 
 func unmarshalLogData(t *testing.T, b []byte) *logData {

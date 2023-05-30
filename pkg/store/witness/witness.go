@@ -33,7 +33,7 @@ const (
 	proofType       = "witness-proof"
 
 	anchorIndexTagName = "anchorID"
-	expiryTagName      = "ExpiryTime"
+	expiryTagName      = "expiryTime"
 
 	queryExpr = "%s:%s&&%s:%s"
 
@@ -77,7 +77,9 @@ func (s *Store) Put(anchorID string, witnesses []*proof.Witness) error {
 	putOptions := &storage.PutOptions{IsNewKey: true}
 
 	for i, w := range witnesses {
-		value, err := json.Marshal(s.newWitnessInfo(anchorIDEncoded, w))
+		witnessInfo := s.newWitnessInfo(anchorIDEncoded, w)
+
+		value, err := json.Marshal(witnessInfo)
 		if err != nil {
 			return fmt.Errorf("failed to marshal anchor witness: %w", err)
 		}
@@ -90,7 +92,7 @@ func (s *Store) Put(anchorID string, witnesses []*proof.Witness) error {
 			Tags: []storage.Tag{
 				{Name: typeTagName, Value: witnessInfoType},
 				{Name: anchorIndexTagName, Value: anchorIDEncoded},
-				{Name: expiryTagName, Value: fmt.Sprintf("%d", time.Now().Add(s.expiryPeriod).Unix())},
+				{Name: expiryTagName, Value: fmt.Sprintf("%d", witnessInfo.ExpiryTime)},
 			},
 			PutOptions: putOptions,
 		}
@@ -118,12 +120,7 @@ func (s *Store) Delete(anchorID string) error {
 		return orberrors.NewTransientf("failed to query witnesses to delete for anchorID[%s]: %w", query, err)
 	}
 
-	defer func() {
-		err = iter.Close()
-		if err != nil {
-			log.CloseIteratorError(logger, err)
-		}
-	}()
+	defer store.CloseIterator(iter)
 
 	ok, err := iter.Next()
 	if err != nil {
@@ -196,12 +193,7 @@ func (s *Store) getWitnesses(anchorID string) ([]*proof.Witness, error) {
 		return nil, orberrors.NewTransientf("failed to query witnesses for anchorID[%s]: %w", query, err)
 	}
 
-	defer func() {
-		err = iter.Close()
-		if err != nil {
-			log.CloseIteratorError(logger, err)
-		}
-	}()
+	defer store.CloseIterator(iter)
 
 	ok, err := iter.Next()
 	if err != nil {
@@ -252,12 +244,7 @@ func (s *Store) getProofs(anchorID string) (proofs, error) {
 		return nil, orberrors.NewTransientf("failed to get proofs for[%s]: %w", query, err)
 	}
 
-	defer func() {
-		err = iter.Close()
-		if err != nil {
-			log.CloseIteratorError(logger, err)
-		}
-	}()
+	defer store.CloseIterator(iter)
 
 	ok, err := iter.Next()
 	if err != nil {
@@ -330,11 +317,7 @@ func (s *Store) UpdateWitnessSelection(anchorID string, witnesses []*url.URL, se
 		return orberrors.NewTransientf("failed to query witnesses to update for anchorID[%s]: %w", query, err)
 	}
 
-	defer func() {
-		if e := iter.Close(); e != nil {
-			log.CloseIteratorError(logger, err)
-		}
-	}()
+	defer store.CloseIterator(iter)
 
 	ok, err := iter.Next()
 	if err != nil {

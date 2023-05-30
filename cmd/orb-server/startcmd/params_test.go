@@ -748,6 +748,19 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid value for vct-proof-monitoring-interval [xxx]")
 	})
 
+	t.Run("VCT proof monitoring max records", func(t *testing.T) {
+		restoreEnv := setEnv(t, vctProofMonitoringMaxRecordsEnvKey, "xxx")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value for vct-proof-monitoring-max-records [xxx]")
+	})
+
 	t.Run("VCT proof monitoring expiry period", func(t *testing.T) {
 		restoreEnv := setEnv(t, vctProofMonitoringExpiryPeriodEnvKey, "xxx")
 		defer restoreEnv()
