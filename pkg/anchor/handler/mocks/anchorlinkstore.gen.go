@@ -7,6 +7,17 @@ import (
 )
 
 type AnchorLinkStore struct {
+	DeletePendingLinksStub        func([]*url.URL) error
+	deletePendingLinksMutex       sync.RWMutex
+	deletePendingLinksArgsForCall []struct {
+		arg1 []*url.URL
+	}
+	deletePendingLinksReturns struct {
+		result1 error
+	}
+	deletePendingLinksReturnsOnCall map[int]struct {
+		result1 error
+	}
 	GetProcessedAndPendingLinksStub        func(string) ([]*url.URL, error)
 	getProcessedAndPendingLinksMutex       sync.RWMutex
 	getProcessedAndPendingLinksArgsForCall []struct {
@@ -33,6 +44,72 @@ type AnchorLinkStore struct {
 	}
 	invocations      map[string][][]interface{}
 	invocationsMutex sync.RWMutex
+}
+
+func (fake *AnchorLinkStore) DeletePendingLinks(arg1 []*url.URL) error {
+	var arg1Copy []*url.URL
+	if arg1 != nil {
+		arg1Copy = make([]*url.URL, len(arg1))
+		copy(arg1Copy, arg1)
+	}
+	fake.deletePendingLinksMutex.Lock()
+	ret, specificReturn := fake.deletePendingLinksReturnsOnCall[len(fake.deletePendingLinksArgsForCall)]
+	fake.deletePendingLinksArgsForCall = append(fake.deletePendingLinksArgsForCall, struct {
+		arg1 []*url.URL
+	}{arg1Copy})
+	stub := fake.DeletePendingLinksStub
+	fakeReturns := fake.deletePendingLinksReturns
+	fake.recordInvocation("DeletePendingLinks", []interface{}{arg1Copy})
+	fake.deletePendingLinksMutex.Unlock()
+	if stub != nil {
+		return stub(arg1)
+	}
+	if specificReturn {
+		return ret.result1
+	}
+	return fakeReturns.result1
+}
+
+func (fake *AnchorLinkStore) DeletePendingLinksCallCount() int {
+	fake.deletePendingLinksMutex.RLock()
+	defer fake.deletePendingLinksMutex.RUnlock()
+	return len(fake.deletePendingLinksArgsForCall)
+}
+
+func (fake *AnchorLinkStore) DeletePendingLinksCalls(stub func([]*url.URL) error) {
+	fake.deletePendingLinksMutex.Lock()
+	defer fake.deletePendingLinksMutex.Unlock()
+	fake.DeletePendingLinksStub = stub
+}
+
+func (fake *AnchorLinkStore) DeletePendingLinksArgsForCall(i int) []*url.URL {
+	fake.deletePendingLinksMutex.RLock()
+	defer fake.deletePendingLinksMutex.RUnlock()
+	argsForCall := fake.deletePendingLinksArgsForCall[i]
+	return argsForCall.arg1
+}
+
+func (fake *AnchorLinkStore) DeletePendingLinksReturns(result1 error) {
+	fake.deletePendingLinksMutex.Lock()
+	defer fake.deletePendingLinksMutex.Unlock()
+	fake.DeletePendingLinksStub = nil
+	fake.deletePendingLinksReturns = struct {
+		result1 error
+	}{result1}
+}
+
+func (fake *AnchorLinkStore) DeletePendingLinksReturnsOnCall(i int, result1 error) {
+	fake.deletePendingLinksMutex.Lock()
+	defer fake.deletePendingLinksMutex.Unlock()
+	fake.DeletePendingLinksStub = nil
+	if fake.deletePendingLinksReturnsOnCall == nil {
+		fake.deletePendingLinksReturnsOnCall = make(map[int]struct {
+			result1 error
+		})
+	}
+	fake.deletePendingLinksReturnsOnCall[i] = struct {
+		result1 error
+	}{result1}
 }
 
 func (fake *AnchorLinkStore) GetProcessedAndPendingLinks(arg1 string) ([]*url.URL, error) {
@@ -168,6 +245,8 @@ func (fake *AnchorLinkStore) PutPendingLinksReturnsOnCall(i int, result1 error) 
 func (fake *AnchorLinkStore) Invocations() map[string][][]interface{} {
 	fake.invocationsMutex.RLock()
 	defer fake.invocationsMutex.RUnlock()
+	fake.deletePendingLinksMutex.RLock()
+	defer fake.deletePendingLinksMutex.RUnlock()
 	fake.getProcessedAndPendingLinksMutex.RLock()
 	defer fake.getProcessedAndPendingLinksMutex.RUnlock()
 	fake.putPendingLinksMutex.RLock()

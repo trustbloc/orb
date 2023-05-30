@@ -34,6 +34,7 @@ var logger = log.New("anchor-credential-handler")
 type anchorLinkStore interface {
 	GetProcessedAndPendingLinks(anchorHash string) ([]*url.URL, error)
 	PutPendingLinks(links []*url.URL) error
+	DeletePendingLinks(links []*url.URL) error
 }
 
 type generatorRegistry interface {
@@ -223,6 +224,14 @@ func (h *AnchorEventHandler) processAnchorEvent(ctx context.Context, anchorInfo 
 
 	err = h.anchorPublisher.PublishAnchor(ctx, anchorInfo.AnchorInfo)
 	if err != nil {
+		logger.Warn("Error publishing anchor. Deleting pending links so that when the anchor event is retried, "+
+			"the pending state of the anchor won't prevent processing.", log.WithError(err), logfields.WithAnchorURI(hl))
+
+		if e := h.anchorLinkStore.DeletePendingLinks([]*url.URL{hl}); e != nil {
+			logger.Error("Error deleting pending links for anchor. The DIDs in this anchor may remain un-anchored.",
+				log.WithError(e), logfields.WithAnchorURI(hl))
+		}
+
 		return fmt.Errorf("publish anchor %s: %w", hl, err)
 	}
 
