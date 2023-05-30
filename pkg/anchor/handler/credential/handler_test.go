@@ -447,6 +447,36 @@ func TestAnchorEventHandler_processAnchorEvent(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "validate credential subject for anchor")
 	})
+
+	t.Run("publish error", func(t *testing.T) {
+		casResolver := &mocks2.CASResolver{}
+		anchorLinkStore := &mocks.AnchorLinkStore{}
+		anchorLinkStore.DeletePendingLinksReturns(errors.New("delete pending links error"))
+
+		errExpected := errors.New("injected publish error")
+
+		publisher := &anchormocks.AnchorPublisher{}
+		publisher.PublishAnchorReturns(errExpected)
+
+		handler := New(publisher, casResolver, testutil.GetLoader(t),
+			time.Second, anchorLinkStore, generator.NewRegistry())
+		require.NotNil(t, handler)
+
+		anchorLinkset := &linkset.Linkset{}
+		require.NoError(t, json.Unmarshal([]byte(sampleGrandparentAnchorLinkset), anchorLinkset))
+
+		ls, err := anchorLinkset.Link().Original().Linkset()
+		require.NoError(t, err)
+
+		err = handler.processAnchorEvent(context.Background(), &anchorInfo{
+			AnchorInfo: &info.AnchorInfo{
+				Hashlink: ls.Link().Anchor().String(),
+			},
+			anchorLink: anchorLinkset.Link(),
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+	})
 }
 
 func newAnchorEventHandler(t *testing.T, client extendedcasclient.Client) *AnchorEventHandler {
