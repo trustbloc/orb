@@ -292,25 +292,94 @@ func TestGetUnprocessedParentAnchorEvents(t *testing.T) {
 }
 
 func TestAnchorEventHandler_processAnchorEvent(t *testing.T) {
-	casResolver := &mocks2.CASResolver{}
-	anchorLinkStore := &mocks.AnchorLinkStore{}
-
-	handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
-		time.Second, anchorLinkStore, generator.NewRegistry())
-	require.NotNil(t, handler)
-
 	t.Run("success", func(t *testing.T) {
+		casResolver := &mocks2.CASResolver{}
+		anchorLinkStore := &mocks.AnchorLinkStore{}
+
+		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
+			time.Second, anchorLinkStore, generator.NewRegistry())
+		require.NotNil(t, handler)
+
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(sampleGrandparentAnchorLinkset), anchorLinkset))
 
-		err := handler.processAnchorEvent(context.Background(), &anchorInfo{
-			AnchorInfo: &info.AnchorInfo{},
+		ls, err := anchorLinkset.Link().Original().Linkset()
+		require.NoError(t, err)
+
+		err = handler.processAnchorEvent(context.Background(), &anchorInfo{
+			AnchorInfo: &info.AnchorInfo{
+				Hashlink: ls.Link().Anchor().String(),
+			},
 			anchorLink: anchorLinkset.Link(),
 		})
 		require.NoError(t, err)
 	})
 
+	t.Run("already processed -> success", func(t *testing.T) {
+		casResolver := &mocks2.CASResolver{}
+		anchorLinkStore := &mocks.AnchorLinkStore{}
+
+		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
+			time.Second, anchorLinkStore, generator.NewRegistry())
+		require.NotNil(t, handler)
+
+		anchorLinkset := &linkset.Linkset{}
+		require.NoError(t, json.Unmarshal([]byte(sampleGrandparentAnchorLinkset), anchorLinkset))
+
+		ls, err := anchorLinkset.Link().Original().Linkset()
+		require.NoError(t, err)
+
+		anchorRef := ls.Link().Anchor()
+
+		anchorLinkStore.GetProcessedAndPendingLinksReturns([]*url.URL{anchorRef}, nil)
+
+		err = handler.processAnchorEvent(context.Background(), &anchorInfo{
+			AnchorInfo: &info.AnchorInfo{
+				Hashlink: anchorRef.String(),
+			},
+			anchorLink: anchorLinkset.Link(),
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("is processed -> error", func(t *testing.T) {
+		casResolver := &mocks2.CASResolver{}
+		anchorLinkStore := &mocks.AnchorLinkStore{}
+
+		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
+			time.Second, anchorLinkStore, generator.NewRegistry())
+		require.NotNil(t, handler)
+
+		anchorLinkset := &linkset.Linkset{}
+		require.NoError(t, json.Unmarshal([]byte(sampleGrandparentAnchorLinkset), anchorLinkset))
+
+		ls, err := anchorLinkset.Link().Original().Linkset()
+		require.NoError(t, err)
+
+		anchorRef := ls.Link().Anchor()
+
+		errExpected := errors.New("injected query error")
+
+		anchorLinkStore.GetProcessedAndPendingLinksReturns(nil, errExpected)
+
+		err = handler.processAnchorEvent(context.Background(), &anchorInfo{
+			AnchorInfo: &info.AnchorInfo{
+				Hashlink: anchorRef.String(),
+			},
+			anchorLink: anchorLinkset.Link(),
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), errExpected.Error())
+	})
+
 	t.Run("no replies -> error", func(t *testing.T) {
+		casResolver := &mocks2.CASResolver{}
+		anchorLinkStore := &mocks.AnchorLinkStore{}
+
+		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
+			time.Second, anchorLinkStore, generator.NewRegistry())
+		require.NotNil(t, handler)
+
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(anchorLinksetNoReplies), anchorLinkset))
 
@@ -323,6 +392,13 @@ func TestAnchorEventHandler_processAnchorEvent(t *testing.T) {
 	})
 
 	t.Run("invalid original content -> error", func(t *testing.T) {
+		casResolver := &mocks2.CASResolver{}
+		anchorLinkStore := &mocks.AnchorLinkStore{}
+
+		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
+			time.Second, anchorLinkStore, generator.NewRegistry())
+		require.NotNil(t, handler)
+
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(anchorLinksetInvalidContent), anchorLinkset))
 
@@ -335,6 +411,13 @@ func TestAnchorEventHandler_processAnchorEvent(t *testing.T) {
 	})
 
 	t.Run("unsupported profile -> error", func(t *testing.T) {
+		casResolver := &mocks2.CASResolver{}
+		anchorLinkStore := &mocks.AnchorLinkStore{}
+
+		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
+			time.Second, anchorLinkStore, generator.NewRegistry())
+		require.NotNil(t, handler)
+
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(anchorLinksetUnsupportedProfile), anchorLinkset))
 
@@ -347,6 +430,13 @@ func TestAnchorEventHandler_processAnchorEvent(t *testing.T) {
 	})
 
 	t.Run("invalid anchor credential -> error", func(t *testing.T) {
+		casResolver := &mocks2.CASResolver{}
+		anchorLinkStore := &mocks.AnchorLinkStore{}
+
+		handler := New(&anchormocks.AnchorPublisher{}, casResolver, testutil.GetLoader(t),
+			time.Second, anchorLinkStore, generator.NewRegistry())
+		require.NotNil(t, handler)
+
 		anchorLinkset := &linkset.Linkset{}
 		require.NoError(t, json.Unmarshal([]byte(anchorLinksetInvalidVC), anchorLinkset))
 

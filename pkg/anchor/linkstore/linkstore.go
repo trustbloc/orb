@@ -131,10 +131,6 @@ func (s *Store) putLinks(links []*url.URL, status anchorStatus) error {
 				Name:  hashTag,
 				Value: anchorHash,
 			},
-			{
-				Name:  statusTag,
-				Value: status,
-			},
 		}
 
 		var expiryTime int64
@@ -142,10 +138,16 @@ func (s *Store) putLinks(links []*url.URL, status anchorStatus) error {
 		if status == statusPending {
 			expiryTime = time.Now().Add(s.pendingRecordLifespan).Unix()
 
-			tags = append(tags, storage.Tag{
-				Name:  expiryTimeTag,
-				Value: fmt.Sprintf("%d", expiryTime),
-			})
+			tags = append(tags,
+				storage.Tag{
+					Name:  expiryTimeTag,
+					Value: fmt.Sprintf("%d", expiryTime),
+				},
+				storage.Tag{
+					Name:  statusTag,
+					Value: status,
+				},
+			)
 		}
 
 		linkBytes, err := s.marshal(&anchorLinkRef{
@@ -158,7 +160,8 @@ func (s *Store) putLinks(links []*url.URL, status anchorStatus) error {
 			return fmt.Errorf("marshal anchor ref [%s]: %w", link, err)
 		}
 
-		logger.Debug("Storing anchor reference", logfields.WithAnchorHash(anchorHash), logfields.WithURI(link))
+		logger.Debug("Storing anchor link reference", logfields.WithAnchorHash(anchorHash), logfields.WithAnchorURI(link),
+			logfields.WithStatus(status))
 
 		operations[i] = storage.Operation{
 			Key:   getID(link),
@@ -180,7 +183,7 @@ func (s *Store) DeleteLinks(links []*url.URL) error {
 	operations := make([]storage.Operation, len(links))
 
 	for i, link := range links {
-		logger.Debug("Deleting anchor reference", logfields.WithURI(link))
+		logger.Debug("Deleting anchor link reference", logfields.WithURI(link))
 
 		operations[i] = storage.Operation{
 			Key: getID(link),
@@ -190,6 +193,44 @@ func (s *Store) DeleteLinks(links []*url.URL) error {
 	err := s.store.Batch(operations)
 	if err != nil {
 		return orberrors.NewTransient(fmt.Errorf("delete anchor refs: %w", err))
+	}
+
+	return nil
+}
+
+// DeletePendingLinks deletes the given hash links if they are in PENDING status.
+func (s *Store) DeletePendingLinks(links []*url.URL) error {
+	operations := make([]storage.Operation, len(links))
+
+	for i, link := range links {
+		anchorHash, err := hashlink.GetResourceHashFromHashLink(link.String())
+		if err != nil {
+			return fmt.Errorf("get hash from hashlink [%s]: %w", link, err)
+		}
+
+		pendingLinks, err := s.getLinks(anchorHash, fmt.Sprintf("%s:%s&&%s:%s", hashTag, anchorHash, statusTag, statusPending))
+		if err != nil {
+			return fmt.Errorf("get pending links [%s]: %w", link, err)
+		}
+
+		for _, pendingLink := range pendingLinks {
+			if pendingLink.String() != link.String() {
+				continue
+			}
+
+			logger.Debug("Deleting pending anchor link reference", logfields.WithURI(link))
+
+			operations[i] = storage.Operation{
+				Key: getID(link),
+			}
+
+			break
+		}
+	}
+
+	err := s.store.Batch(operations)
+	if err != nil {
+		return orberrors.NewTransient(fmt.Errorf("delete pending anchor link refs: %w", err))
 	}
 
 	return nil

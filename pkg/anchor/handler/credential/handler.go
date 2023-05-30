@@ -84,16 +84,27 @@ func New(anchorPublisher anchorPublisher, casResolver casResolver,
 func (h *AnchorEventHandler) HandleAnchorEvent(ctx context.Context, actor, anchorRef, source *url.URL,
 	anchorEvent *vocab.AnchorEventType,
 ) error {
-	logger.Debug("Received request for anchor", logfields.WithActorIRI(actor), logfields.WithAnchorEventURI(anchorRef))
+	logger.Debugc(ctx, "Received request for anchor", logfields.WithActorIRI(actor), logfields.WithAnchorURI(anchorRef))
+
+	ok, err := h.isAnchorProcessed(anchorRef)
+	if err != nil {
+		return fmt.Errorf("is anchor processed [%s]: %w", anchorRef, err)
+	}
+
+	if ok {
+		logger.Infoc(ctx, "Anchor was already processed or processing is pending", logfields.WithAnchorURI(anchorRef))
+
+		return nil
+	}
 
 	var anchorLinksetBytes []byte
 
 	if anchorEvent != nil {
-		var err error
+		var e error
 
-		anchorLinksetBytes, err = canonicalizer.MarshalCanonical(anchorEvent.Object().Document())
-		if err != nil {
-			return fmt.Errorf("marshal anchor linkset: %w", err)
+		anchorLinksetBytes, e = canonicalizer.MarshalCanonical(anchorEvent.Object().Document())
+		if e != nil {
+			return fmt.Errorf("marshal anchor linkset: %w", e)
 		}
 	}
 
@@ -130,7 +141,7 @@ func (h *AnchorEventHandler) HandleAnchorEvent(ctx context.Context, actor, ancho
 		attributedTo = actor.String()
 	}
 
-	logger.Info("Processing anchor", logfields.WithAnchorEventURI(anchorRef))
+	logger.Infoc(ctx, "Processing anchor", logfields.WithAnchorURI(anchorRef))
 
 	var alternateSources []string
 
@@ -185,7 +196,37 @@ func (h *AnchorEventHandler) processAnchorEvent(ctx context.Context, anchorInfo 
 		return fmt.Errorf("validate credential subject for anchor [%s]: %w", anchorLink.Anchor(), err)
 	}
 
-	return h.anchorPublisher.PublishAnchor(ctx, anchorInfo.AnchorInfo)
+	hl, err := url.Parse(anchorInfo.Hashlink)
+	if err != nil {
+		return fmt.Errorf("parse anchor hashlink [%s]: %w", anchorInfo.Hashlink, err)
+	}
+
+	// Check again if the anchor was processed. This further limits race conditions, especially
+	// when many anchors with the same parent are being processed concurrently.
+	processed, err := h.isAnchorProcessed(hl)
+	if err != nil {
+		return fmt.Errorf("is anchor processed [%s]: %w", hl, err)
+	}
+
+	if processed {
+		logger.Infoc(ctx, "Anchor was already processed or processing is pending.", logfields.WithAnchorURI(hl))
+
+		return nil
+	}
+
+	logger.Debugc(ctx, "Storing pending anchor link", logfields.WithAnchorURI(hl))
+
+	err = h.anchorLinkStore.PutPendingLinks([]*url.URL{hl})
+	if err != nil {
+		return fmt.Errorf("store pending anchor link: %w", err)
+	}
+
+	err = h.anchorPublisher.PublishAnchor(ctx, anchorInfo.AnchorInfo)
+	if err != nil {
+		return fmt.Errorf("publish anchor %s: %w", hl, err)
+	}
+
+	return nil
 }
 
 // ensureParentAnchorsAreProcessed checks all ancestors (parents, grandparents, etc.) of the given anchor event
@@ -196,21 +237,23 @@ func (h *AnchorEventHandler) ensureParentAnchorsAreProcessed(ctx context.Context
 		return fmt.Errorf("get unprocessed parent anchors for [%s]: %w", anchorRef, err)
 	}
 
-	if len(unprocessedParents) > 0 {
-		logger.Infoc(ctx, "Processing parents of anchor", logfields.WithTotal(len(unprocessedParents)),
-			logfields.WithAnchorURI(anchorRef), logfields.WithParents(unprocessedParents.HashLinks()))
+	if len(unprocessedParents) == 0 {
+		return nil
+	}
 
-		spanCtx, span := h.tracer.Start(ctx, "process parent anchors",
-			trace.WithAttributes(tracing.AnchorEventURIAttribute(anchorRef.String())))
-		defer span.End()
+	logger.Infoc(ctx, "Processing parents of anchor", logfields.WithTotal(len(unprocessedParents)),
+		logfields.WithAnchorURI(anchorRef), logfields.WithParents(unprocessedParents.HashLinks()))
 
-		for _, parentAnchorInfo := range unprocessedParents {
-			logger.Infoc(spanCtx, "Processing parent", logfields.WithAnchorURI(anchorRef), logfields.WithParent(parentAnchorInfo.Hashlink))
+	spanCtx, span := h.tracer.Start(ctx, "process parent anchors",
+		trace.WithAttributes(tracing.AnchorEventURIAttribute(anchorRef.String())))
+	defer span.End()
 
-			err = h.processAnchorEvent(spanCtx, parentAnchorInfo)
-			if err != nil {
-				return fmt.Errorf("process anchor [%s]: %w", parentAnchorInfo.Hashlink, err)
-			}
+	for _, parentAnchorInfo := range unprocessedParents {
+		logger.Debugc(spanCtx, "Processing parent", logfields.WithAnchorURI(anchorRef), logfields.WithParent(parentAnchorInfo.Hashlink))
+
+		err = h.processAnchorEvent(spanCtx, parentAnchorInfo)
+		if err != nil {
+			return fmt.Errorf("process anchor [%s]: %w", parentAnchorInfo.Hashlink, err)
 		}
 	}
 
@@ -263,12 +306,7 @@ func (h *AnchorEventHandler) getUnprocessedParentAnchors(hl string, anchorLink *
 		}
 
 		logger.Debug("Adding parent of anchor event to the unprocessed list",
-			logfields.WithAnchorEventURIString(hl), logfields.WithParentURI(parentHL))
-
-		err = h.anchorLinkStore.PutPendingLinks([]*url.URL{parentHL})
-		if err != nil {
-			return nil, fmt.Errorf("store pending parent anchor %s: %w", parentHL, err)
-		}
+			logfields.WithAnchorURIString(hl), logfields.WithParentURI(parentHL))
 
 		// Add the parent to the head of the list since it needs to be processed first.
 		unprocessed = append([]*anchorInfo{info}, unprocessed...)
@@ -294,7 +332,7 @@ func (h *AnchorEventHandler) getUnprocessedParentAnchor(hl string, parentHL *url
 	}
 
 	if isProcessed {
-		logger.Debug("Parent of anchor was already processed",
+		logger.Debug("Parent of anchor was already processed or processing is pending",
 			logfields.WithAnchorURIString(hl), logfields.WithParentURI(parentHL))
 
 		return true, nil, nil
@@ -361,7 +399,13 @@ func (h *AnchorEventHandler) isAnchorProcessed(hl *url.URL) (bool, error) {
 		return false, fmt.Errorf("get anchor event: %w", err)
 	}
 
-	return len(links) > 0, nil
+	for _, link := range links {
+		if link.String() == hl.String() {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 type anchorInfo struct {

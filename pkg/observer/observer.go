@@ -29,7 +29,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	discoveryrest "github.com/trustbloc/orb/pkg/discovery/endpoint/restapi"
-	"github.com/trustbloc/orb/pkg/errors"
+	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/hashlink"
 	"github.com/trustbloc/orb/pkg/linkset"
 	"github.com/trustbloc/orb/pkg/pubsub/spi"
@@ -103,6 +103,7 @@ type documentLoader interface {
 type anchorLinkStore interface {
 	PutLinks(links []*url.URL) error
 	GetLinks(anchorHash string) ([]*url.URL, error)
+	DeletePendingLinks(links []*url.URL) error
 }
 
 type anchorLinksetBuilder interface {
@@ -243,6 +244,17 @@ func (o *Observer) handleAnchor(ctx context.Context, anchor *anchorinfo.AnchorIn
 		if err := o.processAnchor(ctx, anchor, anchorLink); err != nil {
 			logger.Warn("Error processing anchor", logfields.WithAnchorEventURIString(anchor.Hashlink), log.WithError(err))
 
+			if !orberrors.IsTransient(err) {
+				logger.Info("Deleting pending anchor links", logfields.WithAnchorEventURIString(anchor.Hashlink))
+
+				// This is a persistent error. Delete any pending link.
+				if u, e := url.Parse(anchor.Hashlink); e != nil {
+					logger.Warn("Error deleting pending links", logfields.WithAnchorEventURIString(anchor.Hashlink))
+				} else if e := o.AnchorLinkStore.DeletePendingLinks([]*url.URL{u}); e != nil {
+					logger.Warn("Error deleting pending links", logfields.WithAnchorEventURIString(anchor.Hashlink))
+				}
+			}
+
 			return err
 		}
 	}
@@ -281,7 +293,7 @@ func (o *Observer) processDID(ctx context.Context, did string) error {
 		if err := o.processAnchor(ctx,
 			&anchorinfo.AnchorInfo{Hashlink: anchor.CID},
 			anchor.Info, suffix); err != nil {
-			if errors.IsTransient(err) {
+			if orberrors.IsTransient(err) {
 				// Return an error so that the message is redelivered and retried.
 				return fmt.Errorf("process out-of-system anchor [%s]: %w", anchor.CID, err)
 			}
