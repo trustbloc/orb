@@ -20,6 +20,7 @@ import (
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	orberrors "github.com/trustbloc/orb/pkg/errors"
+	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/store"
 	"github.com/trustbloc/orb/pkg/store/expiry"
 )
@@ -36,6 +37,8 @@ const (
 	delta = 5 * time.Minute
 
 	defaultCheckStatusAfterTimePeriod = 10 * time.Second
+	defaultMaxRecordsPerInterval      = 500
+	defaultMonitoringInterval         = 10 * time.Second
 )
 
 var logger = log.New("anchor-status")
@@ -57,6 +60,21 @@ func WithPolicyHandler(ph policyHandler) Option {
 	}
 }
 
+// WithMonitoringInterval sets the anchor status record monitoring interval.
+func WithMonitoringInterval(value time.Duration) Option {
+	return func(opts *Store) {
+		opts.monitoringInterval = value
+	}
+}
+
+// WithMaxRecordsPerInterval sets the maximum number of anchor status records to
+// process per monitoring interval.
+func WithMaxRecordsPerInterval(value int) Option {
+	return func(opts *Store) {
+		opts.maxRecordsPerInterval = value
+	}
+}
+
 type policyHandler interface {
 	CheckPolicy(anchorID string) error
 }
@@ -67,8 +85,14 @@ func (s *noopPolicyHandler) CheckPolicy(_ string) error {
 	return nil
 }
 
+type taskManager interface {
+	RegisterTaskEx(taskType string, interval time.Duration, task func() time.Duration)
+}
+
 // New creates new anchor event status store.
-func New(provider storage.Provider, expiryService *expiry.Service, maxWitnessDelay time.Duration, opts ...Option) (*Store, error) {
+func New(provider storage.Provider, taskMgr taskManager, expiryService *expiry.Service,
+	maxWitnessDelay time.Duration, opts ...Option,
+) (*Store, error) {
 	s, err := store.Open(provider, namespace,
 		store.NewTagGroup(anchorIDTagName, statusTagName),
 		store.NewTagGroup(expiryTimeTagName),
@@ -81,11 +105,15 @@ func New(provider storage.Provider, expiryService *expiry.Service, maxWitnessDel
 	expiryService.Register(s, expiryTimeTagName, namespace)
 
 	anchorEventStatusStore := &Store{
+		Lifecycle: lifecycle.New("anchor-status-store"),
+
 		store:          s,
 		statusLifespan: maxWitnessDelay + delta,
 
 		policyHandler:              &noopPolicyHandler{},
 		checkStatusAfterTimePeriod: defaultCheckStatusAfterTimePeriod,
+		monitoringInterval:         defaultMonitoringInterval,
+		maxRecordsPerInterval:      defaultMaxRecordsPerInterval,
 
 		marshal:   json.Marshal,
 		unmarshal: json.Unmarshal,
@@ -95,16 +123,25 @@ func New(provider storage.Provider, expiryService *expiry.Service, maxWitnessDel
 		opt(anchorEventStatusStore)
 	}
 
+	taskMgr.RegisterTaskEx("anchor-status-monitor", anchorEventStatusStore.monitoringInterval,
+		anchorEventStatusStore.CheckInProcessAnchors)
+
+	anchorEventStatusStore.Start()
+
 	return anchorEventStatusStore, nil
 }
 
 // Store is db implementation of anchor index status store.
 type Store struct {
+	*lifecycle.Lifecycle
+
 	store          storage.Store
 	statusLifespan time.Duration
 
 	policyHandler              policyHandler
+	monitoringInterval         time.Duration
 	checkStatusAfterTimePeriod time.Duration
+	maxRecordsPerInterval      int
 
 	marshal   func(v interface{}) ([]byte, error)
 	unmarshal func(data []byte, v interface{}) error
@@ -315,7 +352,7 @@ func (s *Store) GetStatus(anchorID string) (proof.AnchorIndexStatus, error) {
 }
 
 // CheckInProcessAnchors will be invoked to check for incomplete (not processed) anchors.
-func (s *Store) CheckInProcessAnchors() {
+func (s *Store) CheckInProcessAnchors() time.Duration {
 	query := fmt.Sprintf("%s:%s&&%s<=%d", statusTagName, proof.AnchorIndexStatusInProcess,
 		statusCheckTimeTagName, time.Now().Unix())
 
@@ -323,7 +360,7 @@ func (s *Store) CheckInProcessAnchors() {
 	if e != nil {
 		logger.Error("Failed to query anchor status store", log.WithError(e))
 
-		return
+		return 0
 	}
 
 	defer store.CloseIterator(iterator)
@@ -332,10 +369,26 @@ func (s *Store) CheckInProcessAnchors() {
 	if e != nil {
 		logger.Error("Failed to get next value from iterator", log.WithError(e))
 
-		return
+		return 0
 	}
 
+	numProcessed := 0
+
 	for more {
+		if s.State() != lifecycle.StateStarted {
+			logger.Info("Anchor status service is not in state 'started'. Exiting.")
+
+			return 0
+		}
+
+		if numProcessed >= s.maxRecordsPerInterval {
+			logger.Info("Reached the maximum number of anchor status records per interval. Exiting.",
+				logfields.WithRecordsProcessed(numProcessed))
+
+			// Since we know we have more records, the next run time will be sooner.
+			return s.monitoringInterval / 3
+		}
+
 		statusBytes, e := iterator.Value()
 		if e != nil {
 			logger.Error("Failed to get status from iterator", log.WithError(e))
@@ -357,13 +410,17 @@ func (s *Store) CheckInProcessAnchors() {
 			logger.Error("Failed to process anchor index", log.WithError(e))
 		}
 
+		numProcessed++
+
 		more, e = iterator.Next()
 		if e != nil {
 			logger.Error("Failed to get next value from iterator", log.WithError(e))
 
-			return
+			return 0
 		}
 	}
+
+	return 0
 }
 
 func (s *Store) processIndex(encodedAnchorID string) error {

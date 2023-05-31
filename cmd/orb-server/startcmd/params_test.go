@@ -839,6 +839,19 @@ func TestStartCmdWithMissingArg(t *testing.T) {
 		require.Contains(t, err.Error(), "invalid value for anchor-status-monitoring-interval [xxx]")
 	})
 
+	t.Run("anchor status max records", func(t *testing.T) {
+		restoreEnv := setEnv(t, anchorStatusMaxRecordsEnvKey, "xxx")
+		defer restoreEnv()
+
+		startCmd := GetStartCmd()
+
+		startCmd.SetArgs(getTestArgs("localhost:8081", "local", "false", databaseTypeMemOption))
+
+		err := startCmd.Execute()
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid value for anchor-status-max-records [xxx]")
+	})
+
 	t.Run("anchor status in-process grace period", func(t *testing.T) {
 		restoreEnv := setEnv(t, anchorStatusInProcessGracePeriodEnvKey, "xxx")
 		defer restoreEnv()

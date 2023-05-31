@@ -151,7 +151,7 @@ const (
 	FieldMaxActivitiesToSync      = "maxActivitiesToSync"
 	FieldNumActivitiesSynced      = "numActivitiesSynced"
 	FieldNextActivitySyncInterval = "nextActivitySyncInterval"
-	FieldMaxProofMonitorRecords   = "maxProofMonitorRecords"
+	FieldRecordsProcessed         = "recordsProcessed"
 )
 
 // WithMessageID sets the message-id field.
@@ -905,9 +905,9 @@ func WithNextActivitySyncInterval(value time.Duration) zap.Field {
 	return zap.Duration(FieldNextActivitySyncInterval, value)
 }
 
-// WithMaxProofMonitorRecords sets the maxProofMonitorRecords field.
-func WithMaxProofMonitorRecords(value int) zap.Field {
-	return zap.Int(FieldMaxProofMonitorRecords, value)
+// WithRecordsProcessed sets the recordsProcessed field.
+func WithRecordsProcessed(value int) zap.Field {
+	return zap.Int(FieldRecordsProcessed, value)
 }
 
 type jsonMarshaller struct {

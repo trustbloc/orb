@@ -22,6 +22,7 @@ import (
 	orberrors "github.com/trustbloc/orb/pkg/errors"
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	"github.com/trustbloc/orb/pkg/internal/testutil/mongodbtestutil"
+	"github.com/trustbloc/orb/pkg/store/expiry"
 	"github.com/trustbloc/orb/pkg/store/mocks"
 )
 
@@ -32,10 +33,14 @@ const (
 )
 
 func TestNew(t *testing.T) {
+	taskMgr := testutil.GetTaskMgr(t)
+
+	expiryService := expiry.NewService(taskMgr, time.Second)
+
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 		require.NotNil(t, s)
 	})
@@ -44,7 +49,7 @@ func TestNew(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(nil, fmt.Errorf("open store error"))
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "open store [anchor-status]: open store error")
 		require.Nil(t, s)
@@ -54,7 +59,7 @@ func TestNew(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.SetStoreConfigReturns(fmt.Errorf("set store config error"))
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "set store configuration for [anchor-status]: set store config error")
 		require.Nil(t, s)
@@ -62,10 +67,14 @@ func TestNew(t *testing.T) {
 }
 
 func TestStore_Put(t *testing.T) {
+	taskMgr := testutil.GetTaskMgr(t)
+
+	expiryService := expiry.NewService(taskMgr, time.Second)
+
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		err = s.AddStatus(vcID, proof.AnchorIndexStatusInProcess)
@@ -75,7 +84,7 @@ func TestStore_Put(t *testing.T) {
 	t.Run("error - marshal error", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		errExpected := errors.New("injected marshal error")
@@ -96,7 +105,7 @@ func TestStore_Put(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		err = s.AddStatus(vcID, proof.AnchorIndexStatusInProcess)
@@ -106,10 +115,14 @@ func TestStore_Put(t *testing.T) {
 }
 
 func TestStore_Get(t *testing.T) {
+	taskMgr := testutil.GetTaskMgr(t)
+
+	expiryService := expiry.NewService(taskMgr, time.Second)
+
 	t.Run("success - in process", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		err = s.AddStatus(vcID, proof.AnchorIndexStatusInProcess)
@@ -123,7 +136,7 @@ func TestStore_Get(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		err = s.AddStatus(vcID, proof.AnchorIndexStatusInProcess)
@@ -140,7 +153,7 @@ func TestStore_Get(t *testing.T) {
 	t.Run("error - unmarshal error", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		errExpected := errors.New("injected unmarshal error")
@@ -160,7 +173,7 @@ func TestStore_Get(t *testing.T) {
 	t.Run("error - not found", func(t *testing.T) {
 		provider := mem.NewProvider()
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		status, err := s.GetStatus(vcID)
@@ -177,7 +190,7 @@ func TestStore_Get(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		status, err := s.GetStatus(vcID)
@@ -196,7 +209,7 @@ func TestStore_Get(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		status, err := s.GetStatus(vcID)
@@ -217,7 +230,7 @@ func TestStore_Get(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		status, err := s.GetStatus(vcID)
@@ -228,6 +241,10 @@ func TestStore_Get(t *testing.T) {
 }
 
 func TestStore_CheckInProcessAnchors(t *testing.T) {
+	taskMgr := testutil.GetTaskMgr(t)
+
+	expiryService := expiry.NewService(taskMgr, time.Second)
+
 	t.Run("success - in process(time not past status check time)", func(t *testing.T) {
 		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
 		defer stopMongo()
@@ -235,13 +252,13 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
 		require.NoError(t, err)
 
-		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(mongoDBProvider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		err = s.AddStatus(vcID, proof.AnchorIndexStatusInProcess)
 		require.NoError(t, err)
 
-		s.CheckInProcessAnchors()
+		require.Equal(t, time.Duration(0), s.CheckInProcessAnchors())
 	})
 
 	t.Run("success - no incomplete records", func(t *testing.T) {
@@ -251,14 +268,14 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
 		require.NoError(t, err)
 
-		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(mongoDBProvider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		s.checkStatusAfterTimePeriod = time.Second
 
 		time.Sleep(2 * time.Second)
 
-		s.CheckInProcessAnchors()
+		require.Equal(t, time.Duration(0), s.CheckInProcessAnchors())
 	})
 
 	t.Run("success - in process(time past status check time, one record)", func(t *testing.T) {
@@ -268,7 +285,7 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
 		require.NoError(t, err)
 
-		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(mongoDBProvider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		s.checkStatusAfterTimePeriod = time.Second
@@ -278,7 +295,30 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 
 		time.Sleep(2 * time.Second)
 
-		s.CheckInProcessAnchors()
+		require.Equal(t, time.Duration(0), s.CheckInProcessAnchors())
+	})
+
+	t.Run("stopped", func(t *testing.T) {
+		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
+		defer stopMongo()
+
+		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
+		require.NoError(t, err)
+
+		s, err := New(mongoDBProvider, taskMgr, expiryService, maxWitnessDelayTime,
+			WithCheckStatusAfterTime(500*time.Millisecond),
+			WithMaxRecordsPerInterval(1),
+			WithMonitoringInterval(9*time.Second))
+		require.NoError(t, err)
+
+		s.Stop()
+
+		err = s.AddStatus(vcID, proof.AnchorIndexStatusInProcess)
+		require.NoError(t, err)
+
+		time.Sleep(time.Second)
+
+		require.Equal(t, time.Duration(0), s.CheckInProcessAnchors())
 	})
 
 	t.Run("success - in process(time past status check time, multiple records)", func(t *testing.T) {
@@ -288,8 +328,10 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
 		require.NoError(t, err)
 
-		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime,
-			WithCheckStatusAfterTime(time.Second))
+		s, err := New(mongoDBProvider, taskMgr, expiryService, maxWitnessDelayTime,
+			WithCheckStatusAfterTime(time.Second),
+			WithMaxRecordsPerInterval(1),
+			WithMonitoringInterval(9*time.Second))
 		require.NoError(t, err)
 
 		err = s.AddStatus(vcID, proof.AnchorIndexStatusCompleted)
@@ -306,7 +348,7 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 
 		time.Sleep(2 * time.Second)
 
-		s.CheckInProcessAnchors()
+		require.Equal(t, 3*time.Second, s.CheckInProcessAnchors())
 	})
 
 	t.Run("success - completed(time past status check time, previously failed to delete in-process)", func(t *testing.T) {
@@ -316,7 +358,7 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
 		require.NoError(t, err)
 
-		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime,
+		s, err := New(mongoDBProvider, taskMgr, expiryService, maxWitnessDelayTime,
 			WithCheckStatusAfterTime(time.Second))
 		require.NoError(t, err)
 
@@ -328,7 +370,7 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 
 		time.Sleep(2 * time.Second)
 
-		s.CheckInProcessAnchors()
+		require.Equal(t, time.Duration(0), s.CheckInProcessAnchors())
 	})
 
 	t.Run("error - process in-complete error", func(t *testing.T) {
@@ -338,7 +380,7 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
 		require.NoError(t, err)
 
-		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime,
+		s, err := New(mongoDBProvider, taskMgr, expiryService, maxWitnessDelayTime,
 			WithCheckStatusAfterTime(time.Second), WithPolicyHandler(&mockPolicyHandler{Err: fmt.Errorf("policy error")}))
 		require.NoError(t, err)
 
@@ -347,7 +389,7 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 
 		time.Sleep(2 * time.Second)
 
-		s.CheckInProcessAnchors()
+		require.Equal(t, time.Duration(0), s.CheckInProcessAnchors())
 	})
 
 	t.Run("process incomplete - witnesses found", func(t *testing.T) {
@@ -357,7 +399,7 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
 		require.NoError(t, err)
 
-		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime,
+		s, err := New(mongoDBProvider, taskMgr, expiryService, maxWitnessDelayTime,
 			WithCheckStatusAfterTime(time.Second),
 			WithPolicyHandler(
 				&mockPolicyHandler{
@@ -372,7 +414,7 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 
 		time.Sleep(2 * time.Second)
 
-		s.CheckInProcessAnchors()
+		require.Equal(t, time.Duration(0), s.CheckInProcessAnchors())
 	})
 
 	t.Run("error - query error ", func(t *testing.T) {
@@ -382,10 +424,10 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
-		s.CheckInProcessAnchors()
+		require.Equal(t, time.Duration(0), s.CheckInProcessAnchors())
 	})
 
 	t.Run("error - iterator next() error ", func(t *testing.T) {
@@ -398,10 +440,10 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
-		s.CheckInProcessAnchors()
+		require.Equal(t, time.Duration(0), s.CheckInProcessAnchors())
 	})
 
 	t.Run("error - iterator second next() error ", func(t *testing.T) {
@@ -416,14 +458,18 @@ func TestStore_CheckInProcessAnchors(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
-		s.CheckInProcessAnchors()
+		require.Equal(t, time.Duration(0), s.CheckInProcessAnchors())
 	})
 }
 
 func TestStore_deleteInProcessStatus(t *testing.T) {
+	taskMgr := testutil.GetTaskMgr(t)
+
+	expiryService := expiry.NewService(taskMgr, time.Second)
+
 	t.Run("success", func(t *testing.T) {
 		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
 		defer stopMongo()
@@ -431,7 +477,7 @@ func TestStore_deleteInProcessStatus(t *testing.T) {
 		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
 		require.NoError(t, err)
 
-		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(mongoDBProvider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		err = s.AddStatus(vcID, proof.AnchorIndexStatusInProcess)
@@ -448,7 +494,7 @@ func TestStore_deleteInProcessStatus(t *testing.T) {
 		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
 		require.NoError(t, err)
 
-		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(mongoDBProvider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		err = s.AddStatus(vcID, proof.AnchorIndexStatusCompleted)
@@ -465,7 +511,7 @@ func TestStore_deleteInProcessStatus(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		err = s.deleteInProcessStatus(vcID)
@@ -483,7 +529,7 @@ func TestStore_deleteInProcessStatus(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		err = s.deleteInProcessStatus(vcID)
@@ -507,7 +553,7 @@ func TestStore_deleteInProcessStatus(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		err = s.deleteInProcessStatus(vcID)
@@ -527,7 +573,7 @@ func TestStore_deleteInProcessStatus(t *testing.T) {
 		provider := &mocks.Provider{}
 		provider.OpenStoreReturns(store, nil)
 
-		s, err := New(provider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(provider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		err = s.deleteInProcessStatus(vcID)
@@ -537,6 +583,10 @@ func TestStore_deleteInProcessStatus(t *testing.T) {
 }
 
 func TestStore_processIndex(t *testing.T) {
+	taskMgr := testutil.GetTaskMgr(t)
+
+	expiryService := expiry.NewService(taskMgr, time.Second)
+
 	t.Run("success", func(t *testing.T) {
 		mongoDBConnString, stopMongo := mongodbtestutil.StartMongoDB(t)
 		defer stopMongo()
@@ -544,7 +594,7 @@ func TestStore_processIndex(t *testing.T) {
 		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
 		require.NoError(t, err)
 
-		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(mongoDBProvider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		err = s.AddStatus(vcID, proof.AnchorIndexStatusInProcess)
@@ -561,7 +611,7 @@ func TestStore_processIndex(t *testing.T) {
 		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
 		require.NoError(t, err)
 
-		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(mongoDBProvider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		err = s.processIndex("/invalid")
@@ -576,7 +626,7 @@ func TestStore_processIndex(t *testing.T) {
 		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
 		require.NoError(t, err)
 
-		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime,
+		s, err := New(mongoDBProvider, taskMgr, expiryService, maxWitnessDelayTime,
 			WithPolicyHandler(&mockPolicyHandler{Err: fmt.Errorf("policy error")}))
 		require.NoError(t, err)
 
@@ -595,7 +645,7 @@ func TestStore_processIndex(t *testing.T) {
 		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
 		require.NoError(t, err)
 
-		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime,
+		s, err := New(mongoDBProvider, taskMgr, expiryService, maxWitnessDelayTime,
 			WithPolicyHandler(&mockPolicyHandler{Err: fmt.Errorf("policy error")}))
 		require.NoError(t, err)
 
@@ -610,7 +660,7 @@ func TestStore_processIndex(t *testing.T) {
 		mongoDBProvider, err := mongodb.NewProvider(mongoDBConnString)
 		require.NoError(t, err)
 
-		s, err := New(mongoDBProvider, testutil.GetExpiryService(t), maxWitnessDelayTime)
+		s, err := New(mongoDBProvider, taskMgr, expiryService, maxWitnessDelayTime)
 		require.NoError(t, err)
 
 		err = s.AddStatus(vcID, proof.AnchorIndexStatusCompleted)

@@ -86,7 +86,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = aeStore.Put(al)
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = statusStore.AddStatus(al.Anchor().String(), proofapi.AnchorIndexStatusInProcess)
@@ -131,7 +131,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = aeStore.Put(al)
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = statusStore.AddStatus(al.Anchor().String(), proofapi.AnchorIndexStatusInProcess)
@@ -181,7 +181,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = aeStore.Put(al)
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = statusStore.AddStatus(al.Anchor().String(), proofapi.AnchorIndexStatusInProcess)
@@ -231,7 +231,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = aeStore.Put(al)
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = statusStore.AddStatus(al.Anchor().String(), proofapi.AnchorIndexStatusCompleted)
@@ -265,7 +265,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = aeStore.Put(al)
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = statusStore.AddStatus(al.Anchor().String(), proofapi.AnchorIndexStatusInProcess)
@@ -314,7 +314,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = aeStore.Put(al)
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = statusStore.AddStatus(al.Anchor().String(), proofapi.AnchorIndexStatusCompleted)
@@ -349,7 +349,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = aeStore.Put(al)
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = statusStore.AddStatus(al.Anchor().String(), proofapi.AnchorIndexStatusInProcess)
@@ -408,7 +408,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = aeStore.Put(al)
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = statusStore.AddStatus(al.Anchor().String(), proofapi.AnchorIndexStatusInProcess)
@@ -459,7 +459,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = aeStore.Put(al)
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = statusStore.AddStatus(al.Anchor().String(), proofapi.AnchorIndexStatusInProcess)
@@ -678,7 +678,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = aeStore.Put(al)
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = statusStore.AddStatus(al.Anchor().String(), proofapi.AnchorIndexStatusInProcess)
@@ -715,7 +715,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = aeStore.Put(al)
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -744,7 +744,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		aeStore, err := anchorlinkstore.New(provider)
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = statusStore.AddStatus(anchorID, proofapi.AnchorIndexStatusInProcess)
@@ -779,7 +779,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = aeStore.Put(al)
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = statusStore.AddStatus(al.Anchor().String(), proofapi.AnchorIndexStatusInProcess)
@@ -815,7 +815,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		err = aeStore.Put(al)
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = statusStore.AddStatus(al.Anchor().String(), proofapi.AnchorIndexStatusInProcess)
@@ -842,7 +842,7 @@ func TestWitnessProofHandler(t *testing.T) {
 		aeStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		err = statusStore.AddStatus(anchorID, proofapi.AnchorIndexStatusInProcess)

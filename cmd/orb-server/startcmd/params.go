@@ -130,8 +130,9 @@ const (
 	defaultVCTLogMonitoringMaxTreeSize      = 50000
 	defaultVCTLogMonitoringGetEntriesRange  = 1000
 	defaultVCTLogEntriesStoreEnabled        = false
-	defaultAnchorStatusMonitoringInterval   = 5 * time.Second
-	defaultAnchorStatusInProcessGracePeriod = 30 * time.Second
+	defaultAnchorStatusMonitoringInterval   = 10 * time.Second
+	defaultAnchorStatusMaxRecords           = 500
+	defaultAnchorStatusInProcessGracePeriod = time.Minute
 	mqDefaultMaxConnectionSubscriptions     = 1000
 	mqDefaultPublisherChannelPoolSize       = 25
 	mqDefaultPublisherConfirmDelivery       = true
@@ -225,6 +226,12 @@ const (
 	anchorStatusMonitoringIntervalFlagUsage = "The interval in which 'in-process' anchors are monitored to ensure that they will be " +
 		"witnessed(completed) as per policy. Defaults to 5s if not set. " +
 		commonEnvVarUsageText + anchorStatusMonitoringIntervalEnvKey
+
+	anchorStatusMaxRecordsFlagName  = "anchor-status-max-records"
+	anchorStatusMaxRecordsEnvKey    = "ANCHOR_STATUS_MAX_RECORDS"
+	anchorStatusMaxRecordsFlagUsage = "The maximum number of anchor status records to process per monitoring interval " +
+		"Defaults to 500 if not set. " +
+		commonEnvVarUsageText + anchorStatusMaxRecordsEnvKey
 
 	anchorStatusInProcessGracePeriodFlagName  = "anchor-status-in-process-grace-period"
 	anchorStatusInProcessGracePeriodEnvKey    = "ANCHOR_STATUS_IN_PROCESS_GRACE_PERIOD"
@@ -764,47 +771,46 @@ type tlsParameters struct {
 }
 
 type orbParameters struct {
-	http                             *httpParams
-	sidetree                         *sidetreeParams
-	apServiceParams                  *apServiceParams
-	discoveryDomain                  string
-	dataURIMediaType                 datauri.MediaType
-	batchWriterTimeout               time.Duration
-	cas                              *casParams
-	mqParams                         *mqParams
-	opQueueParams                    *opqueue.Config
-	dbParameters                     *dbParameters
-	logLevel                         string
-	methodContext                    []string
-	baseEnabled                      bool
-	allowedOrigins                   []string
-	allowedOriginsCacheExpiration    time.Duration
-	anchorCredentialParams           *anchorCredentialParams
-	discovery                        *discoveryParams
-	witnessProof                     *witnessProofParams
-	syncTimeout                      uint64
-	didDiscoveryEnabled              bool
-	unpublishedOperations            *unpublishedOperationsStoreParams
-	resolveFromAnchorOrigin          bool
-	verifyLatestFromAnchorOrigin     bool
-	activityPub                      *activityPubParams
-	auth                             *authParams
-	enableDevMode                    bool
-	enableMaintenanceMode            bool
-	enableVCT                        bool
-	nodeInfoRefreshInterval          time.Duration
-	contextProviderURLs              []string
-	dataExpiryCheckInterval          time.Duration
-	taskMgrCheckInterval             time.Duration
-	vct                              *vctParams
-	anchorStatusMonitoringInterval   time.Duration
-	anchorStatusInProcessGracePeriod time.Duration
-	witnessPolicyCacheExpiration     time.Duration
-	kmsParams                        *kmsParameters
-	requestTokens                    map[string]string
-	allowedDIDWebDomains             []*url.URL
-	observability                    *observabilityParams
-	anchorRefPendingRecordLifespan   time.Duration
+	http                           *httpParams
+	sidetree                       *sidetreeParams
+	apServiceParams                *apServiceParams
+	discoveryDomain                string
+	dataURIMediaType               datauri.MediaType
+	batchWriterTimeout             time.Duration
+	cas                            *casParams
+	mqParams                       *mqParams
+	opQueueParams                  *opqueue.Config
+	dbParameters                   *dbParameters
+	logLevel                       string
+	methodContext                  []string
+	baseEnabled                    bool
+	allowedOrigins                 []string
+	allowedOriginsCacheExpiration  time.Duration
+	anchorCredentialParams         *anchorCredentialParams
+	discovery                      *discoveryParams
+	witnessProof                   *witnessProofParams
+	syncTimeout                    uint64
+	didDiscoveryEnabled            bool
+	unpublishedOperations          *unpublishedOperationsStoreParams
+	resolveFromAnchorOrigin        bool
+	verifyLatestFromAnchorOrigin   bool
+	activityPub                    *activityPubParams
+	auth                           *authParams
+	enableDevMode                  bool
+	enableMaintenanceMode          bool
+	enableVCT                      bool
+	nodeInfoRefreshInterval        time.Duration
+	contextProviderURLs            []string
+	dataExpiryCheckInterval        time.Duration
+	taskMgrCheckInterval           time.Duration
+	vct                            *vctParams
+	anchorStatus                   *anchorStatusParams
+	witnessPolicyCacheExpiration   time.Duration
+	kmsParams                      *kmsParameters
+	requestTokens                  map[string]string
+	allowedDIDWebDomains           []*url.URL
+	observability                  *observabilityParams
+	anchorRefPendingRecordLifespan time.Duration
 }
 
 type observabilityParams struct {
@@ -1127,16 +1133,9 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 		return nil, err
 	}
 
-	anchorStatusMonitoringInterval, err := cmdutil.GetDuration(cmd, anchorStatusMonitoringIntervalFlagName,
-		anchorStatusMonitoringIntervalEnvKey, defaultAnchorStatusMonitoringInterval)
+	anchorStatusParams, err := getAnchorStatusParams(cmd)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", anchorStatusMonitoringIntervalFlagName, err)
-	}
-
-	anchorStatusInProcessGracePeriod, err := cmdutil.GetDuration(cmd, anchorStatusInProcessGracePeriodFlagName,
-		anchorStatusInProcessGracePeriodEnvKey, defaultAnchorStatusInProcessGracePeriod)
-	if err != nil {
-		return nil, fmt.Errorf("%s: %w", anchorStatusInProcessGracePeriodFlagName, err)
+		return nil, err
 	}
 
 	witnessPolicyCacheExpiration, err := cmdutil.GetDuration(cmd, witnessPolicyCacheExpirationFlagName,
@@ -1161,45 +1160,44 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	}
 
 	return &orbParameters{
-		http:                             httpParams,
-		sidetree:                         sidetreeParams,
-		discoveryDomain:                  discoveryDomain,
-		apServiceParams:                  apServiceParams,
-		allowedOrigins:                   allowedOrigins,
-		allowedOriginsCacheExpiration:    allowedOriginsCacheExpiration,
-		allowedDIDWebDomains:             allowedDIDWebDomains,
-		cas:                              casParams,
-		mqParams:                         mqParams,
-		opQueueParams:                    opQueueParams,
-		batchWriterTimeout:               batchWriterTimeout,
-		anchorCredentialParams:           anchorCredentialParams,
-		logLevel:                         loggingLevel,
-		dbParameters:                     dbParams,
-		discovery:                        discoveryParams,
-		witnessProof:                     witnessProofParams,
-		syncTimeout:                      syncTimeout,
-		didDiscoveryEnabled:              didDiscoveryEnabled,
-		unpublishedOperations:            unpublishedOperationsParams,
-		resolveFromAnchorOrigin:          resolveFromAnchorOrigin,
-		verifyLatestFromAnchorOrigin:     verifyLatestFromAnchorOrigin,
-		auth:                             authParams,
-		activityPub:                      activityPubParams,
-		enableDevMode:                    enableDevMode,
-		enableMaintenanceMode:            enableMaintenanceMode,
-		enableVCT:                        enableVCT,
-		nodeInfoRefreshInterval:          nodeInfoRefreshInterval,
-		contextProviderURLs:              contextProviderURLs,
-		dataExpiryCheckInterval:          dataExpiryCheckInterval,
-		taskMgrCheckInterval:             taskMgrCheckInterval,
-		vct:                              vctParams,
-		anchorStatusMonitoringInterval:   anchorStatusMonitoringInterval,
-		anchorStatusInProcessGracePeriod: anchorStatusInProcessGracePeriod,
-		witnessPolicyCacheExpiration:     witnessPolicyCacheExpiration,
-		dataURIMediaType:                 dataURIMediaType,
-		kmsParams:                        kmsParams,
-		requestTokens:                    requestTokens,
-		observability:                    observabilityParams,
-		anchorRefPendingRecordLifespan:   anchorRefPendingRecordLifespan,
+		http:                           httpParams,
+		sidetree:                       sidetreeParams,
+		discoveryDomain:                discoveryDomain,
+		apServiceParams:                apServiceParams,
+		allowedOrigins:                 allowedOrigins,
+		allowedOriginsCacheExpiration:  allowedOriginsCacheExpiration,
+		allowedDIDWebDomains:           allowedDIDWebDomains,
+		cas:                            casParams,
+		mqParams:                       mqParams,
+		opQueueParams:                  opQueueParams,
+		batchWriterTimeout:             batchWriterTimeout,
+		anchorCredentialParams:         anchorCredentialParams,
+		logLevel:                       loggingLevel,
+		dbParameters:                   dbParams,
+		discovery:                      discoveryParams,
+		witnessProof:                   witnessProofParams,
+		syncTimeout:                    syncTimeout,
+		didDiscoveryEnabled:            didDiscoveryEnabled,
+		unpublishedOperations:          unpublishedOperationsParams,
+		resolveFromAnchorOrigin:        resolveFromAnchorOrigin,
+		verifyLatestFromAnchorOrigin:   verifyLatestFromAnchorOrigin,
+		auth:                           authParams,
+		activityPub:                    activityPubParams,
+		enableDevMode:                  enableDevMode,
+		enableMaintenanceMode:          enableMaintenanceMode,
+		enableVCT:                      enableVCT,
+		nodeInfoRefreshInterval:        nodeInfoRefreshInterval,
+		contextProviderURLs:            contextProviderURLs,
+		dataExpiryCheckInterval:        dataExpiryCheckInterval,
+		taskMgrCheckInterval:           taskMgrCheckInterval,
+		vct:                            vctParams,
+		anchorStatus:                   anchorStatusParams,
+		witnessPolicyCacheExpiration:   witnessPolicyCacheExpiration,
+		dataURIMediaType:               dataURIMediaType,
+		kmsParams:                      kmsParams,
+		requestTokens:                  requestTokens,
+		observability:                  observabilityParams,
+		anchorRefPendingRecordLifespan: anchorRefPendingRecordLifespan,
 	}, nil
 }
 
@@ -1692,6 +1690,38 @@ func getActivityPubIRICacheParameters(cmd *cobra.Command) (int, time.Duration, e
 		expirationEnvKey:  activityPubIRICacheExpirationEnvKey,
 		defaultExpiration: defaultActivityPubIRICacheExpiration,
 	})
+}
+
+type anchorStatusParams struct {
+	monitoringInterval    time.Duration
+	maxRecordsPerInterval int
+	inProcessGracePeriod  time.Duration
+}
+
+func getAnchorStatusParams(cmd *cobra.Command) (*anchorStatusParams, error) {
+	monitoringInterval, err := cmdutil.GetDuration(cmd, anchorStatusMonitoringIntervalFlagName,
+		anchorStatusMonitoringIntervalEnvKey, defaultAnchorStatusMonitoringInterval)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", anchorStatusMonitoringIntervalFlagName, err)
+	}
+
+	maxRecords, err := cmdutil.GetInt(cmd, anchorStatusMaxRecordsFlagName,
+		anchorStatusMaxRecordsEnvKey, defaultAnchorStatusMaxRecords)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", anchorStatusMaxRecordsFlagName, err)
+	}
+
+	inProcessGracePeriod, err := cmdutil.GetDuration(cmd, anchorStatusInProcessGracePeriodFlagName,
+		anchorStatusInProcessGracePeriodEnvKey, defaultAnchorStatusInProcessGracePeriod)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", anchorStatusInProcessGracePeriodFlagName, err)
+	}
+
+	return &anchorStatusParams{
+		monitoringInterval:    monitoringInterval,
+		maxRecordsPerInterval: maxRecords,
+		inProcessGracePeriod:  inProcessGracePeriod,
+	}, nil
 }
 
 func getAllowedDIDWebDomains(cmd *cobra.Command) ([]*url.URL, error) {
@@ -2449,6 +2479,7 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(vctLogMonitoringGetEntriesRangeFlagName, "", "", vctLogMonitoringGetEntriesRangeFlagUsage)
 	startCmd.Flags().StringP(vctLogEntriesStoreEnabledFlagName, "", "", vctLogEntriesStoreEnabledFlagUsage)
 	startCmd.Flags().StringP(anchorStatusMonitoringIntervalFlagName, "", "", anchorStatusMonitoringIntervalFlagUsage)
+	startCmd.Flags().StringP(anchorStatusMaxRecordsFlagName, "", "", anchorStatusMaxRecordsFlagUsage)
 	startCmd.Flags().StringP(anchorStatusInProcessGracePeriodFlagName, "", "", anchorStatusInProcessGracePeriodFlagUsage)
 	startCmd.Flags().StringP(witnessPolicyCacheExpirationFlagName, "", "", witnessPolicyCacheExpirationFlagUsage)
 	startCmd.Flags().StringP(activityPubClientCacheSizeFlagName, "", "", activityPubClientCacheSizeFlagUsage)

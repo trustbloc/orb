@@ -807,14 +807,16 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create witness policy inspector: %s", err.Error())
 	}
 
-	anchorEventStatusStore, err := anchorstatus.New(storeProviders.provider, expiryService,
-		parameters.witnessProof.maxWitnessDelay, anchorstatus.WithPolicyHandler(policyInspector),
-		anchorstatus.WithCheckStatusAfterTime(parameters.anchorStatusInProcessGracePeriod))
+	anchorEventStatusStore, err := anchorstatus.New(storeProviders.provider, taskMgr, expiryService,
+		parameters.witnessProof.maxWitnessDelay,
+		anchorstatus.WithPolicyHandler(policyInspector),
+		anchorstatus.WithMonitoringInterval(parameters.anchorStatus.monitoringInterval),
+		anchorstatus.WithMaxRecordsPerInterval(parameters.anchorStatus.maxRecordsPerInterval),
+		anchorstatus.WithCheckStatusAfterTime(parameters.anchorStatus.inProcessGracePeriod),
+	)
 	if err != nil {
 		return fmt.Errorf("failed to create vc status store: %s", err.Error())
 	}
-
-	taskMgr.RegisterTask("anchor-status-monitor", parameters.anchorStatusMonitoringInterval, anchorEventStatusStore.CheckInProcessAnchors)
 
 	pubSub := newPubSub(parameters)
 
@@ -1196,7 +1198,8 @@ func startOrbServices(parameters *orbParameters) error {
 	)
 
 	err = run(httpServer, activityPubService, opQueue, obsrv, batchWriter, taskMgr, apClient,
-		nodeInfoService, newMPLifecycleWrapper(mp), tracerProvider, proofMonitoringSvc)
+		nodeInfoService, newMPLifecycleWrapper(mp), tracerProvider, proofMonitoringSvc,
+		anchorEventStatusStore)
 	if err != nil {
 		return err
 	}

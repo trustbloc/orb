@@ -118,9 +118,8 @@ func GetLoader(t *testing.T) *ld.DocumentLoader {
 	return documentLoader
 }
 
-// GetExpiryService returns test expiry service object. For most tests, the expiry service used doesn't really matter
-// this object is just needed to ensure that no nil pointer errors happen when initializing the store.
-func GetExpiryService(t *testing.T) *expiry.Service {
+// GetTaskMgr returns a test task manager service.
+func GetTaskMgr(t *testing.T) *taskmgr.Manager {
 	t.Helper()
 
 	const checkInterval = 500 * time.Millisecond
@@ -128,7 +127,13 @@ func GetExpiryService(t *testing.T) *expiry.Service {
 	coordinationStore, err := mem.NewProvider().OpenStore("coordination")
 	require.NoError(t, err)
 
-	taskMgr := taskmgr.New(coordinationStore, checkInterval)
+	return taskmgr.New(coordinationStore, checkInterval)
+}
 
-	return expiry.NewService(taskMgr, time.Second)
+// GetExpiryService returns test expiry service object. For most tests, the expiry service used doesn't really matter
+// this object is just needed to ensure that no nil pointer errors happen when initializing the store.
+func GetExpiryService(t *testing.T) *expiry.Service {
+	t.Helper()
+
+	return expiry.NewService(GetTaskMgr(t), time.Second)
 }
