@@ -71,10 +71,11 @@ services:
 
   orb.vct:
     container_name: orb.vct
-    image: ghcr.io/trustbloc/vct:v1.0.0-rc.1
+    image: ghcr.io/trustbloc/vct:v1.0.0-rc5
     restart: always
     environment:
       - VCT_API_HOST=0.0.0.0:8077
+      - VCT_BASE_URL=http://orb.vct:8077
       - VCT_LOGS=maple2022:rw@orb.trillian.log.server:8090
       - VCT_KMS_TYPE=local
       - VCT_CONTEXT_PROVIDER_URL=http://orb.file-server.com:12096/ld-contexts.json
@@ -93,7 +94,7 @@ services:
 
   orb.trillian.log.server:
     container_name: orb.trillian.log.server
-    image: ghcr.io/trustbloc/vct-log-server:v1.0.0-rc.1
+    image: ghcr.io/trustbloc/vct-log-server:v1.0.0-rc5
     restart: always
     command:
       - --quota_system=noop
@@ -110,7 +111,7 @@ services:
 
   orb.trillian.log.signer:
     container_name: orb.trillian.log.signer
-    image: ghcr.io/trustbloc/vct-log-signer:v1.0.0-rc.1
+    image: ghcr.io/trustbloc/vct-log-signer:v1.0.0-rc5
     restart: always
     command:
       - --quota_system=noop
