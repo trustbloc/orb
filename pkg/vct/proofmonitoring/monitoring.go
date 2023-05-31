@@ -65,7 +65,7 @@ type Client struct {
 }
 
 type taskManager interface {
-	RegisterTask(taskType string, interval time.Duration, task func())
+	RegisterTaskEx(taskType string, interval time.Duration, task func() time.Duration)
 }
 
 type options struct {
@@ -125,7 +125,7 @@ func New(provider storage.Provider, documentLoader ld.DocumentLoader, wfClient w
 	logger.Info("Registering task with Task Manager", logfields.WithTaskID(taskID),
 		logfields.WithTaskMonitorInterval(options.monitoringInterval))
 
-	taskMgr.RegisterTask(taskID, options.monitoringInterval, client.worker)
+	taskMgr.RegisterTaskEx(taskID, options.monitoringInterval, client.worker)
 
 	return client, nil
 }
@@ -188,10 +188,13 @@ func (c *Client) exist(e *entity) error {
 	return nil
 }
 
-func (c *Client) worker() {
-	if err := c.handleEntities(); err != nil {
+func (c *Client) worker() time.Duration {
+	nextInterval, err := c.handleEntities()
+	if err != nil {
 		logger.Error("Error handling entities", log.WithError(err))
 	}
+
+	return nextInterval
 }
 
 // Next is helper function that simplifies the usage of the iterator.
@@ -206,18 +209,12 @@ func Next(records interface{ Next() (bool, error) }) bool {
 	return ok
 }
 
-func (c *Client) handleEntities() error {
-	if c.Lifecycle.State() != lifecycle.StateStarted {
-		logger.Info("Proof monitor service is not in state 'started'. Exiting.")
-
-		return nil
-	}
-
+func (c *Client) handleEntities() (time.Duration, error) {
 	expr := fmt.Sprintf("%s:%s", tagStatus, statusUnconfirmed)
 
 	it, err := c.store.Query(expr)
 	if err != nil {
-		return fmt.Errorf("query %s: %w", expr, err)
+		return 0, fmt.Errorf("query %s: %w", expr, err)
 	}
 
 	defer store.CloseIterator(it)
@@ -228,20 +225,21 @@ func (c *Client) handleEntities() error {
 		if c.Lifecycle.State() != lifecycle.StateStarted {
 			logger.Info("Proof monitor service is not in state 'started'. Exiting.")
 
-			return nil
+			return 0, nil
 		}
 
 		if numProcessed >= c.maxRecordsPerInterval {
 			logger.Info("Reached the maximum number of proof monitor records per interval. Exiting.",
-				logfields.WithMaxProofMonitorRecords(c.maxRecordsPerInterval))
+				logfields.WithRecordsProcessed(numProcessed))
 
-			return nil
+			// Since we know we have more records, the next run time will be sooner.
+			return c.monitoringInterval / 3, nil
 		}
 
 		var src []byte
 
 		if src, err = it.Value(); err != nil {
-			return fmt.Errorf("get entity value: %w", err)
+			return 0, fmt.Errorf("get entity value: %w", err)
 		}
 
 		numProcessed++
@@ -294,7 +292,7 @@ func (c *Client) handleEntities() error {
 		}
 	}
 
-	return nil
+	return 0, nil
 }
 
 // Watch starts monitoring.

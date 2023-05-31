@@ -156,7 +156,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorEventStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -210,7 +210,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorEventStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -266,7 +266,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorEventStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -323,7 +323,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		wit := &mockWitness{proofBytes: []byte(`{"proof": {"domain":"domain","created": "2021-02-23T19:36:07Z"}}`)}
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -523,7 +523,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorEventStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -800,7 +800,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorEventStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -856,7 +856,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorEventStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -904,7 +904,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorEventStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		activityStore := memstore.New("")
@@ -976,7 +976,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 		anchorEventStore, err := anchorlinkstore.New(mem.NewProvider())
 		require.NoError(t, err)
 
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		activityStore := memstore.New("")
@@ -1369,7 +1369,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 	require.NotNil(t, anchorLink)
 
 	t.Run("success", func(t *testing.T) {
-		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+		statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 		require.NoError(t, err)
 
 		providers := &Providers{
@@ -1436,7 +1436,7 @@ func TestWriter_postOfferActivity(t *testing.T) {
 				errors.New("injected WebFinger client error"))
 			wfClientWithErr.HasSupportedLedgerTypeReturnsOnCall(4, true, nil)
 
-			statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetExpiryService(t), time.Minute)
+			statusStore, err := anchorstatus.New(mem.NewProvider(), testutil.GetTaskMgr(t), testutil.GetExpiryService(t), time.Minute)
 			require.NoError(t, err)
 
 			providers := &Providers{
