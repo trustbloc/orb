@@ -34,7 +34,7 @@ require (
 	github.com/stretchr/testify v1.8.2
 	github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344
 	github.com/trustbloc/logutil-go v1.0.0-rc1
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc5
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc5.0.20230602183030-41b2f35eb5d1
 	github.com/trustbloc/vct v1.0.0-rc5
 	go.mongodb.org/mongo-driver v1.9.1
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.40.0

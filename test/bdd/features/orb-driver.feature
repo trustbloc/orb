@@ -13,7 +13,7 @@ Feature: Using Orb driver
     And host "orb.domain3.com" is mapped to "localhost:48626"
 
     Given anchor origin for host "orb.domain1.com" is set to "https://orb.domain1.com"
-    And anchor origin for host "orb.domain2.com" is set to "https://orb.domain1.com"
+    And anchor origin for host "orb.domain2.com" is set to "did:web:orb.domain2.com:services:orb"
     And anchor origin for host "orb.domain3.com" is set to "https://orb.domain3.com"
 
     Given the authorization bearer token for "POST" requests to path "/log" is set to "ADMIN_TOKEN"

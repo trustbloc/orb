@@ -30,7 +30,7 @@ func TestRegistry(t *testing.T) {
 	f := &frmocks.ProtocolFactory{}
 	f.CreateReturns(&coremocks.ProtocolVersion{}, nil)
 
-	r := New()
+	r := New(false)
 
 	require.NotPanics(t, func() { r.Register(version, f) })
 	require.PanicsWithError(t, "protocol version factory [0.1] already registered", func() { r.Register(version, f) })

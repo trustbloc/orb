@@ -1448,7 +1448,7 @@ func getProtocolClientProvider(parameters *orbParameters, casClient casapi.Clien
 		AllowedOriginsValidator:                 allowedOriginsValidator,
 	}
 
-	r := factoryregistry.New()
+	r := factoryregistry.New(parameters.enableDevMode)
 
 	var protocolVersions []protocol.Version
 	for _, version := range parameters.sidetree.protocolVersions {

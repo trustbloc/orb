@@ -27,7 +27,7 @@ Feature:
 
     Given anchor origin for host "orb.domain1.com" is set to "https://orb.domain1.com"
     And anchor origin for host "orb2.domain1.com" is set to "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q"
-    And anchor origin for host "orb.domain2.com" is set to "https://orb.domain1.com"
+    And anchor origin for host "orb.domain2.com" is set to "did:web:orb.domain2.com:services:orb"
     And anchor origin for host "orb.domain3.com" is set to "https://orb.domain3.com"
     And anchor origin for host "orb.domain4.com" is set to "https://orb.domain1.com"
     And anchor origin for host "orb.domain5.com" is set to "did:web:orb.domain5.com:services:anchor"
@@ -742,7 +742,7 @@ Feature:
   Scenario: Update allowed origins
     When an HTTP GET is sent to "https://orb.domain1.com/allowedorigins"
     Then the JSON path "@this" of the response contains "https://orb.domain1.com"
-    And the JSON path "@this" of the response contains "https://orb.domain2.com"
+    And the JSON path "@this" of the response contains "did:web:orb.domain2.com:services:orb"
     And the JSON path "@this" of the response contains "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q"
 
     Given variable "domain1AllowedOrigins" is assigned the JSON value '{"add":["https://orb.domain3.com","https://orb.domain4.com"]}'
@@ -750,7 +750,7 @@ Feature:
 
     When an HTTP GET is sent to "https://orb.domain1.com/allowedorigins"
     Then the JSON path "@this" of the response contains "https://orb.domain1.com"
-    And the JSON path "@this" of the response contains "https://orb.domain2.com"
+    And the JSON path "@this" of the response contains "did:web:orb.domain2.com:services:orb"
     And the JSON path "@this" of the response contains "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q"
     And the JSON path "@this" of the response contains "https://orb.domain3.com"
     And the JSON path "@this" of the response contains "https://orb.domain4.com"
@@ -760,7 +760,7 @@ Feature:
 
     When an HTTP GET is sent to "https://orb.domain1.com/allowedorigins"
     Then the JSON path "@this" of the response contains "https://orb.domain1.com"
-    And the JSON path "@this" of the response contains "https://orb.domain2.com"
+    And the JSON path "@this" of the response contains "did:web:orb.domain2.com:services:orb"
     And the JSON path "@this" of the response contains "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q"
     And the JSON path "@this" of the response does not contain "https://orb.domain3.com"
     And the JSON path "@this" of the response does not contain "https://orb.domain4.com"
@@ -772,7 +772,7 @@ Feature:
 
     When an HTTP GET is sent to "https://orb.domain1.com/allowedorigins"
     Then the JSON path "@this" of the response contains "https://orb.domain1.com"
-    And the JSON path "@this" of the response contains "https://orb.domain2.com"
+    And the JSON path "@this" of the response contains "did:web:orb.domain2.com:services:orb"
     And the JSON path "@this" of the response contains "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q"
     And the JSON path "@this" of the response does not contain "https://orb.domain3.com"
     And the JSON path "@this" of the response does not contain "https://orb.domain4.com"

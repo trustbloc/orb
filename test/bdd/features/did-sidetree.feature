@@ -21,7 +21,7 @@ Feature:
 
     Given anchor origin for host "orb.domain1.com" is set to "https://orb.domain1.com"
     And anchor origin for host "orb2.domain1.com" is set to "https://orb.domain1.com"
-    And anchor origin for host "orb.domain2.com" is set to "https://orb.domain1.com"
+    And anchor origin for host "orb.domain2.com" is set to "did:web:orb.domain2.com:services:orb"
 
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
     And the authorization bearer token for "POST" requests to path "/services/orb/acceptlist" is set to "ADMIN_TOKEN"

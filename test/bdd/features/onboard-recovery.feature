@@ -24,7 +24,7 @@ Feature:
 
     Given anchor origin for host "orb.domain1.com" is set to "https://orb.domain1.com"
     And anchor origin for host "orb2.domain1.com" is set to "ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q"
-    And anchor origin for host "orb.domain2.com" is set to "https://orb.domain1.com"
+    And anchor origin for host "orb.domain2.com" is set to "${domain2ID}"
     And anchor origin for host "orb.domain5.com" is set to "${domain5ID}"
 
     Given the authorization bearer token for "POST" requests to path "/services/orb/outbox" is set to "ADMIN_TOKEN"
