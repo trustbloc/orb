@@ -9,8 +9,10 @@ package util
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 
+	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 	"github.com/trustbloc/sidetree-core-go/pkg/document"
 	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
@@ -151,8 +153,37 @@ func IsDID(uri string) bool {
 	return strings.HasPrefix(uri, "did:")
 }
 
+// GetEndpointFromDIDWeb returns the HTTP/HTTPS endpoint URL from the given did:web DID.
+func GetEndpointFromDIDWeb(id string, noTLS bool) (string, error) {
+	var protocolScheme string
+
+	if noTLS {
+		protocolScheme = "http://"
+	} else {
+		protocolScheme = "https://"
+	}
+
+	parsedDID, err := did.Parse(id)
+	if err != nil {
+		return "", fmt.Errorf("parse did: %w", err)
+	}
+
+	if parsedDID.Method != "web" {
+		return "", fmt.Errorf("unsupported DID method [%s]", "did:"+parsedDID.Method)
+	}
+
+	pathComponents := strings.Split(parsedDID.MethodSpecificID, ":")
+
+	pathComponents[0], err = url.QueryUnescape(pathComponents[0])
+	if err != nil {
+		return "", fmt.Errorf("unescape did: %w", err)
+	}
+
+	return protocolScheme + strings.Join(pathComponents, "/"), nil
+}
+
 // ParseKeyURI parses the key IRI and returns the DID and the key ID.
-func ParseKeyURI(keyIRI string) (did, keyID string, err error) {
+func ParseKeyURI(keyIRI string) (string, string, error) {
 	parts := strings.Split(keyIRI, "#")
 
 	const numDIDParts = 2

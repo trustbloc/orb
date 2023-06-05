@@ -22,7 +22,7 @@ require (
 	github.com/trustbloc/kms v0.1.9-0.20221024131747-f895f91207f1
 	github.com/trustbloc/logutil-go v1.0.0-rc1
 	github.com/trustbloc/orb v1.0.0-rc3.0.20221101120557-1cf1ce21c938
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc5
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc5.0.20230602183030-41b2f35eb5d1
 	go.mongodb.org/mongo-driver v1.9.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.40.0
 	go.uber.org/zap v1.23.0

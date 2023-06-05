@@ -30,7 +30,7 @@ import (
 )
 
 func TestFactory_Create(t *testing.T) {
-	f := New()
+	f := New(false)
 	require.NotNil(t, f)
 
 	casClient := &mocks.CasClient{}
@@ -95,15 +95,39 @@ func TestCasReader_Read(t *testing.T) {
 
 func TestFormatWebCASURI(t *testing.T) {
 	t.Run("hash", func(t *testing.T) {
-		casURI, err := formatWebCASURI("12345", "https://orb.domain1.com/services/orb")
+		f := New(false)
+		require.NotNil(t, f)
+
+		casURI, err := f.formatWebCASURI("12345", "https://orb.domain1.com/services/orb")
 		require.NoError(t, err)
-		require.Equal(t, casURI, "https:orb.domain1.com:12345")
+		require.Equal(t, "https:orb.domain1.com:12345", casURI)
 	})
 
 	t.Run("hashlink", func(t *testing.T) {
-		casURI, err := formatWebCASURI("hl:12345", "https://orb.domain1.com/services/orb")
+		f := New(false)
+		require.NotNil(t, f)
+
+		casURI, err := f.formatWebCASURI("hl:12345", "https://orb.domain1.com/services/orb")
 		require.NoError(t, err)
-		require.Equal(t, casURI, "https:orb.domain1.com:12345")
+		require.Equal(t, "https:orb.domain1.com:12345", casURI)
+	})
+
+	t.Run("hashlink and did:web service URI", func(t *testing.T) {
+		f := New(false)
+		require.NotNil(t, f)
+
+		casURI, err := f.formatWebCASURI("hl:12345", "did:web:orb.domain2.com:services:orb")
+		require.NoError(t, err)
+		require.Equal(t, "https:orb.domain2.com:12345", casURI)
+	})
+
+	t.Run("hashlink and did:web service URI - no TLS", func(t *testing.T) {
+		f := New(true)
+		require.NotNil(t, f)
+
+		casURI, err := f.formatWebCASURI("hl:12345", "did:web:orb.domain2.com:services:orb")
+		require.NoError(t, err)
+		require.Equal(t, "http:orb.domain2.com:12345", casURI)
 	})
 }
 

@@ -34,7 +34,7 @@ services:
       - ORB_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
-      - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
+      - ALLOWED_ORIGINS=https://orb.domain1.com,did:web:orb.domain2.com:services:orb,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       - ALLOWED_ORIGINS_CACHE_EXPIRATION=1m
       - ALLOWED_DID_WEB_DOMAINS=https://orb.domain2.com,https://orb.domain3.com
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
@@ -203,7 +203,7 @@ services:
       - ORB_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
-      - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
+      - ALLOWED_ORIGINS=https://orb.domain1.com,did:web:orb.domain2.com:services:orb,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       - ALLOWED_ORIGINS_CACHE_EXPIRATION=1m
       - ALLOWED_DID_WEB_DOMAINS=https://orb.domain2.com,https://orb.domain3.com
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
@@ -367,7 +367,7 @@ services:
       - ORB_SERVICE_ID=did:web:orb.domain2.com:services:orb
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
-      - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
+      - ALLOWED_ORIGINS=https://orb.domain1.com,did:web:orb.domain2.com:services:orb,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
@@ -483,7 +483,7 @@ services:
       - ORB_SERVICE_ID=did:web:orb.domain2.com:services:orb
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
-      - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
+      - ALLOWED_ORIGINS=https://orb.domain1.com,did:web:orb.domain2.com:services:orb,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=1000
       - CAS_TYPE=${CAS_TYPE}
@@ -597,7 +597,7 @@ services:
       - ORB_TLS_CACERTS=/etc/orb/tls/ec-cacert.pem
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
-      - ALLOWED_ORIGINS=https://orb.domain1.com,https://orb.domain2.com,https://orb.domain3.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
+      - ALLOWED_ORIGINS=https://orb.domain1.com,did:web:orb.domain2.com:services:orb,https://orb.domain3.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=2000
       - CAS_TYPE=${CAS_TYPE}
@@ -860,7 +860,7 @@ services:
       - ORB_DISCOVERY_DOMAIN=shared.domain.com
       - DID_NAMESPACE=did:orb
       - DID_DISCOVERY_ENABLED=false
-      - ALLOWED_ORIGINS=did:web:orb.domain5.com:services:anchor,https://orb.domain1.com,https://orb.domain2.com,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
+      - ALLOWED_ORIGINS=did:web:orb.domain5.com:services:anchor,https://orb.domain1.com,did:web:orb.domain2.com:services:orb,ipns://k51qzi5uqu5dgkmm1afrkmex5mzpu5r774jstpxjmro6mdsaullur27nfxle1q
       # BATCH_WRITER_TIMEOUT is max wait time in-between cutting batches (defined in milliseconds)
       - BATCH_WRITER_TIMEOUT=5000
       - CAS_TYPE=${CAS_TYPE}

@@ -23,7 +23,7 @@ const (
 
 func addVersions(registry *Registry) {
 	// register supported versions
-	registry.Register(V1_0, v1_0.New())
+	registry.Register(V1_0, v1_0.New(false))
 
 	// used for test only
 	registry.Register(test, v_test.New())

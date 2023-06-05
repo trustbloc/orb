@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
 	"github.com/spf13/cobra"
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
@@ -2300,7 +2299,7 @@ func newAPServiceParams(apServiceID, externalEndpoint string,
 	if util.IsDID(apServiceID) {
 		var e error
 
-		apServiceEndpoint, e = getEndpointFromDIDWeb(apServiceID, enableDevMode)
+		apServiceEndpoint, e = util.GetEndpointFromDIDWeb(apServiceID, enableDevMode)
 		if e != nil {
 			return nil, fmt.Errorf("get endpoint from DID [%s]: %w", apServiceID, e)
 		}
@@ -2349,34 +2348,6 @@ func newAPServiceParams(apServiceID, externalEndpoint string,
 			return fmt.Sprintf("%s/keys/%s", apServiceID, aphandler.MainKeyID)
 		},
 	}, nil
-}
-
-func getEndpointFromDIDWeb(id string, useHTTP bool) (string, error) {
-	var protocolScheme string
-
-	if useHTTP {
-		protocolScheme = "http://"
-	} else {
-		protocolScheme = "https://"
-	}
-
-	parsedDID, err := did.Parse(id)
-	if err != nil {
-		return "", fmt.Errorf("parse did: %w", err)
-	}
-
-	if parsedDID.Method != "web" {
-		return "", fmt.Errorf("unsupported DID method [%s]", "did:"+parsedDID.Method)
-	}
-
-	pathComponents := strings.Split(parsedDID.MethodSpecificID, ":")
-
-	pathComponents[0], err = url.QueryUnescape(pathComponents[0])
-	if err != nil {
-		return "", fmt.Errorf("unescape did: %w", err)
-	}
-
-	return protocolScheme + strings.Join(pathComponents, "/"), nil
 }
 
 //nolint:funlen

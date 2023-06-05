@@ -33,13 +33,17 @@ type factory interface {
 type Registry struct {
 	factories map[string]factory
 	mutex     sync.RWMutex
+	noTLS     bool
 }
 
 // New returns a new protocol version factory Registry.
-func New() *Registry {
+func New(noTLS bool) *Registry {
 	logger.Info("Creating protocol version factory Registry")
 
-	registry := &Registry{factories: make(map[string]factory)}
+	registry := &Registry{
+		factories: make(map[string]factory),
+		noTLS:     noTLS,
+	}
 
 	// register supported versions
 	addVersions(registry)

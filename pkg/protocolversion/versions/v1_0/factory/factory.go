@@ -25,6 +25,7 @@ import (
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/config"
 	ctxcommon "github.com/trustbloc/orb/pkg/context/common"
+	"github.com/trustbloc/orb/pkg/document/util"
 	"github.com/trustbloc/orb/pkg/hashlink"
 	metricsProvider "github.com/trustbloc/orb/pkg/observability/metrics"
 	vcommon "github.com/trustbloc/orb/pkg/protocolversion/versions/common"
@@ -37,11 +38,15 @@ import (
 var logger = log.New("protocol-v1_0")
 
 // Factory implements version 0.1 of the Sidetree protocol.
-type Factory struct{}
+type Factory struct {
+	noTLS bool
+}
 
 // New returns a version 1.0 implementation of the Sidetree protocol.
-func New() *Factory {
-	return &Factory{}
+func New(noTLS bool) *Factory {
+	return &Factory{
+		noTLS: noTLS,
+	}
 }
 
 // Create creates a new protocol version.
@@ -59,7 +64,7 @@ func (v *Factory) Create(version string, casClient cas.Client, casResolver ctxco
 
 	cp := compression.New(compression.WithDefaultAlgorithms())
 	op := txnprovider.NewOperationProvider(p, opParser, &casReader{casResolver}, cp,
-		txnprovider.WithSourceCASURIFormatter(formatWebCASURI))
+		txnprovider.WithSourceCASURIFormatter(v.formatWebCASURI))
 	oh := txnprovider.NewOperationHandler(p, casClient, cp, opParser, metrics)
 	dc := doccomposer.New()
 	oa := operationapplier.New(p, opParser, dc)
@@ -114,7 +119,7 @@ func (c *casReader) Read(cid string) ([]byte, error) {
 	return data, nil
 }
 
-func formatWebCASURI(uri, serviceURI string) (string, error) {
+func (v *Factory) formatWebCASURI(uri, serviceURI string) (string, error) {
 	// A CAS URI can either be a CID or a hashlink.
 	hash, err := hashlink.GetResourceHashFromHashLink(uri)
 	if err != nil {
@@ -124,8 +129,23 @@ func formatWebCASURI(uri, serviceURI string) (string, error) {
 		hash = uri
 	}
 
-	// A serviceURI URI looks like this: https://orb.domain1.com/services/orb.
-	parts := strings.Split(serviceURI, ":")
+	var serviceEndpoint string
+
+	switch {
+	case strings.HasPrefix(serviceURI, "http://") || strings.HasPrefix(serviceURI, "https://"):
+		// The service endpoint is an HTTP/HTTPS endpoint, e.g. https://orb.domain1.com/services/orb
+		serviceEndpoint = serviceURI
+	case util.IsDID(serviceURI):
+		// The service endpoint is a DID, e.g. did:web:orb.domain1.com:services:orb
+		serviceEndpoint, err = util.GetEndpointFromDIDWeb(serviceURI, v.noTLS)
+		if err != nil {
+			return "", fmt.Errorf("get endpoint from DID: %w", err)
+		}
+	default:
+		return "", fmt.Errorf("unsupported service endpoint URI: %s", serviceURI)
+	}
+
+	parts := strings.Split(serviceEndpoint, ":")
 
 	scheme := parts[0]
 	host := strings.Split(parts[1][2:], "/")[0]
@@ -133,7 +153,7 @@ func formatWebCASURI(uri, serviceURI string) (string, error) {
 	// The WebCAS URI will look like this: https:orb.domain1.com:<hash>.
 	casURI := fmt.Sprintf("%s:%s:%s", scheme, host, hash)
 
-	logger.Debug("Adding alternate CAS URI", logfields.WithURIString(casURI))
+	logger.Debug("Adding alternate CAS URI", logfields.WithURIString(casURI), logfields.WithSource(serviceURI))
 
 	return casURI, nil
 }
