@@ -593,7 +593,7 @@ func (q *Queue) asQueuedOperations(opMsgs []*queuedOperation) []*operation.Queue
 	q.logger.Debug("Returning queued operations", logfields.WithTotal(len(opMsgs)))
 
 	for i, opMsg := range opMsgs {
-		q.logger.Debug("Adding operation.", logfields.WithMessageID(opMsg.ID),
+		q.logger.Debug("Adding operation.", logfields.WithOperationID(opMsg.ID),
 			logfields.WithSuffix(opMsg.Operation.UniqueSuffix))
 
 		ops[i] = opMsg.Operation
