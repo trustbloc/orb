@@ -167,6 +167,11 @@ func (cs *Client) GetEndpoint(domain string) (*models.Endpoint, error) {
 	return endpoint.(*models.Endpoint), nil //nolint:forcetypeassert
 }
 
+// GetEndpointNoCache fetches endpoints from domain bypassing the cache.
+func (cs *Client) GetEndpointNoCache(domain string) (*models.Endpoint, error) {
+	return cs.getEndpoint(domain)
+}
+
 // GetEndpointFromAnchorOrigin fetches endpoints from anchor origin, caching the value.
 func (cs *Client) GetEndpointFromAnchorOrigin(didURI string) (*models.Endpoint, error) {
 	return cs.getEndpointAnchorOrigin(didURI)

@@ -13,11 +13,11 @@ require (
 	github.com/fsouza/go-dockerclient v1.6.5
 	github.com/google/uuid v1.3.0
 	github.com/greenpau/go-calculator v1.0.1
-	github.com/hyperledger/aries-framework-go v0.1.9-0.20221104133505-b2cd6a82a8e4
+	github.com/hyperledger/aries-framework-go v0.1.9-0.20221201073943-47b08f16c301
 	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20220428163625-96d8261511e1
 	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220615170242-cda5092b4faf
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc4
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc4
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc5.0.20230612123444-d285f3c85595
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc4.0.20230612123444-d285f3c85595
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20220610133818-119077b0ec85
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20221025204933-b807371b6f1e
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
@@ -25,8 +25,8 @@ require (
 	github.com/mr-tron/base58 v1.2.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/tidwall/gjson v1.7.4
-	github.com/trustbloc/orb v1.0.0-rc3.0.20221110183921-dc5feded4796
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc5.0.20230606202232-3c7387f972f6
+	github.com/trustbloc/orb v1.0.0-rc7
+	github.com/trustbloc/sidetree-core-go v1.0.0-rc5.0.20230609191801-793cbea60692
 )
 
 require (

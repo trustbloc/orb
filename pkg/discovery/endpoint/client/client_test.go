@@ -373,6 +373,10 @@ func TestConfigService_GetEndpoint(t *testing.T) { //nolint: gocyclo,gocognit,cy
 		endpoint, err := cs.GetEndpoint("d1")
 		require.NoError(t, err)
 
+		endpoint2, err := cs.GetEndpointNoCache("d1")
+		require.NoError(t, err)
+		require.Equal(t, endpoint, endpoint2)
+
 		require.Equal(t, endpoint.ResolutionEndpoints, []string{"https://localhost/resolve1", "https://localhost/resolve2"})
 		require.Equal(t, endpoint.OperationEndpoints, []string{"https://localhost/op1", "https://localhost/op2"})
 		require.Equal(t, endpoint.MinResolvers, 2)
