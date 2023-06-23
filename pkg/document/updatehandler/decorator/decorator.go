@@ -26,18 +26,21 @@ import (
 
 var logger = log.New("operation-decorator")
 
+const propCreatePublished = "create-op-is-published"
+
 // New creates operation decorator that will verify that local domain has latest operations from anchor origin.
 func New(namespace, domain string, processor operationProcessor, endpointClient endpointClient,
-	remoteResolver remoteResolver, metrics metricsProvider,
+	remoteResolver remoteResolver, verifyLatestFromAnchorOrigin bool, metrics metricsProvider,
 ) *OperationDecorator {
 	od := &OperationDecorator{
-		namespace:      namespace,
-		domain:         domain,
-		processor:      processor,
-		endpointClient: endpointClient,
-		remoteResolver: remoteResolver,
-		metrics:        metrics,
-		tracer:         tracing.Tracer(tracing.SubsystemDocument),
+		namespace:                    namespace,
+		domain:                       domain,
+		processor:                    processor,
+		endpointClient:               endpointClient,
+		remoteResolver:               remoteResolver,
+		verifyLatestFromAnchorOrigin: verifyLatestFromAnchorOrigin,
+		metrics:                      metrics,
+		tracer:                       tracing.Tracer(tracing.SubsystemDocument),
 	}
 
 	return od
@@ -47,6 +50,8 @@ func New(namespace, domain string, processor operationProcessor, endpointClient 
 type OperationDecorator struct {
 	namespace string
 	domain    string
+
+	verifyLatestFromAnchorOrigin bool
 
 	processor operationProcessor
 
@@ -77,8 +82,6 @@ type metricsProvider interface {
 }
 
 // Decorate will validate local state against anchor origin for update/recover/deactivate.
-//
-//nolint:funlen
 func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Operation, error) {
 	startTime := time.Now()
 
@@ -93,8 +96,11 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 	processorResolveStartTime := time.Now()
 
 	internalResult, err := d.processor.Resolve(op.UniqueSuffix)
+
+	d.metrics.ProcessorResolveTime(time.Since(processorResolveStartTime))
+
 	if err != nil {
-		logger.Debug("Failed to resolve suffix[%s] for operation type[%s]: %s", logfields.WithSuffix(op.UniqueSuffix),
+		logger.Info("Failed to resolve suffix[%s] for operation type[%s]: %s", logfields.WithSuffix(op.UniqueSuffix),
 			logfields.WithOperationType(string(op.Type)), log.WithError(err))
 
 		return nil, err
@@ -107,8 +113,41 @@ func (d *OperationDecorator) Decorate(op *operation.Operation) (*operation.Opera
 		return nil, fmt.Errorf("document has been deactivated, no further operations are allowed")
 	}
 
-	d.metrics.ProcessorResolveTime(time.Since(processorResolveStartTime))
+	d.checkCreateOperationPublished(op, internalResult)
 
+	if d.verifyLatestFromAnchorOrigin {
+		return d.verifyFromAnchorOrigin(op, internalResult)
+	}
+
+	return op, nil
+}
+
+// checkCreateOperationPublished checks that the "Create" operation was published and sets the "create-op-is-published"
+// property on the operation. This property is used by the operation queue to determine whether to add a delivery delay.
+func (d *OperationDecorator) checkCreateOperationPublished(op *operation.Operation,
+	internalResult *protocol.ResolutionModel,
+) *operation.Operation {
+	var createOperationIsPublished bool
+
+	for _, pop := range internalResult.PublishedOperations {
+		if pop.Type == operation.TypeCreate {
+			createOperationIsPublished = true
+
+			break
+		}
+	}
+
+	op.Properties = append(op.Properties, operation.Property{
+		Key:   propCreatePublished,
+		Value: createOperationIsPublished,
+	})
+
+	return op
+}
+
+func (d *OperationDecorator) verifyFromAnchorOrigin(op *operation.Operation,
+	internalResult *protocol.ResolutionModel,
+) (*operation.Operation, error) {
 	if op.Type == operation.TypeUpdate || op.Type == operation.TypeDeactivate {
 		op.AnchorOrigin = internalResult.AnchorOrigin
 	}

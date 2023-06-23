@@ -157,6 +157,8 @@ services:
       # The lifespan of an anchor reference in PENDING state.
       # Default value: 24h (24 hours)
       - ANCHOR_REF_PENDING_RECORD_LIFESPAN=5m
+#      - UNPUBLISHED_OPERATION_STORE_ENABLED=true
+#      - UNPUBLISHED_OPERATION_STORE_OPERATION_TYPES=create,update
     ports:
       - 48326:443
       - 48327:48327
@@ -305,6 +307,8 @@ services:
       - INCLUDE_PUBLISHED_OPERATIONS_IN_METADATA=true
       - ORB_REQUEST_TOKENS=vct-read=vctread,vct-write=vctwrite
       - VCT_LOG_ENTRIES_STORE_ENABLED=true
+#      - UNPUBLISHED_OPERATION_STORE_ENABLED=true
+#      - UNPUBLISHED_OPERATION_STORE_OPERATION_TYPES=create,update
     ports:
       - 48526:443
       - 48527:48527
