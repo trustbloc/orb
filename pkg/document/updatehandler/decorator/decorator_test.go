@@ -33,7 +33,7 @@ const (
 func TestNew(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		handler := New(namespace, domain, &mocks.OperationProcessor{},
-			&mocks.EndpointClient{}, &mocks.RemoteResolver{}, &orbmocks.MetricsProvider{})
+			&mocks.EndpointClient{}, &mocks.RemoteResolver{}, true, &orbmocks.MetricsProvider{})
 		require.NotNil(t, handler)
 	})
 }
@@ -77,7 +77,7 @@ func TestOperationDecorator_Decorate(t *testing.T) {
 				DocumentMetadata: docMetadata,
 			}, nil)
 
-		handler := New(namespace, domain, processor, endpointClient, remoteResolver, &orbmocks.MetricsProvider{})
+		handler := New(namespace, domain, processor, endpointClient, remoteResolver, true, &orbmocks.MetricsProvider{})
 		require.NotNil(t, handler)
 
 		op, err := handler.Decorate(&operation.Operation{Type: operation.TypeUpdate, UniqueSuffix: suffix})
@@ -120,7 +120,7 @@ func TestOperationDecorator_Decorate(t *testing.T) {
 				DocumentMetadata: docMetadata,
 			}, nil)
 
-		handler := New(namespace, domain, processor, endpointClient, remoteResolver, &orbmocks.MetricsProvider{})
+		handler := New(namespace, domain, processor, endpointClient, remoteResolver, true, &orbmocks.MetricsProvider{})
 		require.NotNil(t, handler)
 
 		op, err := handler.Decorate(&operation.Operation{Type: operation.TypeUpdate, UniqueSuffix: suffix})
@@ -159,7 +159,7 @@ func TestOperationDecorator_Decorate(t *testing.T) {
 		remoteResolver := &mocks.RemoteResolver{}
 		remoteResolver.ResolveDocumentFromResolutionEndpointsReturns(nil, fmt.Errorf("remote resolver error"))
 
-		handler := New(namespace, domain, processor, endpointClient, remoteResolver, &orbmocks.MetricsProvider{})
+		handler := New(namespace, domain, processor, endpointClient, remoteResolver, true, &orbmocks.MetricsProvider{})
 		require.NotNil(t, handler)
 
 		op, err := handler.Decorate(&operation.Operation{
@@ -174,7 +174,7 @@ func TestOperationDecorator_Decorate(t *testing.T) {
 
 	t.Run("success - create operations", func(t *testing.T) {
 		handler := New(namespace, domain, &mocks.OperationProcessor{},
-			&mocks.EndpointClient{}, &mocks.RemoteResolver{}, &orbmocks.MetricsProvider{})
+			&mocks.EndpointClient{}, &mocks.RemoteResolver{}, true, &orbmocks.MetricsProvider{})
 		require.NotNil(t, handler)
 
 		op, err := handler.Decorate(&operation.Operation{Type: operation.TypeCreate, UniqueSuffix: suffix})
@@ -193,7 +193,7 @@ func TestOperationDecorator_Decorate(t *testing.T) {
 
 		endpointClient := &mocks.EndpointClient{}
 
-		handler := New(namespace, domain, processor, endpointClient, &mocks.RemoteResolver{}, &orbmocks.MetricsProvider{})
+		handler := New(namespace, domain, processor, endpointClient, &mocks.RemoteResolver{}, true, &orbmocks.MetricsProvider{})
 		require.NotNil(t, handler)
 
 		op, err := handler.Decorate(&operation.Operation{Type: operation.TypeUpdate, UniqueSuffix: suffix})
@@ -238,7 +238,7 @@ func TestOperationDecorator_Decorate(t *testing.T) {
 				DocumentMetadata: docMetadata,
 			}, nil)
 
-		handler := New(namespace, domain, processor, endpointClient, remoteResolver, &orbmocks.MetricsProvider{})
+		handler := New(namespace, domain, processor, endpointClient, remoteResolver, true, &orbmocks.MetricsProvider{})
 		require.NotNil(t, handler)
 
 		op, err := handler.Decorate(&operation.Operation{Type: operation.TypeUpdate, UniqueSuffix: suffix})
@@ -284,7 +284,7 @@ func TestOperationDecorator_Decorate(t *testing.T) {
 				DocumentMetadata: docMetadata,
 			}, nil)
 
-		handler := New(namespace, domain, processor, endpointClient, remoteResolver, &orbmocks.MetricsProvider{})
+		handler := New(namespace, domain, processor, endpointClient, remoteResolver, true, &orbmocks.MetricsProvider{})
 		require.NotNil(t, handler)
 
 		op, err := handler.Decorate(&operation.Operation{Type: operation.TypeUpdate, UniqueSuffix: suffix})
@@ -306,7 +306,7 @@ func TestOperationDecorator_Decorate(t *testing.T) {
 		endpointClient := &mocks.EndpointClient{}
 		endpointClient.GetEndpointReturns(nil, fmt.Errorf("endpoint client error"))
 
-		handler := New(namespace, domain, processor, endpointClient, &mocks.RemoteResolver{}, &orbmocks.MetricsProvider{})
+		handler := New(namespace, domain, processor, endpointClient, &mocks.RemoteResolver{}, true, &orbmocks.MetricsProvider{})
 		require.NotNil(t, handler)
 
 		op, err := handler.Decorate(&operation.Operation{Type: operation.TypeUpdate, UniqueSuffix: suffix})
@@ -319,7 +319,7 @@ func TestOperationDecorator_Decorate(t *testing.T) {
 		processor.ResolveReturns(nil, fmt.Errorf("operation processor error"))
 
 		handler := New(namespace, domain, processor, &mocks.EndpointClient{},
-			&mocks.RemoteResolver{}, &orbmocks.MetricsProvider{})
+			&mocks.RemoteResolver{}, true, &orbmocks.MetricsProvider{})
 		require.NotNil(t, handler)
 
 		op, err := handler.Decorate(&operation.Operation{UniqueSuffix: suffix})
@@ -337,7 +337,7 @@ func TestOperationDecorator_Decorate(t *testing.T) {
 		processor.ResolveReturns(rm, nil)
 
 		handler := New(namespace, domain, processor, &mocks.EndpointClient{},
-			&mocks.RemoteResolver{}, &orbmocks.MetricsProvider{})
+			&mocks.RemoteResolver{}, true, &orbmocks.MetricsProvider{})
 		require.NotNil(t, handler)
 
 		op, err := handler.Decorate(&operation.Operation{UniqueSuffix: suffix})
@@ -383,7 +383,7 @@ func TestOperationDecorator_Decorate(t *testing.T) {
 				DocumentMetadata: docMetadata,
 			}, nil)
 
-		handler := New(namespace, domain, processor, endpointClient, remoteResolver, &orbmocks.MetricsProvider{})
+		handler := New(namespace, domain, processor, endpointClient, remoteResolver, true, &orbmocks.MetricsProvider{})
 		require.NotNil(t, handler)
 
 		op, err := handler.Decorate(&operation.Operation{UniqueSuffix: suffix})
@@ -428,7 +428,7 @@ func TestOperationDecorator_Decorate(t *testing.T) {
 				DocumentMetadata: docMetadata,
 			}, nil)
 
-		handler := New(namespace, domain, processor, endpointClient, remoteResolver, &orbmocks.MetricsProvider{})
+		handler := New(namespace, domain, processor, endpointClient, remoteResolver, true, &orbmocks.MetricsProvider{})
 		require.NotNil(t, handler)
 
 		op, err := handler.Decorate(&operation.Operation{UniqueSuffix: "suffix"})
@@ -470,7 +470,7 @@ func TestOperationDecorator_Decorate(t *testing.T) {
 				DocumentMetadata: docMetadata,
 			}, nil)
 
-		handler := New(namespace, domain, processor, endpointClient, remoteResolver, &orbmocks.MetricsProvider{})
+		handler := New(namespace, domain, processor, endpointClient, remoteResolver, true, &orbmocks.MetricsProvider{})
 		require.NotNil(t, handler)
 
 		op, err := handler.Decorate(&operation.Operation{UniqueSuffix: "suffix"})
@@ -508,7 +508,7 @@ func TestOperationDecorator_Decorate(t *testing.T) {
 				DocumentMetadata: docMetadata,
 			}, nil)
 
-		handler := New(namespace, domain, processor, endpointClient, remoteResolver, &orbmocks.MetricsProvider{})
+		handler := New(namespace, domain, processor, endpointClient, remoteResolver, true, &orbmocks.MetricsProvider{})
 		require.NotNil(t, handler)
 
 		op, err := handler.Decorate(&operation.Operation{UniqueSuffix: "suffix"})

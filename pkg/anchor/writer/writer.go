@@ -33,6 +33,7 @@ import (
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset/generator"
 	anchorinfo "github.com/trustbloc/orb/pkg/anchor/info"
+	"github.com/trustbloc/orb/pkg/anchor/multierror"
 	"github.com/trustbloc/orb/pkg/anchor/subject"
 	"github.com/trustbloc/orb/pkg/anchor/util"
 	"github.com/trustbloc/orb/pkg/anchor/vcpubsub"
@@ -336,17 +337,25 @@ func (c *Writer) getPreviousAnchors(refs []*operation.Reference) ([]*subject.Suf
 
 	c.metrics.WriteAnchorGetPreviousAnchorsGetBulkTime(time.Since(getBulkStartTime))
 
+	mErr := multierror.New()
+
 	for i, ref := range refs {
 		if anchors[i] == "" {
 			if ref.Type != operation.TypeCreate {
-				return nil, fmt.Errorf("previous did anchor reference not found for %s operation for did[%s]", ref.Type, ref.UniqueSuffix)
+				mErr.Set(ref.UniqueSuffix,
+					fmt.Errorf("previous did anchor reference not found for %s operation for did[%s]",
+						ref.Type, ref.UniqueSuffix))
+			} else {
+				// create doesn't have previous anchor references
+				previousAnchors = append(previousAnchors, &subject.SuffixAnchor{Suffix: ref.UniqueSuffix})
 			}
-
-			// create doesn't have previous anchor references
-			previousAnchors = append(previousAnchors, &subject.SuffixAnchor{Suffix: ref.UniqueSuffix})
 		} else {
 			previousAnchors = append(previousAnchors, &subject.SuffixAnchor{Suffix: ref.UniqueSuffix, Anchor: anchors[i]})
 		}
+	}
+
+	if len(mErr.Errors()) > 0 {
+		return nil, mErr
 	}
 
 	return previousAnchors, nil

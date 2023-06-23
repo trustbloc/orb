@@ -885,8 +885,8 @@ github.com/tmc/grpc-websocket-proxy v0.0.0-20200427203606-3cfed13b9966/go.mod h1
 github.com/tomasen/realip v0.0.0-20180522021738-f0c99a92ddce/go.mod h1:o8v6yHRoik09Xen7gje4m9ERNah1d1PPsVq1VEx9vE4=
 github.com/trustbloc/logutil-go v1.0.0-rc1 h1:rRJbvgQfrlUfyej+mY0nuQJymGqjRW4oZEwKi544F4c=
 github.com/trustbloc/logutil-go v1.0.0-rc1/go.mod h1:JlxT0oZfNKgIlSNtgc001WEeDMxlnAvOM43gNm8DQVc=
-github.com/trustbloc/sidetree-core-go v1.0.0-rc5.0.20230609191801-793cbea60692 h1:8J/lEaFqWfGugvt5u/d5l9OvJoZZpE2XU3bR/U6iKjM=
-github.com/trustbloc/sidetree-core-go v1.0.0-rc5.0.20230609191801-793cbea60692/go.mod h1:jdxAFuorlIwFOGVW6O455/lZqxg2mZkRHNTEolcZdDI=
+github.com/trustbloc/sidetree-core-go v1.0.0-rc5.0.20230622210745-a1b968a815f7 h1:v4Ok2o8bUjTGsS9Vebc0k2DSS2XJWzCVuYOrAA+YFeE=
+github.com/trustbloc/sidetree-core-go v1.0.0-rc5.0.20230622210745-a1b968a815f7/go.mod h1:jdxAFuorlIwFOGVW6O455/lZqxg2mZkRHNTEolcZdDI=
 github.com/trustbloc/vct v1.0.0-rc5 h1:fBn5xFi+D+vtDFu/UncsqwwOIuFfy0KANe470GXriOw=
 github.com/trustbloc/vct v1.0.0-rc5/go.mod h1:TrS5PDqw6RPl4q1ISDys/aZZDZ7bglIXXBsvdBv48dM=
 github.com/tv42/httpunix v0.0.0-20150427012821-b75d8614f926/go.mod h1:9ESjWnEqriFuLhtthL60Sar/7RFoluCcXsuvEwTV5KM=

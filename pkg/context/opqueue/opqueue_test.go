@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"testing"
 	"time"
@@ -22,6 +23,7 @@ import (
 	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
 
 	servicemocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
+	"github.com/trustbloc/orb/pkg/anchor/multierror"
 	ctxmocks "github.com/trustbloc/orb/pkg/context/mocks"
 	"github.com/trustbloc/orb/pkg/internal/testutil/rabbitmqtestutil"
 	"github.com/trustbloc/orb/pkg/lifecycle"
@@ -65,7 +67,7 @@ func TestQueue(t *testing.T) {
 	defer ps2.Stop()
 
 	q1, err := New(
-		Config{
+		&Config{
 			PoolSize:            8,
 			TaskMonitorInterval: time.Second,
 			MaxRetries:          1,
@@ -89,7 +91,7 @@ func TestQueue(t *testing.T) {
 	require.Empty(t, ops1)
 
 	q2, err := New(
-		Config{
+		&Config{
 			PoolSize:            8,
 			TaskMonitorInterval: time.Second,
 			MaxRetries:          1,
@@ -117,7 +119,9 @@ func TestQueue(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, removedOps1)
 	require.Equal(t, uint(0), ack1())
-	require.NotPanics(t, nack1)
+	require.NotPanics(t, func() {
+		nack1(nil)
+	})
 
 	for _, op := range operations {
 		_, err = q1.Add(op.op, 100)
@@ -148,7 +152,10 @@ func TestQueue(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, removedOps1, 2)
 
-	nack1()
+	merr := multierror.New()
+	merr.Set(removedOps1[0].UniqueSuffix, errors.New("injected operation error"))
+
+	nack1(merr)
 
 	time.Sleep(100 * time.Millisecond)
 
@@ -168,14 +175,31 @@ func TestQueue(t *testing.T) {
 
 	time.Sleep(5 * time.Second)
 
-	removedOps2, ack2, _, err := q2.Remove(10)
+	peekedOps2, err := q2.Peek(10)
 	require.NoError(t, err)
 
+	removedOps2, ack2, _, err := q2.Remove(10)
+	require.NoError(t, err)
+	require.Equal(t, peekedOps2, removedOps2)
+
+	// The operation marked with an error should be left in the queue.
 	pending = ack2()
+	require.Equal(t, uint(1), pending)
+	require.Equal(t, uint(1), q2.Len())
+
+	operations.setProcessed(t, removedOps2)
+
+	time.Sleep(5 * time.Second)
+
+	removedOps3, ack3, _, err := q2.Remove(10)
+	require.NoError(t, err)
+
+	// The operation marked with an error should be processed.
+	pending = ack3()
 	require.Equal(t, uint(0), pending)
 	require.Equal(t, uint(0), q2.Len())
 
-	operations.setProcessed(t, removedOps2)
+	operations.setProcessed(t, removedOps3)
 
 	removedOps2, _, _, err = q2.Remove(10)
 	require.NoError(t, err)
@@ -196,6 +220,10 @@ func TestQueue(t *testing.T) {
 
 func TestQueue_Error(t *testing.T) {
 	op1 := &operation.QueuedOperation{UniqueSuffix: "op1"}
+	op1.Properties = append(op1.Properties, operation.Property{
+		Key:   propCreatePublished,
+		Value: true,
+	})
 
 	ps := mempubsub.New(mempubsub.DefaultConfig())
 	defer ps.Stop()
@@ -203,7 +231,7 @@ func TestQueue_Error(t *testing.T) {
 	taskMgr := servicemocks.NewTaskManager("taskmgr1")
 
 	t.Run("Not started error", func(t *testing.T) {
-		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
+		q, err := New(&Config{}, ps, storage.NewMockStoreProvider(),
 			taskMgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
@@ -231,7 +259,7 @@ func TestQueue_Error(t *testing.T) {
 		ps := &ctxmocks.PubSub{}
 		ps.PublishWithOptsReturns(errExpected)
 
-		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
+		q, err := New(&Config{}, ps, storage.NewMockStoreProvider(),
 			taskMgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
@@ -250,14 +278,14 @@ func TestQueue_Error(t *testing.T) {
 		ps := &ctxmocks.PubSub{}
 		ps.SubscribeWithOptsReturns(nil, errExpected)
 
-		_, err := New(Config{}, ps, storage.NewMockStoreProvider(),
+		_, err := New(&Config{}, ps, storage.NewMockStoreProvider(),
 			taskMgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
 
 	t.Run("Marshal error", func(t *testing.T) {
-		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
+		q, err := New(&Config{}, ps, storage.NewMockStoreProvider(),
 			taskMgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
@@ -276,31 +304,6 @@ func TestQueue_Error(t *testing.T) {
 		require.Contains(t, err.Error(), errExpected.Error())
 	})
 
-	t.Run("Unmarshal error", func(t *testing.T) {
-		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
-			taskMgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
-		require.NoError(t, err)
-		require.NotNil(t, q)
-
-		q.Start()
-		defer q.Stop()
-
-		errExpected := errors.New("injected unmarshal error")
-
-		q.unmarshal = func(data []byte, v interface{}) error {
-			return errExpected
-		}
-
-		_, err = q.Add(op1, 100)
-		require.NoError(t, err)
-
-		time.Sleep(100 * time.Millisecond)
-
-		_, err = q.Peek(2)
-		require.NoError(t, err)
-		require.Empty(t, q.pending)
-	})
-
 	t.Run("UpdateTaskTime error", func(t *testing.T) {
 		p := storage.NewMockStoreProvider()
 
@@ -311,7 +314,7 @@ func TestQueue_Error(t *testing.T) {
 
 		s.(*storage.MockStore).ErrPut = errExpected //nolint:forcetypeassert
 
-		q, err := New(Config{}, ps, p,
+		q, err := New(&Config{}, ps, p,
 			taskMgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), errExpected.Error())
@@ -333,7 +336,7 @@ func TestQueue_Error(t *testing.T) {
 
 		s.(*storage.MockStore).ErrQuery = errExpected //nolint:forcetypeassert
 
-		q, err := New(Config{}, ps, p,
+		q, err := New(&Config{}, ps, p,
 			mgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
@@ -359,7 +362,7 @@ func TestQueue_Error(t *testing.T) {
 
 		s.(*storage.MockStore).ErrNext = errExpected //nolint:forcetypeassert
 
-		q, err := New(Config{}, ps, p,
+		q, err := New(&Config{}, ps, p,
 			mgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
@@ -376,7 +379,7 @@ func TestQueue_Error(t *testing.T) {
 		mgr.Start()
 		defer mgr.Stop()
 
-		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
+		q, err := New(&Config{}, ps, storage.NewMockStoreProvider(),
 			mgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
@@ -399,7 +402,7 @@ func TestQueue_Error(t *testing.T) {
 		ps := &ctxmocks.PubSub{}
 		ps.PublishWithOptsReturnsOnCall(0, errExpected)
 
-		q, err := New(Config{}, ps, storage.NewMockStoreProvider(),
+		q, err := New(&Config{}, ps, storage.NewMockStoreProvider(),
 			taskMgr, &ctxmocks.DataExpiryService{}, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 		require.NotNil(t, q)
@@ -434,7 +437,7 @@ func TestQueue_Error(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, ops, 1)
 
-		nack()
+		nack(nil)
 
 		ops, _, _, err = q.Remove(1)
 		require.NoError(t, err)
@@ -461,7 +464,7 @@ func TestRepostWithMaxRetries(t *testing.T) {
 	defer ps.Stop()
 
 	q, err := New(
-		Config{
+		&Config{
 			PoolSize:            8,
 			TaskMonitorInterval: time.Second,
 			MaxRetries:          1,
@@ -489,7 +492,7 @@ func TestRepostWithMaxRetries(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, removedOps, 5)
 
-	nack()
+	nack(nil)
 
 	time.Sleep(time.Second)
 
@@ -497,11 +500,100 @@ func TestRepostWithMaxRetries(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, removedOps, 5)
 
-	nack()
+	nack(nil)
 
 	removedOps, _, _, err = q.Remove(5)
 	require.NoError(t, err)
 	require.Emptyf(t, removedOps, "no operations should have been remaining since the max retry count was reached")
+}
+
+func newMockOperation(id string, hasErr bool) *queuedOperation {
+	return &queuedOperation{OperationMessage: &OperationMessage{ID: id, HasError: hasErr}}
+}
+
+func TestDeFragment(t *testing.T) {
+	op1 := newMockOperation("op1", true)
+	op2 := newMockOperation("op2", false)
+	op3 := newMockOperation("op3", false)
+	op4 := newMockOperation("op4", true)
+	op5 := newMockOperation("op5", true)
+	op6 := newMockOperation("op6", false)
+	op7 := newMockOperation("op7", true)
+	op8 := newMockOperation("op8", true)
+
+	t.Run("swap", func(t *testing.T) {
+		q := []*queuedOperation{op1, op2, op3, op4, op5, op6}
+
+		swap(q, 2, 3)
+		require.Equal(t, []*queuedOperation{op1, op2, op4, op3, op5, op6}, q)
+
+		swap(q, 1, 2)
+		require.Equal(t, []*queuedOperation{op1, op4, op2, op3, op5, op6}, q)
+	})
+
+	t.Run("shift", func(t *testing.T) {
+		q := []*queuedOperation{op1, op2, op3, op4, op5, op6}
+
+		shift(q, 1, 3)
+		require.Equal(t, []*queuedOperation{op1, op4, op2, op3, op5, op6}, q)
+	})
+
+	t.Run("find", func(t *testing.T) {
+		q := []*queuedOperation{op1, op2, op3, op4, op5, op6}
+
+		n, ok := find(q, 1, true)
+		require.True(t, ok)
+		require.Equal(t, 3, n)
+
+		n, ok = find(q, 5, true)
+		require.False(t, ok)
+		require.Equal(t, -1, n)
+	})
+
+	t.Run("de-fragment", func(t *testing.T) {
+		getMax := func(v bool) int {
+			if v {
+				return 4
+			}
+
+			return 2
+		}
+
+		t.Run("head has no error", func(t *testing.T) {
+			q := []*queuedOperation{op1, op2, op3, op4, op5, op6, op7, op8}
+
+			deFragment(q, getMax)
+			require.Equal(t, []*queuedOperation{op1, op4, op5, op7, op2, op3, op6, op8}, q)
+		})
+
+		t.Run("head has no error - no limit", func(t *testing.T) {
+			q := []*queuedOperation{op1, op2, op3, op4, op5, op6, op7, op8}
+
+			deFragment(q, func(v bool) int { return math.MaxInt })
+			require.Equal(t, []*queuedOperation{op1, op4, op5, op7, op8, op2, op3, op6}, q)
+		})
+
+		t.Run("head has error", func(t *testing.T) {
+			q := []*queuedOperation{op2, op1, op3, op4, op5, op6, op7, op8}
+
+			deFragment(q, getMax)
+			require.Equal(t, []*queuedOperation{op2, op3, op1, op4, op5, op6, op7, op8}, q)
+		})
+
+		t.Run("no defragmentation", func(t *testing.T) {
+			q := []*queuedOperation{op2, op1, op3, op4, op5, op6, op7, op8}
+
+			deFragment(q, func(v bool) int { return 1 })
+			require.Equal(t, []*queuedOperation{op2, op1, op3, op4, op5, op6, op7, op8}, q)
+		})
+
+		t.Run("empty queue", func(t *testing.T) {
+			q := []*queuedOperation{}
+
+			deFragment(q, getMax)
+			require.Equal(t, []*queuedOperation{}, q)
+		})
+	})
 }
 
 func TestMain(m *testing.M) {
@@ -544,6 +636,10 @@ func newProcessedOperations(n int) processedOperations {
 
 	for i := 0; i < n; i++ {
 		op := &operation.QueuedOperation{UniqueSuffix: fmt.Sprintf("op%d", i)}
+		op.Properties = append(op.Properties, operation.Property{
+			Key:   propCreatePublished,
+			Value: true,
+		})
 
 		ops[op.UniqueSuffix] = &processedOperation{op: op}
 	}

@@ -1448,12 +1448,16 @@ func TestGetOpQueueParameters(t *testing.T) {
 		restoreTaskExpirationEnv := setEnv(t, opQueueTaskExpirationEnvKey, "33s")
 		restoreMaxOperationsToRepostEnv := setEnv(t, opQueueMaxOperationsToRepostEnvKey, "750")
 		restoreOperationLifespanEnv := setEnv(t, opQueueOperationLifespanEnvKey, "60s")
+		restoreMaxContiguousOperationsWithErrEnv := setEnv(t, opQueueMaxContiguousOperationsWithErrEnvKey, "12")
+		restoreMaxContiguousOperationsWithoutErrEnv := setEnv(t, opQueueMaxContiguousOperationsWithoutErrEnvKey, "13")
 
 		defer func() {
 			restoreTaskExpirationEnv()
 			restoreTaskMonitorIntervalEnv()
 			restoreMaxOperationsToRepostEnv()
 			restoreOperationLifespanEnv()
+			restoreMaxContiguousOperationsWithErrEnv()
+			restoreMaxContiguousOperationsWithoutErrEnv()
 		}()
 
 		cmd := getTestCmd(t)
@@ -1477,6 +1481,8 @@ func TestGetOpQueueParameters(t *testing.T) {
 		require.Equal(t, float64(2.5), opQueueParams.RetriesMultiplier)
 		require.Equal(t, 750, opQueueParams.MaxOperationsToRepost)
 		require.Equal(t, 60*time.Second, opQueueParams.OperationLifeSpan)
+		require.Equal(t, 12, opQueueParams.MaxContiguousWithError)
+		require.Equal(t, 13, opQueueParams.MaxContiguousWithoutError)
 	})
 
 	t.Run("Not specified -> default value", func(t *testing.T) {
@@ -1488,6 +1494,8 @@ func TestGetOpQueueParameters(t *testing.T) {
 		require.Equal(t, opQueueDefaultTaskExpiration, opQueueParams.TaskExpiration)
 		require.Equal(t, opQueueDefaultMaxOperationsToRepost, opQueueParams.MaxOperationsToRepost)
 		require.Equal(t, opQueueDefaultOperationLifespan, opQueueParams.OperationLifeSpan)
+		require.Equal(t, opQueueDefaultMaxContiguousOperationsWithErr, opQueueParams.MaxContiguousWithError)
+		require.Equal(t, opQueueDefaultMaxContiguousOperationsWithoutErr, opQueueParams.MaxContiguousWithoutError)
 	})
 
 	t.Run("Invalid task monitor interval value -> error", func(t *testing.T) {

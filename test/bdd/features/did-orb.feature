@@ -552,6 +552,12 @@ Feature:
 
     Then client verifies resolved document
 
+  @orb_concurrent_create_update_unpublished
+  Scenario: Concurrent create/update unpublished
+    When client sends request to "https://orb.domain1.com/sidetree/v1/operations" to create 200 DID documents and update them with key ID "newkey_1_1" using 1 concurrent requests
+    And we wait up to "2m" for 200 DID documents to be created and updated
+    Then client sends request to "https://orb.domain2.com/sidetree/v1/identifiers" to verify the DID documents that were created and updated with key "newkey_1_1"
+
   @local_cas
   @enable_update_document_store
   Scenario: various 'failure' scenarios for unpublished/published stores

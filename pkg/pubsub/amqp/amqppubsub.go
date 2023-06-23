@@ -459,7 +459,7 @@ func (p *PubSub) redeliver(msg *message.Message, queue string, redeliveryAttempt
 			return fmt.Errorf("publish message to queue [%s]: %w", queue, err)
 		}
 
-		logger.Info("Successfully posted message for redelivery", logfields.WithMessageID(msg.UUID),
+		logger.Debug("Successfully posted message for redelivery", logfields.WithMessageID(msg.UUID),
 			log.WithTopic(queue), logfields.WithDeliveryAttempts(redeliveryAttempts))
 
 		return nil

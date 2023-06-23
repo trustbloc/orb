@@ -158,10 +158,12 @@ const (
 
 	defaultTracingServiceName = "orb"
 
-	opQueueDefaultTaskMonitorInterval   = 10 * time.Second
-	opQueueDefaultTaskExpiration        = time.Minute
-	opQueueDefaultMaxOperationsToRepost = 10000
-	opQueueDefaultOperationLifespan     = 24 * time.Hour
+	opQueueDefaultTaskMonitorInterval               = 10 * time.Second
+	opQueueDefaultTaskExpiration                    = time.Minute
+	opQueueDefaultMaxOperationsToRepost             = 10000
+	opQueueDefaultOperationLifespan                 = 24 * time.Hour
+	opQueueDefaultMaxContiguousOperationsWithErr    = 10000
+	opQueueDefaultMaxContiguousOperationsWithoutErr = 10000
 
 	splitRequestTokenLength = 2
 	vctReadTokenKey         = "vct-read"
@@ -408,6 +410,16 @@ const (
 	opQueueOperationLifespanEnvKey    = "OP_QUEUE_OPERATION_LIFESPAN"
 	opQueueOperationLifespanFlagUsage = "The maximum time that an operation can exist in the database before it is deleted (default is 24h). " +
 		commonEnvVarUsageText + opQueueOperationLifespanEnvKey
+
+	opQueueMaxContiguousOperationsWithErrFlagName  = "op-queue-max-contiguous-operations-with-err"
+	opQueueMaxContiguousOperationsWithErrEnvKey    = "OP_QUEUE_MAX_CONTIGUOUS_OPERATIONS_WITH_ERR"
+	opQueueMaxContiguousOperationsWithErrFlagUsage = "The maximum number of operations in the operation queue that are flagged with an error that should be grouped contiguously during defragmentation (default is 10000). " +
+		commonEnvVarUsageText + opQueueMaxContiguousOperationsWithErrEnvKey
+
+	opQueueMaxContiguousOperationsWithoutErrFlagName  = "op-queue-max-contiguous-operations-without-err"
+	opQueueMaxContiguousOperationsWithoutErrEnvKey    = "OP_QUEUE_MAX_CONTIGUOUS_OPERATIONS_WITHOUT_ERR"
+	opQueueMaxContiguousOperationsWithoutErrFlagUsage = "The maximum number of operations in the operation queue that are NOT flagged with an error that should be grouped contiguously during defragmentation (default is 10000). " +
+		commonEnvVarUsageText + opQueueMaxContiguousOperationsWithoutErrEnvKey
 
 	cidVersionFlagName  = "cid-version"
 	cidVersionEnvKey    = "CID_VERSION"
@@ -994,6 +1006,8 @@ func getOrbParameters(cmd *cobra.Command) (*orbParameters, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	opQueueParams.BatchWriterTimeout = batchWriterTimeout
 
 	witnessProofParams, err := getWitnessProofParams(cmd)
 	if err != nil {
@@ -2152,16 +2166,30 @@ func getOpQueueParameters(cmd *cobra.Command, mqParams *mqParams) (*opqueue.Conf
 		return nil, fmt.Errorf("%s: %w", opQueueOperationLifespanFlagName, err)
 	}
 
+	maxContiguousOperationsWithError, err := cmdutil.GetInt(cmd, opQueueMaxContiguousOperationsWithErrFlagName,
+		opQueueMaxContiguousOperationsWithErrEnvKey, opQueueDefaultMaxContiguousOperationsWithErr)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", opQueueMaxContiguousOperationsWithErrFlagName, err)
+	}
+
+	maxContiguousOperationsWithoutError, err := cmdutil.GetInt(cmd, opQueueMaxContiguousOperationsWithoutErrFlagName,
+		opQueueMaxContiguousOperationsWithoutErrEnvKey, opQueueDefaultMaxContiguousOperationsWithoutErr)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", opQueueMaxContiguousOperationsWithoutErrFlagName, err)
+	}
+
 	return &opqueue.Config{
-		TaskMonitorInterval:   taskMonitorInterval,
-		TaskExpiration:        taskExpiration,
-		MaxOperationsToRepost: maxOperationsToRepost,
-		OperationLifeSpan:     operationLifespan,
-		PoolSize:              mqParams.opQueuePoolSize,
-		MaxRetries:            mqParams.maxRedeliveryAttempts,
-		RetriesInitialDelay:   mqParams.redeliveryInitialInterval,
-		RetriesMaxDelay:       mqParams.maxRedeliveryInterval,
-		RetriesMultiplier:     mqParams.redeliveryMultiplier,
+		TaskMonitorInterval:       taskMonitorInterval,
+		TaskExpiration:            taskExpiration,
+		MaxOperationsToRepost:     maxOperationsToRepost,
+		MaxContiguousWithError:    maxContiguousOperationsWithError,
+		MaxContiguousWithoutError: maxContiguousOperationsWithoutError,
+		OperationLifeSpan:         operationLifespan,
+		PoolSize:                  mqParams.opQueuePoolSize,
+		MaxRetries:                mqParams.maxRedeliveryAttempts,
+		RetriesInitialDelay:       mqParams.redeliveryInitialInterval,
+		RetriesMaxDelay:           mqParams.maxRedeliveryInterval,
+		RetriesMultiplier:         mqParams.redeliveryMultiplier,
 	}, nil
 }
 
@@ -2402,6 +2430,8 @@ func createFlags(startCmd *cobra.Command) {
 	startCmd.Flags().StringP(opQueueTaskExpirationFlagName, "", "", opQueueTaskExpirationFlagUsage)
 	startCmd.Flags().StringP(opQueueMaxOperationsToRepostFlagName, "", "", opQueueMaxOperationsToRepostFlagUsage)
 	startCmd.Flags().StringP(opQueueOperationLifespanFlagName, "", "", opQueueOperationLifespanFlagUsage)
+	startCmd.Flags().StringP(opQueueMaxContiguousOperationsWithErrFlagName, "", "", opQueueMaxContiguousOperationsWithErrFlagUsage)
+	startCmd.Flags().StringP(opQueueMaxContiguousOperationsWithoutErrFlagName, "", "", opQueueMaxContiguousOperationsWithoutErrFlagUsage)
 	startCmd.Flags().String(cidVersionFlagName, "1", cidVersionFlagUsage)
 	startCmd.Flags().StringP(didNamespaceFlagName, didNamespaceFlagShorthand, "", didNamespaceFlagUsage)
 	startCmd.Flags().StringArrayP(didAliasesFlagName, didAliasesFlagShorthand, []string{}, didAliasesFlagUsage)

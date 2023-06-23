@@ -967,7 +967,7 @@ func startOrbServices(parameters *orbParameters) error {
 		return fmt.Errorf("failed to create writer: %s", err.Error())
 	}
 
-	opQueue, err := opqueue.New(*parameters.opQueueParams, pubSub, storeProviders.provider,
+	opQueue, err := opqueue.New(parameters.opQueueParams, pubSub, storeProviders.provider,
 		taskMgr, expiryService, metrics)
 	if err != nil {
 		return fmt.Errorf("failed to create operation queue: %s", err.Error())
@@ -996,17 +996,15 @@ func startOrbServices(parameters *orbParameters) error {
 			parameters.unpublishedOperations.operationTypes))
 	}
 
-	if parameters.verifyLatestFromAnchorOrigin {
-		operationDecorator := decorator.New(parameters.sidetree.didNamespace,
-			parameters.http.externalEndpoint,
-			opProcessor,
-			endpointClient,
-			remoteresolver.New(httpTransport),
-			metrics,
-		)
+	operationDecorator := decorator.New(parameters.sidetree.didNamespace,
+		parameters.http.externalEndpoint,
+		opProcessor,
+		endpointClient,
+		remoteresolver.New(httpTransport),
+		parameters.verifyLatestFromAnchorOrigin,
+		metrics)
 
-		didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithOperationDecorator(operationDecorator))
-	}
+	didDocHandlerOpts = append(didDocHandlerOpts, dochandler.WithOperationDecorator(operationDecorator))
 
 	didDocHandler := dochandler.New(
 		parameters.sidetree.didNamespace,

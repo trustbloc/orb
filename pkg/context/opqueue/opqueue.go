@@ -9,8 +9,8 @@ package opqueue
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"math"
 	"sync"
 	"time"
 
@@ -22,6 +22,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
+	"github.com/trustbloc/orb/pkg/anchor/multierror"
 	"github.com/trustbloc/orb/pkg/lifecycle"
 	"github.com/trustbloc/orb/pkg/observability/tracing"
 	"github.com/trustbloc/orb/pkg/pubsub"
@@ -41,14 +42,19 @@ const (
 	tagExpiryTime    = "expiryTime"
 	detachedServerID = "detached"
 
-	defaultInterval              = 10 * time.Second
-	defaultTaskExpirationFactor  = 3
-	defaultMaxRetries            = 10
-	defaultRetryInitialDelay     = 2 * time.Second
-	defaultMaxRetryDelay         = 30 * time.Second
-	defaultRetryMultiplier       = 1.5
-	defaultMaxOperationsToRepost = 1000
-	defaultOperationLifespan     = 10 * time.Minute
+	defaultInterval                 = 10 * time.Second
+	defaultTaskExpirationFactor     = 3
+	defaultMaxRetries               = 10
+	defaultRetryInitialDelay        = 2 * time.Second
+	defaultMaxRetryDelay            = 30 * time.Second
+	defaultRetryMultiplier          = 1.5
+	defaultMaxOperationsToRepost    = 1000
+	defaultOperationLifespan        = 10 * time.Minute
+	defaultMaxContiguousWithError   = 10000
+	defaultMaxContiguousWithNoError = 10000
+	defaultDelayPadding             = 5 * time.Second
+
+	propCreatePublished = "create-op-is-published"
 )
 
 type pubSub interface {
@@ -62,6 +68,7 @@ type OperationMessage struct {
 	ID        string                           `json:"id"`
 	Operation *operation.QueuedOperationAtTime `json:"operation"`
 	Retries   int                              `json:"retries"`
+	HasError  bool                             `json:"hasError,omitempty"`
 }
 
 type queuedOperation struct {
@@ -129,6 +136,12 @@ type Config struct {
 	// OperationLifespan is the maximum time that an operation can exist in the database before
 	// it is deleted
 	OperationLifeSpan time.Duration
+	// BatchWriterTimeout specifies the timeout for when a batch of operations is cut.
+	BatchWriterTimeout time.Duration
+	// MaxContiguousWithError specifies the maximum number of previously failed operations to rearrange contiguously.
+	MaxContiguousWithError int
+	// MaxContiguousWithoutError specifies the maximum number of operations (with no error) to rearrange contiguously.
+	MaxContiguousWithoutError int
 }
 
 // Queue implements an operation queue that uses a publisher/subscriber.
@@ -137,8 +150,7 @@ type Queue struct {
 
 	pubSub                    pubSub
 	msgChan                   <-chan *message.Message
-	mutex                     sync.RWMutex
-	pending                   []*queuedOperation
+	pending                   *queuedOperations
 	marshal                   func(interface{}) ([]byte, error)
 	unmarshal                 func(data []byte, v interface{}) error
 	metrics                   metricsProvider
@@ -156,10 +168,11 @@ type Queue struct {
 	logger                    *log.Log
 	tracer                    trace.Tracer
 	operationLifeSpan         time.Duration
+	delayForUnpublishedCreate time.Duration
 }
 
 // New returns a new operation queue.
-func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
+func New(cfg *Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
 	expiryService dataExpiryService, metrics metricsProvider,
 ) (*Queue, error) {
 	logger := log.New(loggerModule, log.WithFields(logfields.WithTaskMgrInstanceID(taskMgr.InstanceID())))
@@ -184,7 +197,10 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
 		logfields.WithTaskMonitorInterval(cfg.TaskMonitorInterval), logfields.WithTaskExpiration(cfg.TaskExpiration),
 		logfields.WithMaxOperationsToRepost(cfg.MaxOperationsToRepost))
 
+	pendingQueue := newQueuedOperations(cfg.MaxContiguousWithError, cfg.MaxContiguousWithoutError, logger)
+
 	q := &Queue{
+		pending:                   pendingQueue,
 		pubSub:                    pubSub,
 		msgChan:                   msgChan,
 		marshal:                   json.Marshal,
@@ -202,6 +218,7 @@ func New(cfg Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
 		maxRedeliveryInterval:     cfg.RetriesMaxDelay,
 		maxOperationsToRepost:     cfg.MaxOperationsToRepost,
 		operationLifeSpan:         cfg.OperationLifeSpan,
+		delayForUnpublishedCreate: cfg.BatchWriterTimeout + defaultDelayPadding,
 		logger:                    logger,
 		tracer:                    tracing.Tracer(tracing.SubsystemOperationQueue),
 	}
@@ -260,7 +277,10 @@ func (q *Queue) publish(ctx context.Context, op *OperationMessage) (uint, error)
 
 	msg := pubsub.NewMessage(ctx, b)
 
-	delay := q.getDeliveryDelay(op.Retries)
+	delay, err := q.getDeliveryDelay(op)
+	if err != nil {
+		return 0, fmt.Errorf("get delivery delay: %w", err)
+	}
 
 	q.logger.Debugc(ctx, "Publishing operation message to queue", log.WithTopic(topic), logfields.WithMessageID(msg.UUID),
 		logfields.WithOperationID(op.ID), logfields.WithRetries(op.Retries), logfields.WithDeliveryDelay(delay),
@@ -280,15 +300,9 @@ func (q *Queue) Peek(num uint) (operation.QueuedOperationsAtTime, error) {
 		return nil, lifecycle.ErrNotStarted
 	}
 
-	q.mutex.RLock()
-	defer q.mutex.RUnlock()
+	q.pending.deFragment()
 
-	n := int(num)
-	if len(q.pending) < n {
-		n = len(q.pending)
-	}
-
-	items := q.pending[0:n]
+	items := q.pending.Peek(num)
 
 	q.logger.Debug("Peeked operations.", logfields.WithTotal(len(items)))
 
@@ -297,27 +311,17 @@ func (q *Queue) Peek(num uint) (operation.QueuedOperationsAtTime, error) {
 
 // Remove removes (up to) the given number of items from the head of the queue.
 // Returns the actual number of items that were removed and the new length of the queue.
-func (q *Queue) Remove(num uint) (ops operation.QueuedOperationsAtTime, ack func() uint, nack func(), err error) {
+func (q *Queue) Remove(num uint) (ops operation.QueuedOperationsAtTime, ack func() uint, nack func(error), err error) {
 	if q.State() != lifecycle.StateStarted {
 		return nil, nil, nil, lifecycle.ErrNotStarted
 	}
 
-	q.mutex.Lock()
-	defer q.mutex.Unlock()
-
-	n := int(num)
-	if len(q.pending) < n {
-		n = len(q.pending)
-	}
-
-	if n == 0 {
+	items := q.pending.Remove(num)
+	if len(items) == 0 {
 		return nil,
 			func() uint { return 0 },
-			func() {}, nil
+			func(error) {}, nil
 	}
-
-	items := q.pending[0:n]
-	q.pending = q.pending[n:]
 
 	q.logger.Debug("Removed operations.", logfields.WithTotal(len(items)))
 
@@ -330,10 +334,7 @@ func (q *Queue) Len() uint {
 		return 0
 	}
 
-	q.mutex.RLock()
-	defer q.mutex.RUnlock()
-
-	return uint(len(q.pending))
+	return q.pending.Len()
 }
 
 func (q *Queue) start() {
@@ -394,7 +395,7 @@ func (q *Queue) handleMessage(msg *message.Message) {
 		ExpiryTime:       time.Now().Add(q.operationLifeSpan).Unix(),
 	}
 
-	opBytes, err := json.Marshal(pop)
+	opBytes, err := q.marshal(pop)
 	if err != nil {
 		q.logger.Error("Error marshalling operation.", logfields.WithMessageID(msg.UUID), log.WithError(err))
 
@@ -417,13 +418,10 @@ func (q *Queue) handleMessage(msg *message.Message) {
 		return
 	}
 
-	q.mutex.Lock()
-	defer q.mutex.Unlock()
-
 	q.logger.Debug("Adding operation to pending queue", logfields.WithOperationID(op.ID),
 		logfields.WithSuffix(op.Operation.UniqueSuffix), logfields.WithRetries(op.Retries))
 
-	q.pending = append(q.pending, &queuedOperation{
+	q.pending.Add(&queuedOperation{
 		OperationMessage: op,
 		key:              key,
 		timeAdded:        time.Now(),
@@ -445,19 +443,27 @@ func (q *Queue) newAckFunc(items []*queuedOperation) func() uint {
 
 		q.metrics.BatchSize(float64(len(items)))
 
-		q.mutex.RLock()
-		defer q.mutex.RUnlock()
-
-		return uint(len(q.pending))
+		return q.pending.Len()
 	}
 }
 
-func (q *Queue) newNackFunc(items []*queuedOperation) func() {
-	return func() {
+func (q *Queue) newNackFunc(items []*queuedOperation) func(error) {
+	return func(err error) {
 		ctx, span := q.tracer.Start(context.Background(), "nack")
 		defer span.End()
 
-		q.logger.Infoc(ctx, "Operations were rolled back. Re-posting...", logfields.WithTotal(len(items)))
+		q.logger.Infoc(ctx, "Operations were rolled back. Re-posting...", logfields.WithTotal(len(items)),
+			log.WithError(err))
+
+		var mErr *multierror.Error
+
+		if ok := errors.As(err, &mErr); ok {
+			if log.GetLevel(loggerModule) == log.DEBUG {
+				for suffix, e := range mErr.Errors() {
+					q.logger.Debug("DID operation error", logfields.WithSuffix(suffix), log.WithError(e))
+				}
+			}
+		}
 
 		var operationsToDelete []*queuedOperation
 
@@ -474,9 +480,12 @@ func (q *Queue) newNackFunc(items []*queuedOperation) func() {
 
 			op.Retries++
 
+			errSuffix, ok := mErr.Errors()[op.Operation.UniqueSuffix]
+			op.HasError = ok
+
 			q.logger.Infoc(ctx, "Re-posting operation after NACK", logfields.WithOperationID(op.ID),
 				logfields.WithSuffix(op.Operation.UniqueSuffix), logfields.WithRetries(op.Retries),
-				logfields.WithMaxRetries(q.maxRetries))
+				logfields.WithMaxRetries(q.maxRetries), log.WithError(errSuffix))
 
 			if _, err := q.publish(ctx, op.OperationMessage); err != nil {
 				q.logger.Errorc(ctx, "Error re-posting operation after NACK. Operation will be detached from this server instance",
@@ -783,25 +792,29 @@ func (q *Queue) detachOperation(op *queuedOperation) error {
 	)
 }
 
-func (q *Queue) getDeliveryDelay(attempts int) time.Duration {
-	if attempts == 0 {
-		return 0
+func (q *Queue) getDeliveryDelay(op *OperationMessage) (time.Duration, error) {
+	if op.Operation.Type == operation.TypeCreate {
+		return 0, nil
 	}
 
-	if attempts == 1 {
-		return q.redeliveryInitialInterval
+	published, err := isCreatePublished(op.Operation.Properties)
+	if err != nil {
+		return 0, err
 	}
 
-	interval := time.Duration(float64(q.redeliveryInitialInterval) * math.Pow(q.redeliveryMultiplier, float64(attempts-1)))
-
-	if interval > q.maxRedeliveryInterval {
-		interval = q.maxRedeliveryInterval
+	if published {
+		return 0, nil
 	}
 
-	return interval
+	q.logger.Debug("Adding delay to the operation since the 'Create' operation was not published. "+
+		"This operation will be processed in a subsequent batch.",
+		logfields.WithSuffix(op.Operation.UniqueSuffix), logfields.WithOperationType(string(op.Operation.Type)),
+		logfields.WithDeliveryDelay(q.delayForUnpublishedCreate))
+
+	return q.delayForUnpublishedCreate, nil
 }
 
-func resolveConfig(cfg Config) Config {
+func resolveConfig(cfg *Config) *Config {
 	if cfg.TaskMonitorInterval == 0 {
 		cfg.TaskMonitorInterval = defaultInterval
 	}
@@ -836,5 +849,194 @@ func resolveConfig(cfg Config) Config {
 		cfg.OperationLifeSpan = defaultOperationLifespan
 	}
 
+	if cfg.MaxContiguousWithError == 0 {
+		cfg.MaxContiguousWithError = defaultMaxContiguousWithError
+	}
+
+	if cfg.MaxContiguousWithoutError == 0 {
+		cfg.MaxContiguousWithoutError = defaultMaxContiguousWithNoError
+	}
+
 	return cfg
+}
+
+type queuedOperations struct {
+	ops    []*queuedOperation
+	mutex  sync.RWMutex
+	logger *log.Log
+
+	maxContguousWithError     int
+	maxContiguousWithoutError int
+}
+
+func newQueuedOperations(maxContiguousWithError, maxContiguousWithoutError int, logger *log.Log) *queuedOperations {
+	return &queuedOperations{
+		logger:                    logger,
+		maxContguousWithError:     maxContiguousWithError,
+		maxContiguousWithoutError: maxContiguousWithoutError,
+	}
+}
+
+func (o *queuedOperations) Add(op *queuedOperation) {
+	o.mutex.Lock()
+	o.ops = append(o.ops, op)
+	o.mutex.Unlock()
+}
+
+func (o *queuedOperations) Remove(num uint) []*queuedOperation {
+	o.mutex.Lock()
+	defer o.mutex.Unlock()
+
+	return o.retrieve(num, true)
+}
+
+func (o *queuedOperations) Peek(num uint) []*queuedOperation {
+	o.mutex.RLock()
+	defer o.mutex.RUnlock()
+
+	return o.retrieve(num, false)
+}
+
+func (o *queuedOperations) retrieve(n uint, remove bool) []*queuedOperation {
+	num := int(n)
+
+	actualNum := o.num()
+	if actualNum < num {
+		num = actualNum
+	}
+
+	var items []*queuedOperation
+
+	if num > 0 {
+		items = o.ops[0:num]
+
+		if remove {
+			o.ops = o.ops[num:]
+		}
+	}
+
+	return items
+}
+
+func (o *queuedOperations) Len() uint {
+	o.mutex.RLock()
+	defer o.mutex.RUnlock()
+
+	// Return the length of all operations (in all error states). Even though only the operations in
+	// a homogeneous state are returned, we want to give the batch writer the total number so that
+	// the queue doesn't back up.
+	return uint(len(o.ops))
+}
+
+type errorState int
+
+func toErrorState(has bool) errorState {
+	if has {
+		return 1
+	}
+
+	return 0
+}
+
+func (s errorState) Bool() bool {
+	return s == 1
+}
+
+const initialErrState errorState = -1
+
+// num iterates through the operations and returns the number of operations which are at the same error state.
+func (o *queuedOperations) num() int {
+	if len(o.ops) == 0 {
+		return 0
+	}
+
+	n := 0
+	errState := initialErrState
+
+	for _, op := range o.ops {
+		if errState == initialErrState {
+			errState = toErrorState(op.HasError)
+		}
+
+		if toErrorState(op.HasError) != errState {
+			break
+		}
+
+		n++
+	}
+
+	return n
+}
+
+// deFragment de-fragments the operation queue such that operations that have previously failed are grouped
+// contiguously and operations that have no error (thus far) are also grouped contiguously. Grouping (de-fragmenting)
+// the operation queue provides a greater chance that valid operations are successfully processed and are not
+// failed just because the batch failed due to a single "bad" operation.
+func (o *queuedOperations) deFragment() {
+	o.mutex.Lock()
+	defer o.mutex.Unlock()
+
+	deFragment(o.ops, o.getMax)
+}
+
+func (o *queuedOperations) getMax(v bool) int {
+	if v {
+		return o.maxContguousWithError
+	}
+
+	return o.maxContiguousWithoutError
+}
+
+func swap(a []*queuedOperation, dest, src int) {
+	a[dest], a[src] = a[src], a[dest]
+}
+
+func shift(a []*queuedOperation, dest, src int) {
+	for i := src; i > dest; i-- {
+		swap(a, i-1, i)
+	}
+}
+
+func find(a []*queuedOperation, from int, v bool) (int, bool) {
+	for i := from; i < len(a); i++ {
+		if a[i].HasError == v {
+			return i, true
+		}
+	}
+
+	return -1, false
+}
+
+func deFragment(a []*queuedOperation, getMax func(v bool) int) {
+	if len(a) == 0 {
+		return
+	}
+
+	errState := a[0].HasError
+
+	for i := 0; i < getMax(errState); i++ {
+		n, ok := find(a, i, errState)
+		if !ok {
+			return
+		}
+
+		if n != i {
+			shift(a, i, n)
+		}
+	}
+}
+
+func isCreatePublished(properties []operation.Property) (bool, error) {
+	for _, prop := range properties {
+		if prop.Key == propCreatePublished {
+			published, ok := prop.Value.(bool)
+			if !ok {
+				return false, fmt.Errorf("operation property value is not of type bool: %s", propCreatePublished)
+			}
+
+			return published, nil
+		}
+	}
+
+	return false, fmt.Errorf("operation property not found: %s", propCreatePublished)
 }
