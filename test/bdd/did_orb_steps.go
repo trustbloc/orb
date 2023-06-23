@@ -142,48 +142,52 @@ type DIDOrbSteps struct {
 	resolutionEndpoint       string
 	operationEndpoint        string
 	sidetreeURL              string
-	createResponses          *createResponses
+	createResponses          *responses[*createDIDResponse]
 	createAndUpdateResponses *createAndUpdateResponses
 	updateResponses          []*updateDIDResponse
 	httpClient               *httpClient
 	didPrintEnabled          bool
 }
 
-type createResponses struct {
-	responses []*createDIDResponse
+type didResponse interface {
+	DID() string
+}
+
+type responses[T didResponse] struct {
+	responses []T
 	mutex     sync.RWMutex
 }
 
-func newCreateResponses() *createResponses {
-	return &createResponses{}
+func newResponses[T didResponse]() *responses[T] {
+	return &responses[T]{}
 }
 
-func (r *createResponses) Add(response *createDIDResponse) {
+func (r *responses[T]) Add(response T) {
 	r.mutex.Lock()
 	r.responses = append(r.responses, response)
 	r.mutex.Unlock()
 }
 
-func (r *createResponses) Clear() {
+func (r *responses[T]) Clear() {
 	r.mutex.Lock()
 	r.responses = nil
 	r.mutex.Unlock()
 }
 
-func (r *createResponses) GetAll() []*createDIDResponse {
+func (r *responses[T]) GetAll() []T {
 	r.mutex.RLock()
 	defer r.mutex.RUnlock()
 
 	return r.responses
 }
 
-func (r *createResponses) Get(ctx context.Context, n int) ([]*createDIDResponse, error) {
+func (r *responses[T]) Get(ctx context.Context, n int) ([]T, error) {
 	for {
 		select {
 		case <-time.After(100 * time.Millisecond):
-			responses := r.GetAll()
-			if len(responses) >= n {
-				return responses[0:n], nil
+			r := r.GetAll()
+			if len(r) >= n {
+				return r[0:n], nil
 			}
 
 		case <-ctx.Done():
@@ -193,46 +197,21 @@ func (r *createResponses) Get(ctx context.Context, n int) ([]*createDIDResponse,
 }
 
 type createAndUpdateResponses struct {
-	responses []*createAndUpdateDIDResponse
-	mutex     sync.RWMutex
+	*responses[*createAndUpdateDIDResponse]
 }
 
 func newCreateAndUpdateResponses() *createAndUpdateResponses {
-	return &createAndUpdateResponses{}
+	return &createAndUpdateResponses{newResponses[*createAndUpdateDIDResponse]()}
 }
 
-func (r *createAndUpdateResponses) Add(response *createAndUpdateDIDResponse) {
-	r.mutex.Lock()
-	r.responses = append(r.responses, response)
-	r.mutex.Unlock()
-}
+func (r *createAndUpdateResponses) UpdateResponses() []*updateDIDResponse {
+	responses := make([]*updateDIDResponse, len(r.responses.GetAll()))
 
-func (r *createAndUpdateResponses) Clear() {
-	r.mutex.Lock()
-	r.responses = nil
-	r.mutex.Unlock()
-}
-
-func (r *createAndUpdateResponses) GetAll() []*createAndUpdateDIDResponse {
-	r.mutex.RLock()
-	defer r.mutex.RUnlock()
-
-	return r.responses
-}
-
-func (r *createAndUpdateResponses) Get(ctx context.Context, n int) ([]*createAndUpdateDIDResponse, error) {
-	for {
-		select {
-		case <-time.After(100 * time.Millisecond):
-			responses := r.GetAll()
-			if len(responses) >= n {
-				return responses[0:n], nil
-			}
-
-		case <-ctx.Done():
-			return nil, fmt.Errorf("wait for responses: %w", ctx.Err())
-		}
+	for i, r := range r.responses.GetAll() {
+		responses[i] = r.updateDIDResponse
 	}
+
+	return responses
 }
 
 // NewDIDSideSteps
@@ -243,7 +222,7 @@ func NewDIDSideSteps(context *BDDContext, state *state, httpClient *httpClient, 
 		namespace:                namespace,
 		httpClient:               httpClient,
 		didPrintEnabled:          true,
-		createResponses:          newCreateResponses(),
+		createResponses:          newResponses[*createDIDResponse](),
 		createAndUpdateResponses: newCreateAndUpdateResponses(),
 	}
 }
@@ -1432,15 +1411,11 @@ func (d *DIDOrbSteps) createAndUpdateDIDDocumentsAsync(strURLs string, num int, 
 func (d *DIDOrbSteps) createDIDDocumentsAtURLs(urls []string, num, concurrency, attempts int) error {
 	logger.Infof("creating %d DID document(s) at %s using a concurrency of %d", num, urls, concurrency)
 
-	d.createResponses.Clear()
-
-	p := NewWorkerPool(concurrency, WithTaskDescription(fmt.Sprintf("Create %d DID documents", num)))
-
-	p.Start()
-
-	for i := 0; i < num; i++ {
-		p.Submit(
-			newCreateDIDRequest(d.state, d.httpClient, urls, attempts, 10*time.Second,
+	return performDIDOperations[*createDIDResponse](
+		fmt.Sprintf("Create %d DID documents", num),
+		num, concurrency, d.createResponses,
+		func() Request[*createDIDResponse] {
+			return newCreateDIDRequest(d.state, d.httpClient, urls, attempts, 10*time.Second,
 				func(resp *httpResponse, err error) bool {
 					if err != nil {
 						return strings.Contains(strings.ToLower(err.Error()), strings.ToLower("EOF")) ||
@@ -1449,48 +1424,19 @@ func (d *DIDOrbSteps) createDIDDocumentsAtURLs(urls []string, num, concurrency, 
 
 					return resp.StatusCode >= 500
 				},
-			),
-		)
-	}
-
-	p.Stop()
-
-	logger.Infof("got %d responses for %d requests", len(p.responses), num)
-
-	if len(p.responses) != num {
-		return fmt.Errorf("expecting %d responses but got %d", num, len(p.responses))
-	}
-
-	for _, resp := range p.responses {
-		req := resp.Request.(*createDIDRequest)
-		if resp.Err != nil {
-			logger.Infof("Create DID documents got error from [%s]: %s", req.url, resp.Err)
-
-			return resp.Err
-		}
-
-		createResp := resp.Resp.(*createDIDResponse)
-
-		logger.Infof("got DID from [%s]: %s", req.url, createResp.did)
-
-		d.createResponses.Add(createResp)
-	}
-
-	return nil
+			)
+		},
+	)
 }
 
 func (d *DIDOrbSteps) createAndUpdateDIDDocumentsAtURLs(urls []string, updateKey string, num, concurrency, attempts int) error {
 	logger.Infof("creating and updating %d DID document(s) at %s using a concurrency of %d", num, urls, concurrency)
 
-	d.createAndUpdateResponses.Clear()
-
-	p := NewWorkerPool(concurrency, WithTaskDescription(fmt.Sprintf("Create %d DID documents", num)))
-
-	p.Start()
-
-	for i := 0; i < num; i++ {
-		p.Submit(
-			newCreateAndUpdateDIDRequest(d.state, d.httpClient, urls, updateKey, attempts, 10*time.Second,
+	return performDIDOperations(
+		fmt.Sprintf("Create and update %d DID documents", num),
+		num, concurrency, d.createAndUpdateResponses.responses,
+		func() Request[*createAndUpdateDIDResponse] {
+			return newCreateAndUpdateDIDRequest(d.state, d.httpClient, urls, updateKey, attempts, 10*time.Second,
 				func(resp *httpResponse, err error) bool {
 					if err != nil {
 						return strings.Contains(strings.ToLower(err.Error()), strings.ToLower("EOF")) ||
@@ -1499,8 +1445,22 @@ func (d *DIDOrbSteps) createAndUpdateDIDDocumentsAtURLs(urls []string, updateKey
 
 					return resp.StatusCode >= 500
 				},
-			),
-		)
+			)
+		},
+	)
+}
+
+func performDIDOperations[T didResponse](taskDesc string, num, concurrency int,
+	responses *responses[T], newRequest func() Request[T],
+) error {
+	responses.Clear()
+
+	p := NewWorkerPool[T](concurrency, WithTaskDescription(taskDesc))
+
+	p.Start()
+
+	for i := 0; i < num; i++ {
+		p.Submit(newRequest())
 	}
 
 	p.Stop()
@@ -1512,18 +1472,16 @@ func (d *DIDOrbSteps) createAndUpdateDIDDocumentsAtURLs(urls []string, updateKey
 	}
 
 	for _, resp := range p.responses {
-		req := resp.Request.(*createAndUpdateDIDRequest)
+		req := resp.Request
 		if resp.Err != nil {
-			logger.Infof("Create and update DID documents got error from [%s]: %s", req.url, resp.Err)
+			logger.Infof("Create DID documents got error from [%s]: %s", req.URL(), resp.Err)
 
 			return resp.Err
 		}
 
-		createResp := resp.Resp.(*createAndUpdateDIDResponse)
+		logger.Infof("got DID from [%s]: %s", req.URL(), resp.Resp.DID())
 
-		logger.Infof("got DID from [%s]: %s", req.url, createResp.createDIDResponse.did)
-
-		d.createAndUpdateResponses.Add(createResp)
+		responses.Add(resp.Resp)
 	}
 
 	return nil
@@ -1669,7 +1627,8 @@ func (d *DIDOrbSteps) updateDIDDocuments(strURLs string, keyID string, concurren
 
 	d.updateResponses = nil
 
-	p := NewWorkerPool(concurrency, WithTaskDescription(fmt.Sprintf("Update %d DID documents", num)))
+	p := NewWorkerPool[*updateDIDResponse](concurrency,
+		WithTaskDescription(fmt.Sprintf("Update %d DID documents", num)))
 
 	p.Start()
 
@@ -1706,13 +1665,13 @@ func (d *DIDOrbSteps) updateDIDDocuments(strURLs string, keyID string, concurren
 	}
 
 	for _, resp := range p.responses {
-		req := resp.Request.(*updateDIDRequest)
+		req := resp.Request
 		if resp.Err != nil {
-			logger.Infof("Update DID documents got error from [%s]: %s", req.url, resp.Err)
+			logger.Infof("Update DID documents got error from [%s]: %s", req.URL(), resp.Err)
 			return resp.Err
 		}
 
-		d.updateResponses = append(d.updateResponses, resp.Resp.(*updateDIDResponse))
+		d.updateResponses = append(d.updateResponses, resp.Resp)
 	}
 
 	return nil
@@ -1735,7 +1694,8 @@ func (d *DIDOrbSteps) updateDIDDocumentsAgain(strURLs string, keyID string, conc
 
 	d.updateResponses = nil
 
-	p := NewWorkerPool(concurrency, WithTaskDescription(fmt.Sprintf("Update %d DID documents", num)))
+	p := NewWorkerPool[*updateDIDResponse](concurrency,
+		WithTaskDescription(fmt.Sprintf("Update %d DID documents", num)))
 
 	p.Start()
 
@@ -1767,13 +1727,13 @@ func (d *DIDOrbSteps) updateDIDDocumentsAgain(strURLs string, keyID string, conc
 	}
 
 	for _, resp := range p.responses {
-		req := resp.Request.(*updateDIDRequest)
+		req := resp.Request
 		if resp.Err != nil {
-			logger.Infof("Update DID documents again got error from [%s]: %s", req.url, resp.Err)
+			logger.Infof("Update DID documents again got error from [%s]: %s", req.URL(), resp.Err)
 			return resp.Err
 		}
 
-		d.updateResponses = append(d.updateResponses, resp.Resp.(*updateDIDResponse))
+		d.updateResponses = append(d.updateResponses, resp.Resp)
 	}
 
 	return nil
@@ -1851,14 +1811,22 @@ func (d *DIDOrbSteps) verifyDIDDocumentsFromFile(strURLs, file, strAttempts stri
 }
 
 func (d *DIDOrbSteps) verifyUpdatedDIDDocuments(strURLs string, keyID string) error {
+	return d.doVerifyUpdatedDIDDocuments(d.updateResponses, strURLs, keyID)
+}
+
+func (d *DIDOrbSteps) verifyCreatedAndUpdatedDIDDocuments(strURLs string, keyID string) error {
+	return d.doVerifyUpdatedDIDDocuments(d.createAndUpdateResponses.UpdateResponses(), strURLs, keyID)
+}
+
+func (d *DIDOrbSteps) doVerifyUpdatedDIDDocuments(updateResponses []*updateDIDResponse, strURLs string, keyID string) error {
 	logger.Infof("Verifying the %d DID document(s) that were updated with key ID [%s]",
-		len(d.updateResponses), keyID)
+		len(updateResponses), keyID)
 
 	urls := strings.Split(strURLs, ",")
 
 	const maxAttempts = 30
 
-	for i, resp := range d.updateResponses {
+	for i, resp := range updateResponses {
 		verified := false
 
 		var err error
@@ -1873,7 +1841,7 @@ func (d *DIDOrbSteps) verifyUpdatedDIDDocuments(strURLs string, keyID string) er
 				continue
 			}
 
-			logger.Infof("... verified %d out of %d updated DIDs", i+1, len(d.updateResponses))
+			logger.Infof("... verified %d out of %d updated DIDs", i+1, len(updateResponses))
 
 			verified = true
 
@@ -1886,48 +1854,7 @@ func (d *DIDOrbSteps) verifyUpdatedDIDDocuments(strURLs string, keyID string) er
 		}
 	}
 
-	logger.Infof("Successfully verified %d updated DIDs", len(d.updateResponses))
-
-	return nil
-}
-
-func (d *DIDOrbSteps) verifyCreatedAndUpdatedDIDDocuments(strURLs string, keyID string) error {
-	logger.Infof("Verifying the %d DID document(s) that were created and updated with key ID [%s]",
-		len(d.createAndUpdateResponses.GetAll()), keyID)
-
-	urls := strings.Split(strURLs, ",")
-
-	const maxAttempts = 60
-
-	for i, resp := range d.createAndUpdateResponses.GetAll() {
-		verified := false
-
-		var err error
-
-		for attempt := 0; attempt < maxAttempts; attempt++ {
-			err = d.doVerifyUpdatedDIDContainsKeyID(urls, resp.updateDIDResponse.did, keyID)
-			if err != nil {
-				logger.Infof("... updated DID %s not verified on attempt %d: %s", resp.updateDIDResponse.did, attempt+1, err)
-
-				time.Sleep(5 * time.Second)
-
-				continue
-			}
-
-			logger.Infof("... verified %d out of %d updated DIDs", i+1, len(d.updateResponses))
-
-			verified = true
-
-			break
-		}
-
-		if !verified {
-			return fmt.Errorf("updated DID %s not verified after %d attempts: %s",
-				resp.updateDIDResponse.did, maxAttempts, err)
-		}
-	}
-
-	logger.Infof("Successfully verified %d created and updated DIDs", len(d.updateResponses))
+	logger.Infof("Successfully verified %d updated DIDs", len(updateResponses))
 
 	return nil
 }
@@ -2129,6 +2056,10 @@ type createDIDResponse struct {
 	reqBytes    []byte
 }
 
+func (r *createDIDResponse) DID() string {
+	return r.did
+}
+
 func newCreateDIDRequest(state *state, httpClient *httpClient, urls []string, attempts int, greylistDuration time.Duration,
 	shouldRetry func(*httpResponse, error) bool,
 ) *createDIDRequest {
@@ -2143,7 +2074,11 @@ func newCreateDIDRequest(state *state, httpClient *httpClient, urls []string, at
 	}
 }
 
-func (r *createDIDRequest) Invoke() (interface{}, error) {
+func (r *createDIDRequest) URL() string {
+	return r.url
+}
+
+func (r *createDIDRequest) Invoke() (*createDIDResponse, error) {
 	var (
 		resp                   *httpResponse
 		respErr                error
@@ -2259,7 +2194,11 @@ type updateDIDResponse struct {
 	suffixData *model.SuffixDataModel
 }
 
-func (r *updateDIDRequest) Invoke() (interface{}, error) {
+func (r *updateDIDRequest) URL() string {
+	return r.url
+}
+
+func (r *updateDIDRequest) Invoke() (*updateDIDResponse, error) {
 	uniqueSuffix, err := getUniqueSuffix(r.suffixData)
 	if err != nil {
 		return nil, err
@@ -2274,7 +2213,7 @@ func (r *updateDIDRequest) Invoke() (interface{}, error) {
 
 	resp, err := r.httpClient.Post(r.url, reqBytes, "application/json")
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -2310,13 +2249,15 @@ func newCreateAndUpdateDIDRequest(state *state, httpClient *httpClient, urls []s
 	}
 }
 
-func (r *createAndUpdateDIDRequest) Invoke() (interface{}, error) {
-	cResp, err := r.createDIDRequest.Invoke()
+func (r *createAndUpdateDIDRequest) URL() string {
+	return r.createDIDRequest.URL()
+}
+
+func (r *createAndUpdateDIDRequest) Invoke() (*createAndUpdateDIDResponse, error) {
+	createResp, err := r.createDIDRequest.Invoke()
 	if err != nil {
 		return nil, fmt.Errorf("create DID: %w", err)
 	}
-
-	createResp := cResp.(*createDIDResponse)
 
 	createReq := &model.CreateRequest{}
 	if err := json.Unmarshal(createResp.reqBytes, createReq); err != nil {
@@ -2343,12 +2284,10 @@ func (r *createAndUpdateDIDRequest) Invoke() (interface{}, error) {
 		patches:    []patch.Patch{ptch},
 	}
 
-	uResp, err := updateRequest.Invoke()
+	updateResp, err := updateRequest.Invoke()
 	if err != nil {
 		return nil, fmt.Errorf("update DID: %w", err)
 	}
-
-	updateResp := uResp.(*updateDIDResponse)
 
 	return &createAndUpdateDIDResponse{
 		createDIDResponse: createResp,
