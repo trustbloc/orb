@@ -220,7 +220,7 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 
 	fmt.Println("start pre test creating did")
 
-	preTestCreatePool := NewWorkerPool(concurrencyReq)
+	preTestCreatePool := NewWorkerPool[*createDIDResp](concurrencyReq)
 
 	preTestCreatePool.Start()
 
@@ -240,7 +240,7 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 		return fmt.Errorf("pre test: expecting created %d responses but got %d", didNums, len(preTestCreatePool.responses))
 	}
 
-	preTestResolvePool := NewWorkerPool(concurrencyReq)
+	preTestResolvePool := NewWorkerPool[*resolveDIDResp](concurrencyReq)
 
 	preTestResolvePool.Start()
 
@@ -251,10 +251,7 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 			return resp.Err
 		}
 
-		r, ok := resp.Resp.(createDIDResp)
-		if !ok {
-			return fmt.Errorf("pre test: failed to cast resp to createDIDResp")
-		}
+		r := resp.Resp
 
 		preTestResolvePool.Submit(&resolveDIDReq{
 			vdr:                   vdr,
@@ -281,12 +278,7 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 			return resp.Err
 		}
 
-		r, ok := resp.Resp.(resolveDIDResp)
-		if !ok {
-			return fmt.Errorf("pre test: failed to cast resp to resolveDIDResp")
-		}
-
-		anchoredDID = append(anchoredDID, r.canonicalID)
+		anchoredDID = append(anchoredDID, resp.Resp.canonicalID)
 	}
 
 	createHTTPTime = make([]int64, 0)
@@ -296,7 +288,7 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 
 	fmt.Println("finish pre test creating did")
 
-	testPool := NewWorkerPool(concurrencyReq)
+	testPool := NewWorkerPool[interface{}](concurrencyReq)
 
 	testPool.Start()
 
@@ -391,7 +383,8 @@ func (e *StressSteps) createConcurrentReq(domainsEnv, didNumsEnv, concurrencyEnv
 }
 
 func (e *StressSteps) createVerificationMethod(keyType string, pubKey []byte, kid,
-	signatureSuite string) (*ariesdid.VerificationMethod, error) {
+	signatureSuite string,
+) (*ariesdid.VerificationMethod, error) {
 	var jwk *jwk.JWK
 
 	var err error
@@ -433,7 +426,8 @@ func (e *StressSteps) createVerificationMethod(keyType string, pubKey []byte, ki
 
 func (e *StressSteps) createDID(verMethodsCreate []*ariesdid.VerificationMethod,
 	svcEndpoint string, vdr *orb.VDR) (crypto.PrivateKey,
-	crypto.PrivateKey, string, error) {
+	crypto.PrivateKey, string, error,
+) {
 	recoveryKey, recoveryKeyPrivateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, nil, "", err
@@ -474,7 +468,8 @@ func (e *StressSteps) createDID(verMethodsCreate []*ariesdid.VerificationMethod,
 }
 
 func (e *StressSteps) updateDID(didID string, svcEndpoint string, vdr *orb.VDR,
-	verMethodsCreate []*ariesdid.VerificationMethod, verMethodsUpdate []*ariesdid.VerificationMethod) error {
+	verMethodsCreate []*ariesdid.VerificationMethod, verMethodsUpdate []*ariesdid.VerificationMethod,
+) error {
 	didDoc := &ariesdid.Doc{ID: didID}
 
 	didDoc.Service = []ariesdid.Service{
@@ -573,24 +568,23 @@ type createResolveDIDReq struct {
 	checkForPublished bool
 }
 
+func (r *createResolveDIDReq) URL() string {
+	return ""
+}
+
 func (r *createResolveDIDReq) Invoke() (interface{}, error) {
-	createReq := createDIDReq{
+	createReq := &createDIDReq{
 		vdr:              r.vdr,
 		steps:            r.steps,
 		verMethodsCreate: r.verMethodsCreate,
 	}
 
-	resp, err := createReq.Invoke()
+	createResp, err := createReq.Invoke()
 	if err != nil {
 		return nil, err
 	}
 
-	createResp, ok := resp.(createDIDResp)
-	if !ok {
-		return nil, fmt.Errorf("response not createDIDResp")
-	}
-
-	resolveReq := resolveDIDReq{
+	resolveReq := &resolveDIDReq{
 		vdr:                   r.vdr,
 		kr:                    r.kr,
 		maxRetry:              r.maxRetry,
@@ -600,7 +594,7 @@ func (r *createResolveDIDReq) Invoke() (interface{}, error) {
 		checkForPublished:     r.checkForPublished,
 	}
 
-	resp, err = resolveReq.Invoke()
+	_, err = resolveReq.Invoke()
 	if err != nil {
 		return nil, err
 	}
@@ -618,8 +612,12 @@ type updateResolveDIDReq struct {
 	maxRetry         int
 }
 
+func (r *updateResolveDIDReq) URL() string {
+	return ""
+}
+
 func (r *updateResolveDIDReq) Invoke() (interface{}, error) {
-	updateReq := updateDIDReq{
+	updateReq := &updateDIDReq{
 		vdr:              r.vdr,
 		steps:            r.steps,
 		canonicalID:      r.canonicalID,
@@ -628,14 +626,9 @@ func (r *updateResolveDIDReq) Invoke() (interface{}, error) {
 		verMethodsUpdate: r.verMethodsUpdate,
 	}
 
-	resp, err := updateReq.Invoke()
+	updateResp, err := updateReq.Invoke()
 	if err != nil {
 		return nil, err
-	}
-
-	updateResp, ok := resp.(updateDIDResp)
-	if !ok {
-		return nil, fmt.Errorf("response not updateDIDResp")
 	}
 
 	resolveReq := resolveUpdatedDIDReq{
@@ -645,7 +638,7 @@ func (r *updateResolveDIDReq) Invoke() (interface{}, error) {
 		svcEndpoint: updateResp.svcEndpoint,
 	}
 
-	resp, err = resolveReq.Invoke()
+	_, err = resolveReq.Invoke()
 	if err != nil {
 		return nil, err
 	}
@@ -665,7 +658,11 @@ type createDIDResp struct {
 	updateKeyPrivateKey   crypto.PrivateKey
 }
 
-func (r *createDIDReq) Invoke() (interface{}, error) {
+func (r *createDIDReq) URL() string {
+	return ""
+}
+
+func (r *createDIDReq) Invoke() (*createDIDResp, error) {
 	var recoveryKeyPrivateKey, updateKeyPrivateKey crypto.PrivateKey
 	var intermID string
 	var err error
@@ -688,7 +685,11 @@ func (r *createDIDReq) Invoke() (interface{}, error) {
 		logger.Infof("created did successfully %d", createLogCount)
 	}
 
-	return createDIDResp{intermID: intermID, recoveryKeyPrivateKey: recoveryKeyPrivateKey, updateKeyPrivateKey: updateKeyPrivateKey}, nil
+	return &createDIDResp{
+		intermID:              intermID,
+		recoveryKeyPrivateKey: recoveryKeyPrivateKey,
+		updateKeyPrivateKey:   updateKeyPrivateKey,
+	}, nil
 }
 
 type updateDIDReq struct {
@@ -705,7 +706,7 @@ type updateDIDResp struct {
 	svcEndpoint string
 }
 
-func (r *updateDIDReq) Invoke() (interface{}, error) {
+func (r *updateDIDReq) Invoke() (*updateDIDResp, error) {
 	nextUpdatePublicKey, _, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		return nil, err
@@ -740,7 +741,7 @@ func (r *updateDIDReq) Invoke() (interface{}, error) {
 		logger.Infof("updated did successfully %d", updateLogCount)
 	}
 
-	return updateDIDResp{canonicalID: r.canonicalID, svcEndpoint: svcEndpoint}, nil
+	return &updateDIDResp{canonicalID: r.canonicalID, svcEndpoint: svcEndpoint}, nil
 }
 
 type resolveDIDReq struct {
@@ -757,7 +758,11 @@ type resolveDIDResp struct {
 	canonicalID string
 }
 
-func (r *resolveDIDReq) Invoke() (interface{}, error) {
+func (r *resolveDIDReq) URL() string {
+	return ""
+}
+
+func (r *resolveDIDReq) Invoke() (*resolveDIDResp, error) {
 	var docResolution *ariesdid.DocResolution
 
 	for i := 1; i <= r.maxRetry; i++ {
@@ -803,7 +808,7 @@ func (r *resolveDIDReq) Invoke() (interface{}, error) {
 		logger.Infof("resolved created did successfully %d", resolveCreateLogCount)
 	}
 
-	return resolveDIDResp{canonicalID: canonicalID}, nil
+	return &resolveDIDResp{canonicalID: canonicalID}, nil
 }
 
 type resolveUpdatedDIDReq struct {

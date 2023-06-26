@@ -11,27 +11,28 @@ import (
 )
 
 // Request is a request that's submitted to the worker pool for processing
-type Request interface {
-	Invoke() (interface{}, error)
+type Request[T any] interface {
+	Invoke() (T, error)
+	URL() string
 }
 
 // Response is the response for an individual request
-type Response struct {
-	Request
-	Resp interface{}
+type Response[T any] struct {
+	Request[T]
+	Resp T
 	Err  error
 }
 
 // WorkerPool manages a pool of workers that processes requests concurrently and, at the end, gathers the responses
-type WorkerPool struct {
+type WorkerPool[T any] struct {
 	*workerPoolOptions
 
-	workers   []*worker
-	reqChan   chan Request
-	respChan  chan *Response
+	workers   []*worker[T]
+	reqChan   chan Request[T]
+	respChan  chan *Response[T]
 	wgResp    sync.WaitGroup
 	wg        *sync.WaitGroup
-	responses []*Response
+	responses []*Response[T]
 }
 
 type workerPoolOptions struct {
@@ -47,24 +48,24 @@ func WithTaskDescription(desc string) Opt {
 }
 
 // NewWorkerPool returns a new worker pool with the given number of workers
-func NewWorkerPool(num int, opts ...Opt) *WorkerPool {
+func NewWorkerPool[T any](num int, opts ...Opt) *WorkerPool[T] {
 	options := &workerPoolOptions{}
 
 	for _, opt := range opts {
 		opt(options)
 	}
 
-	reqChan := make(chan Request)
-	respChan := make(chan *Response)
-	workers := make([]*worker, num)
+	reqChan := make(chan Request[T])
+	respChan := make(chan *Response[T])
+	workers := make([]*worker[T], num)
 
 	wg := &sync.WaitGroup{}
 
 	for i := 0; i < num; i++ {
-		workers[i] = newWorker(reqChan, respChan, wg)
+		workers[i] = newWorker[T](reqChan, respChan, wg)
 	}
 
-	return &WorkerPool{
+	return &WorkerPool[T]{
 		workerPoolOptions: options,
 		workers:           workers,
 		reqChan:           reqChan,
@@ -74,7 +75,7 @@ func NewWorkerPool(num int, opts ...Opt) *WorkerPool {
 }
 
 // Start starts all of the workers and listens for responses
-func (p *WorkerPool) Start() {
+func (p *WorkerPool[T]) Start() {
 	p.wgResp.Add(1)
 
 	go p.listen()
@@ -87,7 +88,7 @@ func (p *WorkerPool) Start() {
 }
 
 // Stop stops the workers in the pool and stops listening for responses
-func (p *WorkerPool) Stop() {
+func (p *WorkerPool[T]) Stop() {
 	close(p.reqChan)
 
 	logger.Infof("Waiting %d for workers to finish...", len(p.workers))
@@ -106,16 +107,16 @@ func (p *WorkerPool) Stop() {
 }
 
 // Submit submits a request for processing
-func (p *WorkerPool) Submit(req Request) {
+func (p *WorkerPool[T]) Submit(req Request[T]) {
 	p.reqChan <- req
 }
 
 // Responses contains the responses after the pool is stopped
-func (p *WorkerPool) Responses() []*Response {
+func (p *WorkerPool[T]) Responses() []*Response[T] {
 	return p.responses
 }
 
-func (p *WorkerPool) listen() {
+func (p *WorkerPool[T]) listen() {
 	for resp := range p.respChan {
 		p.responses = append(p.responses, resp)
 
@@ -133,24 +134,24 @@ func (p *WorkerPool) listen() {
 	p.wgResp.Done()
 }
 
-type worker struct {
-	reqChan  chan Request
-	respChan chan *Response
+type worker[T any] struct {
+	reqChan  chan Request[T]
+	respChan chan *Response[T]
 	wg       *sync.WaitGroup
 }
 
-func newWorker(reqChan chan Request, respChan chan *Response, wg *sync.WaitGroup) *worker {
-	return &worker{
+func newWorker[T any](reqChan chan Request[T], respChan chan *Response[T], wg *sync.WaitGroup) *worker[T] {
+	return &worker[T]{
 		reqChan:  reqChan,
 		respChan: respChan,
 		wg:       wg,
 	}
 }
 
-func (w *worker) start() {
+func (w *worker[T]) start() {
 	for req := range w.reqChan {
 		data, err := req.Invoke()
-		w.respChan <- &Response{
+		w.respChan <- &Response[T]{
 			Request: req,
 			Resp:    data,
 			Err:     err,
