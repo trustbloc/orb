@@ -2309,7 +2309,7 @@ func getAnchorSyncParameters(cmd *cobra.Command) (syncPeriod, acceleratedSyncPer
 	maxActivities, err = cmdutil.GetInt(cmd, anchorSyncMaxActivitiesFlagName, anchorSyncMaxActivitiesEnvKey,
 		defaultAnchorSyncMaxActivities)
 	if err != nil {
-		return 0, 0, 0, 0, fmt.Errorf("%s: %w", anchorSyncMinActivityAgeFlagName, err)
+		return 0, 0, 0, 0, fmt.Errorf("%s: %w", anchorSyncMaxActivitiesFlagName, err)
 	}
 
 	return syncPeriod, acceleratedSyncPeriod, minActivityAge, maxActivities, nil
