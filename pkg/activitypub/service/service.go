@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
-	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+	"github.com/trustbloc/sidetree-svc-go/pkg/restapi/common"
 
 	"github.com/trustbloc/orb/pkg/activitypub/client"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"

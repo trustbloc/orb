@@ -5,7 +5,7 @@ import (
 	"context"
 	"sync"
 
-	"github.com/trustbloc/sidetree-core-go/pkg/document"
+	"github.com/trustbloc/sidetree-go/pkg/document"
 )
 
 type RemoteResolver struct {

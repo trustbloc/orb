@@ -19,7 +19,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/crypto/tinkcrypto"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/trustbloc/logutil-go/pkg/log"
-	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
+	"github.com/trustbloc/sidetree-go/pkg/canonicalizer"
 	"github.com/trustbloc/vct/pkg/client/vct"
 	"github.com/trustbloc/vct/pkg/controller/command"
 	"go.uber.org/zap"

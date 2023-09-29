@@ -15,7 +15,7 @@ import (
 	mockstore "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-go/pkg/api/operation"
 
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"

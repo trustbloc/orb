@@ -13,7 +13,7 @@ import (
 
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/logutil-go/pkg/log"
-	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
+	"github.com/trustbloc/sidetree-go/pkg/canonicalizer"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/anchor/subject"

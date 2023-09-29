@@ -6,14 +6,14 @@ SPDX-License-Identifier: Apache-2.0
 
 package updatehandler
 
-//go:generate counterfeiter -o ./mocks/dochandler.gen.go --fake-name Processor github.com/trustbloc/sidetree-core-go/pkg/restapi/dochandler.Processor
+//go:generate counterfeiter -o ./mocks/dochandler.gen.go --fake-name Processor github.com/trustbloc/sidetree-svc-go/pkg/restapi/dochandler.Processor
 
 import (
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/document"
+	"github.com/trustbloc/sidetree-go/pkg/document"
 
 	"github.com/trustbloc/orb/pkg/document/updatehandler/mocks"
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"

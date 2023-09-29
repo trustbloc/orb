@@ -4,16 +4,15 @@ package mocks
 import (
 	"sync"
 
-	"github.com/trustbloc/sidetree-core-go/pkg/document"
-	"github.com/trustbloc/sidetree-core-go/pkg/restapi/dochandler"
+	"github.com/trustbloc/sidetree-go/pkg/document"
+	"github.com/trustbloc/sidetree-svc-go/pkg/restapi/dochandler"
 )
 
 type Processor struct {
 	NamespaceStub        func() string
 	namespaceMutex       sync.RWMutex
-	namespaceArgsForCall []struct {
-	}
-	namespaceReturns struct {
+	namespaceArgsForCall []struct{}
+	namespaceReturns     struct {
 		result1 string
 	}
 	namespaceReturnsOnCall map[int]struct {
@@ -40,8 +39,7 @@ type Processor struct {
 func (fake *Processor) Namespace() string {
 	fake.namespaceMutex.Lock()
 	ret, specificReturn := fake.namespaceReturnsOnCall[len(fake.namespaceArgsForCall)]
-	fake.namespaceArgsForCall = append(fake.namespaceArgsForCall, struct {
-	}{})
+	fake.namespaceArgsForCall = append(fake.namespaceArgsForCall, struct{}{})
 	fake.recordInvocation("Namespace", []interface{}{})
 	fake.namespaceMutex.Unlock()
 	if fake.NamespaceStub != nil {

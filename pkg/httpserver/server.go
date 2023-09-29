@@ -17,7 +17,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rs/cors"
 	"github.com/trustbloc/logutil-go/pkg/log"
-	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+	"github.com/trustbloc/sidetree-svc-go/pkg/restapi/common"
 	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"

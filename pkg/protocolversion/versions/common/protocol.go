@@ -7,21 +7,22 @@ SPDX-License-Identifier: Apache-2.0
 package common
 
 import (
-	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
+	"github.com/trustbloc/sidetree-go/pkg/api/protocol"
+	svcprotocol "github.com/trustbloc/sidetree-svc-go/pkg/api/protocol"
 )
 
 // ProtocolVersion implements the protocol.Version interface.
 type ProtocolVersion struct {
 	VersionStr     string
 	P              protocol.Protocol
-	TxnProcessor   protocol.TxnProcessor
+	TxnProcessor   svcprotocol.TxnProcessor
 	OpParser       protocol.OperationParser
 	OpApplier      protocol.OperationApplier
 	DocComposer    protocol.DocumentComposer
-	OpHandler      protocol.OperationHandler
-	OpProvider     protocol.OperationProvider
-	DocValidator   protocol.DocumentValidator
 	DocTransformer protocol.DocumentTransformer
+	DocValidator   protocol.DocumentValidator
+	OpHandler      svcprotocol.OperationHandler
+	OpProvider     svcprotocol.OperationProvider
 }
 
 // Version returns the protocol parameters.
@@ -35,7 +36,7 @@ func (h *ProtocolVersion) Protocol() protocol.Protocol {
 }
 
 // TransactionProcessor returns the transaction processor.
-func (h *ProtocolVersion) TransactionProcessor() protocol.TxnProcessor {
+func (h *ProtocolVersion) TransactionProcessor() svcprotocol.TxnProcessor {
 	return h.TxnProcessor
 }
 
@@ -55,12 +56,12 @@ func (h *ProtocolVersion) DocumentComposer() protocol.DocumentComposer {
 }
 
 // OperationHandler returns the operation handler.
-func (h *ProtocolVersion) OperationHandler() protocol.OperationHandler {
+func (h *ProtocolVersion) OperationHandler() svcprotocol.OperationHandler {
 	return h.OpHandler
 }
 
 // OperationProvider returns the operation provider.
-func (h *ProtocolVersion) OperationProvider() protocol.OperationProvider {
+func (h *ProtocolVersion) OperationProvider() svcprotocol.OperationProvider {
 	return h.OpProvider
 }
 

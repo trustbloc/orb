@@ -16,7 +16,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/encoder"
+	"github.com/trustbloc/sidetree-go/pkg/encoder"
 
 	"github.com/trustbloc/orb/pkg/anchor/witness/proof"
 	orberrors "github.com/trustbloc/orb/pkg/errors"

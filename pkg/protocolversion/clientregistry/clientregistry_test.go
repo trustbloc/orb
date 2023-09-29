@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	coremocks "github.com/trustbloc/sidetree-core-go/pkg/mocks"
+	mocks2 "github.com/trustbloc/sidetree-svc-go/pkg/mocks"
 
 	"github.com/trustbloc/orb/pkg/config"
 	crmocks "github.com/trustbloc/orb/pkg/protocolversion/clientregistry/mocks"
@@ -23,7 +23,7 @@ func TestRegistry(t *testing.T) {
 	const version = "0.1"
 
 	f := &crmocks.ClientFactory{}
-	f.CreateReturns(&coremocks.ProtocolVersion{}, nil)
+	f.CreateReturns(&mocks2.ProtocolVersion{}, nil)
 
 	r := New()
 

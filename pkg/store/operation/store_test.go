@@ -12,7 +12,7 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-go/pkg/api/operation"
 
 	orbmocks "github.com/trustbloc/orb/pkg/mocks"
 	"github.com/trustbloc/orb/pkg/store/mocks"

@@ -5,15 +5,14 @@ import (
 	"sync"
 
 	"github.com/trustbloc/orb/pkg/orbclient/protocol/nsprovider"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
+	"github.com/trustbloc/sidetree-svc-go/pkg/api/protocol"
 )
 
 type ClientVersionProvider struct {
 	CurrentStub        func() (protocol.Version, error)
 	currentMutex       sync.RWMutex
-	currentArgsForCall []struct {
-	}
-	currentReturns struct {
+	currentArgsForCall []struct{}
+	currentReturns     struct {
 		result1 protocol.Version
 		result2 error
 	}
@@ -41,17 +40,17 @@ type ClientVersionProvider struct {
 func (fake *ClientVersionProvider) Current() (protocol.Version, error) {
 	fake.currentMutex.Lock()
 	ret, specificReturn := fake.currentReturnsOnCall[len(fake.currentArgsForCall)]
-	fake.currentArgsForCall = append(fake.currentArgsForCall, struct {
-	}{})
+	fake.currentArgsForCall = append(fake.currentArgsForCall, struct{}{})
+	stub := fake.CurrentStub
+	fakeReturns := fake.currentReturns
 	fake.recordInvocation("Current", []interface{}{})
 	fake.currentMutex.Unlock()
-	if fake.CurrentStub != nil {
-		return fake.CurrentStub()
+	if stub != nil {
+		return stub()
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.currentReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -99,15 +98,16 @@ func (fake *ClientVersionProvider) Get(arg1 uint64) (protocol.Version, error) {
 	fake.getArgsForCall = append(fake.getArgsForCall, struct {
 		arg1 uint64
 	}{arg1})
+	stub := fake.GetStub
+	fakeReturns := fake.getReturns
 	fake.recordInvocation("Get", []interface{}{arg1})
 	fake.getMutex.Unlock()
-	if fake.GetStub != nil {
-		return fake.GetStub(arg1)
+	if stub != nil {
+		return stub(arg1)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.getReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 

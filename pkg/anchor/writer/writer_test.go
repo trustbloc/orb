@@ -23,9 +23,10 @@ import (
 	mockstore "github.com/hyperledger/aries-framework-go/component/storageutil/mock"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
-	"github.com/trustbloc/sidetree-core-go/pkg/document"
+	"github.com/trustbloc/sidetree-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-go/pkg/api/protocol"
+	"github.com/trustbloc/sidetree-go/pkg/document"
+	svcoperation "github.com/trustbloc/sidetree-svc-go/pkg/api/operation"
 
 	apclientmocks "github.com/trustbloc/orb/pkg/activitypub/client/mocks"
 	"github.com/trustbloc/orb/pkg/activitypub/client/transport"
@@ -194,7 +195,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		testServerURL = testServer.URL
 
-		opRefs := []*operation.Reference{
+		opRefs := []*svcoperation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeCreate,
@@ -250,7 +251,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			), 5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		opRefs := []*operation.Reference{
+		opRefs := []*svcoperation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeCreate,
@@ -305,7 +306,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		testServerURL = testServer.URL
 
-		opRefs := []*operation.Reference{
+		opRefs := []*svcoperation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeCreate,
@@ -362,7 +363,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		testServerURL = testServer.URL
 
-		opRefs := []*operation.Reference{
+		opRefs := []*svcoperation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeCreate,
@@ -416,7 +417,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		testServerURL = testServer.URL
 
-		opRefs := []*operation.Reference{
+		opRefs := []*svcoperation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeCreate,
@@ -469,7 +470,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		testServerURL = testServer.URL
 
-		opRefs := []*operation.Reference{
+		opRefs := []*svcoperation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeCreate,
@@ -507,7 +508,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			nil, 5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		opRefs := []*operation.Reference{
+		opRefs := []*svcoperation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeUpdate,
@@ -561,7 +562,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		testServerURL = testServer.URL
 
-		opRefs := []*operation.Reference{
+		opRefs := []*svcoperation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeCreate,
@@ -791,7 +792,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			nil, 5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		err = c.WriteAnchor("anchor", nil, []*operation.Reference{{UniqueSuffix: testDID, Type: operation.TypeUpdate}}, 0)
+		err = c.WriteAnchor("anchor", nil, []*svcoperation.Reference{{UniqueSuffix: testDID, Type: operation.TypeUpdate}}, 0)
 		require.Contains(t, err.Error(),
 			"previous did anchor reference not found for update operation for did[did:method:abc]")
 	})
@@ -840,7 +841,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 
 		testServerURL = testServer.URL
 
-		opRefs := []*operation.Reference{
+		opRefs := []*svcoperation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeCreate,
@@ -882,7 +883,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		opRefs := []*operation.Reference{
+		opRefs := []*svcoperation.Reference{
 			{
 				UniqueSuffix: "did-4",
 				Type:         operation.TypeCreate,
@@ -958,7 +959,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			}))
 		defer testServer.Close()
 
-		opRefs := []*operation.Reference{
+		opRefs := []*svcoperation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeCreate,
@@ -1027,7 +1028,7 @@ func TestWriter_WriteAnchor(t *testing.T) {
 			}))
 		defer testServer.Close()
 
-		opRefs := []*operation.Reference{
+		opRefs := []*svcoperation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeCreate,
@@ -1576,7 +1577,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			), 5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		opRefs := []*operation.Reference{
+		opRefs := []*svcoperation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeUpdate,
@@ -1639,7 +1640,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		opRefs := []*operation.Reference{
+		opRefs := []*svcoperation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         "invalid",
@@ -1666,7 +1667,7 @@ func TestWriter_getWitnesses(t *testing.T) {
 			5, &mocks.MetricsProvider{})
 		require.NoError(t, err)
 
-		opRefs := []*operation.Reference{
+		opRefs := []*svcoperation.Reference{
 			{
 				UniqueSuffix: "did-1",
 				Type:         operation.TypeUpdate,
@@ -1936,8 +1937,8 @@ func (ss *mockstatusStore) AddStatus(vcID string, status proof.AnchorIndexStatus
 	return nil
 }
 
-func getOperationReferences(anchorOrigin string) []*operation.Reference {
-	return []*operation.Reference{
+func getOperationReferences(anchorOrigin string) []*svcoperation.Reference {
+	return []*svcoperation.Reference{
 		{
 			UniqueSuffix: "did-1",
 			Type:         operation.TypeCreate,

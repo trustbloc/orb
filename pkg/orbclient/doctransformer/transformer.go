@@ -12,8 +12,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
-	"github.com/trustbloc/sidetree-core-go/pkg/document"
+	"github.com/trustbloc/sidetree-go/pkg/canonicalizer"
+	"github.com/trustbloc/sidetree-go/pkg/document"
 )
 
 // WebDocumentFromOrbDocument creates did:web document from did:orb resolution result.

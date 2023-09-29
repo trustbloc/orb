@@ -6,7 +6,7 @@ SPDX-License-Identifier: Apache-2.0
 
 package extendedcasclient
 
-import casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
+import casapi "github.com/trustbloc/sidetree-svc-go/pkg/api/cas"
 
 // CIDFormatOption is an option for specifying the CID format used in a WriteWithCIDFormat call.
 type CIDFormatOption func(opts *CIDFormatOptions)

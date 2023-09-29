@@ -11,12 +11,13 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
-	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
-	"github.com/trustbloc/sidetree-core-go/pkg/dochandler"
-	"github.com/trustbloc/sidetree-core-go/pkg/document"
-	"github.com/trustbloc/sidetree-core-go/pkg/processor"
+	"github.com/trustbloc/sidetree-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-go/pkg/api/protocol"
+	"github.com/trustbloc/sidetree-go/pkg/canonicalizer"
+	"github.com/trustbloc/sidetree-go/pkg/document"
+	"github.com/trustbloc/sidetree-go/pkg/docutil"
+	svcprotocol "github.com/trustbloc/sidetree-svc-go/pkg/api/protocol"
+	"github.com/trustbloc/sidetree-svc-go/pkg/processor"
 
 	"github.com/trustbloc/orb/pkg/config"
 	"github.com/trustbloc/orb/pkg/document/util"
@@ -33,7 +34,7 @@ type ResolutionVerifier struct {
 
 	namespace string
 
-	protocol       protocol.Client
+	protocol       svcprotocol.Client
 	versions       []string
 	currentVersion string
 
@@ -112,10 +113,10 @@ func WithEnableBase(enabled bool) Option {
 	}
 }
 
-func getProtocolClient(namespace string, versions []string, currentVersion string, methodContexts []string, enableBase bool) (protocol.Client, error) { //nolint:lll
+func getProtocolClient(namespace string, versions []string, currentVersion string, methodContexts []string, enableBase bool) (svcprotocol.Client, error) { //nolint:lll
 	registry := clientregistry.New()
 
-	var clientVersions []protocol.Version
+	var clientVersions []svcprotocol.Version
 
 	for _, version := range versions {
 		cv, err := registry.CreateClientVersion(version, nil, &config.Sidetree{
@@ -189,14 +190,14 @@ func (r *ResolutionVerifier) resolveDocument(id string, ops ...*operation.Anchor
 
 	var ti protocol.TransformationInfo
 	if len(internalResult.PublishedOperations) > 0 {
-		ti = dochandler.GetTransformationInfoForPublished(r.namespace, id, suffix, internalResult)
+		ti = docutil.GetTransformationInfoForPublished(r.namespace, id, suffix, internalResult)
 	} else {
 		hint, err := util.GetHint(id, r.namespace, suffix)
 		if err != nil {
 			return nil, err
 		}
 
-		ti = dochandler.GetTransformationInfoForUnpublished(r.namespace, "", hint, suffix, "")
+		ti = docutil.GetTransformationInfoForUnpublished(r.namespace, "", hint, suffix, "")
 	}
 
 	return pv.DocumentTransformer().TransformDocument(internalResult, ti)

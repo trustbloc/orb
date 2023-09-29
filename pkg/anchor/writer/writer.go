@@ -19,10 +19,12 @@ import (
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/piprate/json-gold/ld"
 	"github.com/trustbloc/logutil-go/pkg/log"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
-	txnapi "github.com/trustbloc/sidetree-core-go/pkg/api/txn"
-	"github.com/trustbloc/sidetree-core-go/pkg/document"
+	"github.com/trustbloc/sidetree-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-go/pkg/api/protocol"
+	"github.com/trustbloc/sidetree-go/pkg/document"
+	svcoperation "github.com/trustbloc/sidetree-svc-go/pkg/api/operation"
+	svcprotocol "github.com/trustbloc/sidetree-svc-go/pkg/api/protocol"
+	txnapi "github.com/trustbloc/sidetree-svc-go/pkg/api/txn"
 	"go.opentelemetry.io/otel/trace"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
@@ -224,8 +226,8 @@ func New(namespace string, apServiceIRI, apServiceEndpointURL, casURL *url.URL, 
 }
 
 // WriteAnchor writes Sidetree anchor string to Orb anchor.
-func (c *Writer) WriteAnchor(anchor string, attachments []*protocol.AnchorDocument,
-	refs []*operation.Reference, version uint64,
+func (c *Writer) WriteAnchor(anchor string, attachments []*svcprotocol.AnchorDocument,
+	refs []*svcoperation.Reference, version uint64,
 ) error {
 	startTime := time.Now()
 
@@ -318,7 +320,7 @@ func (c *Writer) buildAnchorLink(payload *subject.Payload,
 	)
 }
 
-func (c *Writer) getPreviousAnchors(refs []*operation.Reference) ([]*subject.SuffixAnchor, error) {
+func (c *Writer) getPreviousAnchors(refs []*svcoperation.Reference) ([]*subject.SuffixAnchor, error) {
 	getPreviousAnchorsStartTime := time.Now()
 
 	defer c.metrics.WriteAnchorGetPreviousAnchorsTime(time.Since(getPreviousAnchorsStartTime))
@@ -361,7 +363,7 @@ func (c *Writer) getPreviousAnchors(refs []*operation.Reference) ([]*subject.Suf
 	return previousAnchors, nil
 }
 
-func getSuffixes(refs []*operation.Reference) []string {
+func getSuffixes(refs []*svcoperation.Reference) []string {
 	suffixes := make([]string, len(refs))
 	for i, ref := range refs {
 		suffixes[i] = ref.UniqueSuffix
@@ -370,7 +372,7 @@ func getSuffixes(refs []*operation.Reference) []string {
 	return suffixes
 }
 
-func getAttachmentURIs(attachments []*protocol.AnchorDocument) []string {
+func getAttachmentURIs(attachments []*svcprotocol.AnchorDocument) []string {
 	var attachURIs []string
 
 	for _, attach := range attachments {
@@ -688,7 +690,7 @@ func (c *Writer) postOfferActivity(ctx context.Context, anchorLink *linkset.Link
 // getWitnessesFromBatchOperations returns the list of anchor origins for all dids in the Sidetree batch.
 // Create and recover operations contain anchor origin in operation references.
 // For update and deactivate operations we have to 'resolve' did in order to figure out anchor origin.
-func (c *Writer) getWitnessesFromBatchOperations(refs []*operation.Reference) ([]string, error) {
+func (c *Writer) getWitnessesFromBatchOperations(refs []*svcoperation.Reference) ([]string, error) {
 	getWitnessesStartTime := time.Now()
 
 	defer c.metrics.WriteAnchorGetWitnessesTime(time.Since(getWitnessesStartTime))
@@ -714,7 +716,7 @@ func (c *Writer) getWitnessesFromBatchOperations(refs []*operation.Reference) ([
 	return witnesses, nil
 }
 
-func (c *Writer) resolveWitness(ref *operation.Reference) (string, error) {
+func (c *Writer) resolveWitness(ref *svcoperation.Reference) (string, error) {
 	var anchorOriginObj interface{}
 
 	switch ref.Type {

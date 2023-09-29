@@ -9,7 +9,7 @@ package vocab
 import (
 	"fmt"
 
-	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
+	"github.com/trustbloc/sidetree-go/pkg/canonicalizer"
 
 	"github.com/trustbloc/orb/pkg/hashlink"
 )

@@ -9,8 +9,8 @@ package updatehandler
 import (
 	"time"
 
-	"github.com/trustbloc/sidetree-core-go/pkg/document"
-	"github.com/trustbloc/sidetree-core-go/pkg/restapi/dochandler"
+	"github.com/trustbloc/sidetree-go/pkg/document"
+	"github.com/trustbloc/sidetree-svc-go/pkg/restapi/dochandler"
 )
 
 type metricsProvider interface {

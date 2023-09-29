@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
+	"github.com/trustbloc/sidetree-go/pkg/docutil"
 )
 
 const (

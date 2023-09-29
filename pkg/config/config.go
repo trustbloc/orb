@@ -7,8 +7,8 @@ SPDX-License-Identifier: Apache-2.0
 package config
 
 import (
-	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/operationparser"
+	"github.com/trustbloc/sidetree-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-go/pkg/versions/1_0/operationparser"
 
 	"github.com/trustbloc/orb/pkg/store/operation/unpublished"
 )

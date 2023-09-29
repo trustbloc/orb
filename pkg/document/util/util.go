@@ -13,9 +13,9 @@ import (
 	"strings"
 
 	"github.com/hyperledger/aries-framework-go/pkg/doc/did"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
-	"github.com/trustbloc/sidetree-core-go/pkg/document"
-	"github.com/trustbloc/sidetree-core-go/pkg/docutil"
+	"github.com/trustbloc/sidetree-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-go/pkg/document"
+	"github.com/trustbloc/sidetree-go/pkg/docutil"
 )
 
 // MinOrbIdentifierParts is minimum number of parts in Orb identifier.

@@ -23,7 +23,7 @@ import (
 	"github.com/trustbloc/orb/pkg/internal/testutil"
 )
 
-//go:generate counterfeiter -o ./mocks/httphandler.gen.go --fake-name HTTPHandler github.com/trustbloc/sidetree-core-go/pkg/restapi/common.HTTPHandler
+//go:generate counterfeiter -o ./mocks/httphandler.gen.go --fake-name HTTPHandler github.com/trustbloc/sidetree-svc-go/pkg/restapi/common.HTTPHandler
 
 func TestNewAuthHandler(t *testing.T) {
 	t.Run("success", func(t *testing.T) {

@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+	"github.com/trustbloc/sidetree-svc-go/pkg/restapi/common"
 
 	apmocks "github.com/trustbloc/orb/pkg/activitypub/mocks"
 )

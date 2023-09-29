@@ -14,8 +14,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/trustbloc/logutil-go/pkg/log"
-	casapi "github.com/trustbloc/sidetree-core-go/pkg/api/cas"
-	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+	casapi "github.com/trustbloc/sidetree-svc-go/pkg/api/cas"
+	"github.com/trustbloc/sidetree-svc-go/pkg/restapi/common"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/resthandler"

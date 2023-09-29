@@ -15,7 +15,7 @@ import (
 	"strings"
 
 	"github.com/gorilla/mux"
-	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+	"github.com/trustbloc/sidetree-svc-go/pkg/restapi/common"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/store/spi"

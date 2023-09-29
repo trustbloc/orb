@@ -12,7 +12,7 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/component/storageutil/mem"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
+	"github.com/trustbloc/sidetree-go/pkg/api/protocol"
 
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry"
 	"github.com/trustbloc/orb/pkg/resolver/resource/registry/didanchorinfo/mocks"

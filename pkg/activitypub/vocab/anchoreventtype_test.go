@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
+	"github.com/trustbloc/sidetree-go/pkg/canonicalizer"
 
 	"github.com/trustbloc/orb/pkg/hashlink"
 	"github.com/trustbloc/orb/pkg/internal/testutil"

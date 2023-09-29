@@ -18,7 +18,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/logutil-go/pkg/log"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-go/pkg/api/operation"
+	svcoperation "github.com/trustbloc/sidetree-svc-go/pkg/api/operation"
 	"go.opentelemetry.io/otel/trace"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
@@ -65,10 +66,10 @@ type pubSub interface {
 
 // OperationMessage contains the data that is sent to the message broker.
 type OperationMessage struct {
-	ID        string                           `json:"id"`
-	Operation *operation.QueuedOperationAtTime `json:"operation"`
-	Retries   int                              `json:"retries"`
-	HasError  bool                             `json:"hasError,omitempty"`
+	ID        string                              `json:"id"`
+	Operation *svcoperation.QueuedOperationAtTime `json:"operation"`
+	Retries   int                                 `json:"retries"`
+	HasError  bool                                `json:"hasError,omitempty"`
 }
 
 type queuedOperation struct {
@@ -241,7 +242,7 @@ func New(cfg *Config, pubSub pubSub, p storage.Provider, taskMgr taskManager,
 }
 
 // Add publishes the given operation.
-func (q *Queue) Add(op *operation.QueuedOperation, protocolVersion uint64) (uint, error) {
+func (q *Queue) Add(op *svcoperation.QueuedOperation, protocolVersion uint64) (uint, error) {
 	ctx, span := q.tracer.Start(context.Background(), "add operation",
 		trace.WithAttributes(tracing.DIDSuffixAttribute(op.UniqueSuffix)),
 	)
@@ -251,7 +252,7 @@ func (q *Queue) Add(op *operation.QueuedOperation, protocolVersion uint64) (uint
 		ctx,
 		&OperationMessage{
 			ID: uuid.New().String(),
-			Operation: &operation.QueuedOperationAtTime{
+			Operation: &svcoperation.QueuedOperationAtTime{
 				QueuedOperation: *op,
 				ProtocolVersion: protocolVersion,
 			},
@@ -295,7 +296,7 @@ func (q *Queue) publish(ctx context.Context, op *OperationMessage) (uint, error)
 }
 
 // Peek returns (up to) the given number of operations from the head of the queue but does not remove them.
-func (q *Queue) Peek(num uint) (operation.QueuedOperationsAtTime, error) {
+func (q *Queue) Peek(num uint) (svcoperation.QueuedOperationsAtTime, error) {
 	if q.State() != lifecycle.StateStarted {
 		return nil, lifecycle.ErrNotStarted
 	}
@@ -311,7 +312,7 @@ func (q *Queue) Peek(num uint) (operation.QueuedOperationsAtTime, error) {
 
 // Remove removes (up to) the given number of items from the head of the queue.
 // Returns the actual number of items that were removed and the new length of the queue.
-func (q *Queue) Remove(num uint) (ops operation.QueuedOperationsAtTime, ack func() uint, nack func(error), err error) {
+func (q *Queue) Remove(num uint) (ops svcoperation.QueuedOperationsAtTime, ack func() uint, nack func(error), err error) {
 	if q.State() != lifecycle.StateStarted {
 		return nil, nil, nil, lifecycle.ErrNotStarted
 	}
@@ -596,8 +597,8 @@ func (q *Queue) deleteOperations(items []*queuedOperation) error {
 	return nil
 }
 
-func (q *Queue) asQueuedOperations(opMsgs []*queuedOperation) []*operation.QueuedOperationAtTime {
-	ops := make([]*operation.QueuedOperationAtTime, len(opMsgs))
+func (q *Queue) asQueuedOperations(opMsgs []*queuedOperation) []*svcoperation.QueuedOperationAtTime {
+	ops := make([]*svcoperation.QueuedOperationAtTime, len(opMsgs))
 
 	q.logger.Debug("Returning queued operations", logfields.WithTotal(len(opMsgs)))
 

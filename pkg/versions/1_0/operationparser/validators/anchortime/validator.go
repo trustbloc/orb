@@ -9,7 +9,7 @@ package anchortime
 import (
 	"time"
 
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/operationparser"
+	"github.com/trustbloc/sidetree-go/pkg/versions/1_0/operationparser"
 )
 
 // New creates new anchor time validator.

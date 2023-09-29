@@ -15,7 +15,7 @@ import (
 	"time"
 
 	"github.com/trustbloc/logutil-go/pkg/log"
-	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+	"github.com/trustbloc/sidetree-svc-go/pkg/restapi/common"
 
 	"github.com/trustbloc/orb/pkg/httpserver"
 	"github.com/trustbloc/orb/pkg/vct"

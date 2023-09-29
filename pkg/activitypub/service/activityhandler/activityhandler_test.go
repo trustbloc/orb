@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
+	"github.com/trustbloc/sidetree-go/pkg/canonicalizer"
 
 	"github.com/trustbloc/logutil-go/pkg/log"
 

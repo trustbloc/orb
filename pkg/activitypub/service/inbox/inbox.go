@@ -18,7 +18,7 @@ import (
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/message/router/middleware"
 	"github.com/trustbloc/logutil-go/pkg/log"
-	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+	"github.com/trustbloc/sidetree-svc-go/pkg/restapi/common"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/activitypub/service/inbox/httpsubscriber"

@@ -34,7 +34,8 @@ require (
 	github.com/stretchr/testify v1.8.2
 	github.com/transparency-dev/merkle v0.0.0-20220208131541-728dc2de1344
 	github.com/trustbloc/logutil-go v1.0.0-rc1
-	github.com/trustbloc/sidetree-core-go v1.0.0
+	github.com/trustbloc/sidetree-go v0.0.0-20230928172705-30e78b6b6ddd
+	github.com/trustbloc/sidetree-svc-go v0.0.0-20230928215925-11c8459cb32d
 	github.com/trustbloc/vct v1.0.0
 	go.mongodb.org/mongo-driver v1.9.1
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.40.0
@@ -52,7 +53,7 @@ require (
 	github.com/Nvveen/Gotty v0.0.0-20120604004816-cd527374f1e5 // indirect
 	github.com/VictoriaMetrics/fastcache v1.5.7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/btcsuite/btcd v0.22.1 // indirect
+	github.com/btcsuite/btcd v0.22.3 // indirect
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect
 	github.com/cespare/xxhash/v2 v2.1.2 // indirect
 	github.com/containerd/continuity v0.0.0-20200710164510-efbc4488d8fe // indirect
@@ -141,4 +142,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-go 1.19
+go 1.21

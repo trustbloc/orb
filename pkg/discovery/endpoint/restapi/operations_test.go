@@ -22,8 +22,8 @@ import (
 	ariesdid "github.com/hyperledger/aries-framework-go/pkg/doc/did"
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/document"
-	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+	"github.com/trustbloc/sidetree-go/pkg/document"
+	"github.com/trustbloc/sidetree-svc-go/pkg/restapi/common"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
 	"github.com/trustbloc/orb/pkg/cas/resolver/mocks"

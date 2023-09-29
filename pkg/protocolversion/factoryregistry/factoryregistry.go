@@ -12,8 +12,8 @@ import (
 
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/logutil-go/pkg/log"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
+	"github.com/trustbloc/sidetree-svc-go/pkg/api/cas"
+	"github.com/trustbloc/sidetree-svc-go/pkg/api/protocol"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/config"
