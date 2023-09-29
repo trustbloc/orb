@@ -21,7 +21,7 @@ import (
 	mockkms "github.com/hyperledger/aries-framework-go/pkg/mock/kms"
 	"github.com/igor-pavlenko/httpsignatures-go"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/util/ecsigner"
+	"github.com/trustbloc/sidetree-go/pkg/util/ecsigner"
 
 	"github.com/trustbloc/orb/pkg/activitypub/mocks"
 	servicemocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"

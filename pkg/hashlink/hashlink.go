@@ -15,7 +15,7 @@ import (
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/multiformats/go-multihash"
-	"github.com/trustbloc/sidetree-core-go/pkg/hashing"
+	"github.com/trustbloc/sidetree-go/pkg/hashing"
 )
 
 const (

@@ -5,7 +5,7 @@ import (
 	"sync"
 
 	"github.com/trustbloc/orb/pkg/context/common"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-go/pkg/api/operation"
 )
 
 type OperationStore struct {

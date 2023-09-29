@@ -17,7 +17,7 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/ld"
 	ldstore "github.com/hyperledger/aries-framework-go/pkg/store/ld"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
+	"github.com/trustbloc/sidetree-go/pkg/canonicalizer"
 
 	"github.com/trustbloc/orb/internal/pkg/ldcontext"
 	"github.com/trustbloc/orb/pkg/store/expiry"

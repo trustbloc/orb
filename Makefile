@@ -19,7 +19,7 @@
 CONTAINER_IDS      = $(shell type docker >/dev/null 2>&1 && docker ps -a -q)
 DEV_IMAGES         = $(shell type docker >/dev/null 2>&1 && docker images dev-* -q)
 ARCH               = $(shell go env GOARCH)
-GO_VER             = 1.19
+GO_VER             = 1.21
 GOBIN_PATH         = $(abspath .)/build/bin
 SWAGGER_VERSION    ?= v0.27.0
 SWAGGER_DIR		   = "./test/bdd/fixtures/specs"
@@ -37,7 +37,7 @@ ORB_DRIVER_REST_PATH=cmd/orb-driver
 # Tool commands (overridable)
 DOCKER_CMD ?= docker
 GO_CMD     ?= go
-ALPINE_VER ?= 3.15
+ALPINE_VER ?= 3.18
 GO_TAGS    ?=
 
 export GO111MODULE=on

@@ -4,15 +4,14 @@ package mocks
 import (
 	"sync"
 
-	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+	"github.com/trustbloc/sidetree-svc-go/pkg/restapi/common"
 )
 
 type HTTPHandler struct {
 	HandlerStub        func() common.HTTPRequestHandler
 	handlerMutex       sync.RWMutex
-	handlerArgsForCall []struct {
-	}
-	handlerReturns struct {
+	handlerArgsForCall []struct{}
+	handlerReturns     struct {
 		result1 common.HTTPRequestHandler
 	}
 	handlerReturnsOnCall map[int]struct {
@@ -20,9 +19,8 @@ type HTTPHandler struct {
 	}
 	MethodStub        func() string
 	methodMutex       sync.RWMutex
-	methodArgsForCall []struct {
-	}
-	methodReturns struct {
+	methodArgsForCall []struct{}
+	methodReturns     struct {
 		result1 string
 	}
 	methodReturnsOnCall map[int]struct {
@@ -30,9 +28,8 @@ type HTTPHandler struct {
 	}
 	PathStub        func() string
 	pathMutex       sync.RWMutex
-	pathArgsForCall []struct {
-	}
-	pathReturns struct {
+	pathArgsForCall []struct{}
+	pathReturns     struct {
 		result1 string
 	}
 	pathReturnsOnCall map[int]struct {
@@ -45,8 +42,7 @@ type HTTPHandler struct {
 func (fake *HTTPHandler) Handler() common.HTTPRequestHandler {
 	fake.handlerMutex.Lock()
 	ret, specificReturn := fake.handlerReturnsOnCall[len(fake.handlerArgsForCall)]
-	fake.handlerArgsForCall = append(fake.handlerArgsForCall, struct {
-	}{})
+	fake.handlerArgsForCall = append(fake.handlerArgsForCall, struct{}{})
 	fake.recordInvocation("Handler", []interface{}{})
 	fake.handlerMutex.Unlock()
 	if fake.HandlerStub != nil {
@@ -97,8 +93,7 @@ func (fake *HTTPHandler) HandlerReturnsOnCall(i int, result1 common.HTTPRequestH
 func (fake *HTTPHandler) Method() string {
 	fake.methodMutex.Lock()
 	ret, specificReturn := fake.methodReturnsOnCall[len(fake.methodArgsForCall)]
-	fake.methodArgsForCall = append(fake.methodArgsForCall, struct {
-	}{})
+	fake.methodArgsForCall = append(fake.methodArgsForCall, struct{}{})
 	fake.recordInvocation("Method", []interface{}{})
 	fake.methodMutex.Unlock()
 	if fake.MethodStub != nil {
@@ -149,8 +144,7 @@ func (fake *HTTPHandler) MethodReturnsOnCall(i int, result1 string) {
 func (fake *HTTPHandler) Path() string {
 	fake.pathMutex.Lock()
 	ret, specificReturn := fake.pathReturnsOnCall[len(fake.pathArgsForCall)]
-	fake.pathArgsForCall = append(fake.pathArgsForCall, struct {
-	}{})
+	fake.pathArgsForCall = append(fake.pathArgsForCall, struct{}{})
 	fake.recordInvocation("Path", []interface{}{})
 	fake.pathMutex.Unlock()
 	if fake.PathStub != nil {

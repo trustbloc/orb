@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/operationparser"
+	"github.com/trustbloc/sidetree-go/pkg/versions/1_0/operationparser"
 )
 
 func TestValidator_Validate(t *testing.T) {

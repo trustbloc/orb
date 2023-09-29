@@ -7,9 +7,9 @@ SPDX-License-Identifier: Apache-2.0
 package context
 
 import (
-	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
-	"github.com/trustbloc/sidetree-core-go/pkg/batch"
-	"github.com/trustbloc/sidetree-core-go/pkg/batch/cutter"
+	"github.com/trustbloc/sidetree-svc-go/pkg/api/protocol"
+	"github.com/trustbloc/sidetree-svc-go/pkg/batch"
+	"github.com/trustbloc/sidetree-svc-go/pkg/batch/cutter"
 )
 
 // New returns a new server context.

@@ -20,8 +20,8 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/multiformats/go-multibase"
 	"github.com/trustbloc/logutil-go/pkg/log"
-	"github.com/trustbloc/sidetree-core-go/pkg/document"
-	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+	"github.com/trustbloc/sidetree-go/pkg/document"
+	"github.com/trustbloc/sidetree-svc-go/pkg/restapi/common"
 	"github.com/trustbloc/vct/pkg/controller/command"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"

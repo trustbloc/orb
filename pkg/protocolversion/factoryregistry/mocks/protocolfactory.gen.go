@@ -4,18 +4,16 @@ package mocks
 import (
 	"sync"
 
-	metricsProvider "github.com/trustbloc/orb/pkg/observability/metrics"
-
 	"github.com/hyperledger/aries-framework-go/spi/storage"
 	"github.com/trustbloc/orb/pkg/config"
 	"github.com/trustbloc/orb/pkg/context/common"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
+	"github.com/trustbloc/orb/pkg/observability/metrics"
+	"github.com/trustbloc/sidetree-svc-go/pkg/api/cas"
+	"github.com/trustbloc/sidetree-svc-go/pkg/api/protocol"
 )
 
 type ProtocolFactory struct {
-	CreateStub func(string, cas.Client, common.CASResolver, common.OperationStore, storage.Provider,
-		*config.Sidetree, metricsProvider.Metrics) (protocol.Version, error)
+	CreateStub        func(string, cas.Client, common.CASResolver, common.OperationStore, storage.Provider, *config.Sidetree, metrics.Metrics) (protocol.Version, error)
 	createMutex       sync.RWMutex
 	createArgsForCall []struct {
 		arg1 string
@@ -24,6 +22,7 @@ type ProtocolFactory struct {
 		arg4 common.OperationStore
 		arg5 storage.Provider
 		arg6 *config.Sidetree
+		arg7 metrics.Metrics
 	}
 	createReturns struct {
 		result1 protocol.Version
@@ -37,8 +36,7 @@ type ProtocolFactory struct {
 	invocationsMutex sync.RWMutex
 }
 
-func (fake *ProtocolFactory) Create(arg1 string, arg2 cas.Client, arg3 common.CASResolver, arg4 common.OperationStore,
-	arg5 storage.Provider, arg6 *config.Sidetree, arg7 metricsProvider.Metrics) (protocol.Version, error) {
+func (fake *ProtocolFactory) Create(arg1 string, arg2 cas.Client, arg3 common.CASResolver, arg4 common.OperationStore, arg5 storage.Provider, arg6 *config.Sidetree, arg7 metrics.Metrics) (protocol.Version, error) {
 	fake.createMutex.Lock()
 	ret, specificReturn := fake.createReturnsOnCall[len(fake.createArgsForCall)]
 	fake.createArgsForCall = append(fake.createArgsForCall, struct {
@@ -48,16 +46,18 @@ func (fake *ProtocolFactory) Create(arg1 string, arg2 cas.Client, arg3 common.CA
 		arg4 common.OperationStore
 		arg5 storage.Provider
 		arg6 *config.Sidetree
-	}{arg1, arg2, arg3, arg4, arg5, arg6})
-	fake.recordInvocation("Create", []interface{}{arg1, arg2, arg3, arg4, arg5, arg6})
+		arg7 metrics.Metrics
+	}{arg1, arg2, arg3, arg4, arg5, arg6, arg7})
+	stub := fake.CreateStub
+	fakeReturns := fake.createReturns
+	fake.recordInvocation("Create", []interface{}{arg1, arg2, arg3, arg4, arg5, arg6, arg7})
 	fake.createMutex.Unlock()
-	if fake.CreateStub != nil {
-		return fake.CreateStub(arg1, arg2, arg3, arg4, arg5, arg6, arg7)
+	if stub != nil {
+		return stub(arg1, arg2, arg3, arg4, arg5, arg6, arg7)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.createReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 
@@ -67,18 +67,17 @@ func (fake *ProtocolFactory) CreateCallCount() int {
 	return len(fake.createArgsForCall)
 }
 
-func (fake *ProtocolFactory) CreateCalls(stub func(string, cas.Client, common.CASResolver, common.OperationStore,
-	storage.Provider, *config.Sidetree, metricsProvider.Metrics) (protocol.Version, error)) {
+func (fake *ProtocolFactory) CreateCalls(stub func(string, cas.Client, common.CASResolver, common.OperationStore, storage.Provider, *config.Sidetree, metrics.Metrics) (protocol.Version, error)) {
 	fake.createMutex.Lock()
 	defer fake.createMutex.Unlock()
 	fake.CreateStub = stub
 }
 
-func (fake *ProtocolFactory) CreateArgsForCall(i int) (string, cas.Client, common.CASResolver, common.OperationStore, storage.Provider, *config.Sidetree) {
+func (fake *ProtocolFactory) CreateArgsForCall(i int) (string, cas.Client, common.CASResolver, common.OperationStore, storage.Provider, *config.Sidetree, metrics.Metrics) {
 	fake.createMutex.RLock()
 	defer fake.createMutex.RUnlock()
 	argsForCall := fake.createArgsForCall[i]
-	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5, argsForCall.arg6
+	return argsForCall.arg1, argsForCall.arg2, argsForCall.arg3, argsForCall.arg4, argsForCall.arg5, argsForCall.arg6, argsForCall.arg7
 }
 
 func (fake *ProtocolFactory) CreateReturns(result1 protocol.Version, result2 error) {

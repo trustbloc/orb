@@ -38,11 +38,11 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/kms"
 	"github.com/hyperledger/aries-framework-go/pkg/kms/localkms"
 	"github.com/hyperledger/aries-framework-go/pkg/secretlock/noop"
-	"github.com/trustbloc/sidetree-core-go/pkg/jws"
-	"github.com/trustbloc/sidetree-core-go/pkg/util/ecsigner"
-	"github.com/trustbloc/sidetree-core-go/pkg/util/edsigner"
-	"github.com/trustbloc/sidetree-core-go/pkg/util/pubkey"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/client"
+	"github.com/trustbloc/sidetree-go/pkg/jws"
+	"github.com/trustbloc/sidetree-go/pkg/util/ecsigner"
+	"github.com/trustbloc/sidetree-go/pkg/util/edsigner"
+	"github.com/trustbloc/sidetree-go/pkg/util/pubkey"
+	"github.com/trustbloc/sidetree-go/pkg/versions/1_0/client"
 )
 
 const (

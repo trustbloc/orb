@@ -11,9 +11,9 @@ import (
 	"strings"
 
 	"github.com/trustbloc/logutil-go/pkg/log"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/txn"
+	"github.com/trustbloc/sidetree-go/pkg/api/operation"
+	svcprotocol "github.com/trustbloc/sidetree-svc-go/pkg/api/protocol"
+	"github.com/trustbloc/sidetree-svc-go/pkg/api/txn"
 
 	logfields "github.com/trustbloc/orb/internal/pkg/log"
 	"github.com/trustbloc/orb/pkg/context/common"
@@ -24,7 +24,7 @@ var logger = log.New("orb-txn-processor")
 // Providers contains the providers required by the TxnProcessor.
 type Providers struct {
 	OpStore                   common.OperationStore
-	OperationProtocolProvider protocol.OperationProvider
+	OperationProtocolProvider svcprotocol.OperationProvider
 }
 
 type unpublishedOperationStore interface {

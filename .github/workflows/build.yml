@@ -17,10 +17,10 @@ jobs:
       matrix:
         os: [ubuntu-latest]
     steps:
-      - name: Setup Go 1.19
+      - name: Setup Go 1.21
         uses: actions/setup-go@v2
         with:
-          go-version: 1.19
+          go-version: 1.21
         id: go
 
       - uses: actions/checkout@v2
@@ -41,10 +41,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - name: Setup Go 1.19
+      - name: Setup Go 1.21
         uses: actions/setup-go@v2
         with:
-          go-version: 1.19
+          go-version: 1.21
         id: go
 
       - uses: actions/checkout@v2
@@ -69,10 +69,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - name: Setup Go 1.19
+      - name: Setup Go 1.21
         uses: actions/setup-go@v2
         with:
-          go-version: 1.19
+          go-version: 1.21
         id: go
 
       - uses: actions/checkout@v2
@@ -95,10 +95,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - name: Setup Go 1.19
+      - name: Setup Go 1.21
         uses: actions/setup-go@v2
         with:
-          go-version: 1.19
+          go-version: 1.21
         id: go
 
       - uses: actions/checkout@v2
@@ -121,10 +121,10 @@ jobs:
     timeout-minutes: 10
     runs-on: ubuntu-latest
     steps:
-      - name: Setup Go 1.19
+      - name: Setup Go 1.21
         uses: actions/setup-go@v2
         with:
-          go-version: 1.19
+          go-version: 1.21
 
       - uses: actions/checkout@v2
 
@@ -139,10 +139,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Setup Go 1.19
+      - name: Setup Go 1.21
         uses: actions/setup-go@v2
         with:
-          go-version: 1.19
+          go-version: 1.21
 
       - uses: actions/checkout@v2
         with: { fetch-depth: 0 }
@@ -189,8 +189,8 @@ jobs:
           file: ./images/orb/Dockerfile
           platforms: linux/amd64,linux/arm64
           build-args: |
-            ALPINE_VER=3.15
-            GO_VER=1.19
+            ALPINE_VER=3.18
+            GO_VER=1.21
             GO_LDFLAGS=-X 'github.com/trustbloc/orb/pkg/nodeinfo.OrbVersion=${{ env.IMAGE_TAG }}' -X 'github.com/trustbloc/orb/pkg/httpserver.BuildVersion=${{ env.IMAGE_TAG }}'
           push: true
           tags: |
@@ -204,8 +204,8 @@ jobs:
           file: ./images/orb-driver/Dockerfile
           platforms: linux/amd64,linux/arm64
           build-args: |
-            ALPINE_VER=3.15
-            GO_VER=1.19
+            ALPINE_VER=3.18
+            GO_VER=1.21
           push: true
           tags: |
             ${{ env.ORB_DRIVER_IMAGE_PREFIX }}:${{ env.IMAGE_TAG }}

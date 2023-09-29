@@ -4,7 +4,9 @@
 
 module github.com/trustbloc/orb/cmd/orb-server
 
-go 1.19
+go 1.21
+
+toolchain go1.21.0
 
 require (
 	github.com/ThreeDotsLabs/watermill v1.2.0-rc.7
@@ -22,7 +24,8 @@ require (
 	github.com/trustbloc/kms v0.1.9-0.20221024131747-f895f91207f1
 	github.com/trustbloc/logutil-go v1.0.0-rc1
 	github.com/trustbloc/orb v1.0.0-rc3.0.20221101120557-1cf1ce21c938
-	github.com/trustbloc/sidetree-core-go v1.0.0
+	github.com/trustbloc/sidetree-go v0.0.0-20230928172705-30e78b6b6ddd
+	github.com/trustbloc/sidetree-svc-go v0.0.0-20230928215925-11c8459cb32d
 	go.mongodb.org/mongo-driver v1.9.1
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.40.0
 	go.uber.org/zap v1.23.0
@@ -34,7 +37,7 @@ require (
 	github.com/VictoriaMetrics/fastcache v1.5.7 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bluele/gcache v0.0.2 // indirect
-	github.com/btcsuite/btcd v0.22.1 // indirect
+	github.com/btcsuite/btcd v0.22.3 // indirect
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
 	github.com/cenkalti/backoff/v3 v3.2.2 // indirect

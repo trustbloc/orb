@@ -6,7 +6,7 @@ import (
 
 	"github.com/trustbloc/orb/pkg/config"
 	"github.com/trustbloc/orb/pkg/context/common"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
+	"github.com/trustbloc/sidetree-svc-go/pkg/api/protocol"
 )
 
 type ClientFactory struct {
@@ -37,15 +37,16 @@ func (fake *ClientFactory) Create(arg1 string, arg2 common.CASReader, arg3 *conf
 		arg2 common.CASReader
 		arg3 *config.Sidetree
 	}{arg1, arg2, arg3})
+	stub := fake.CreateStub
+	fakeReturns := fake.createReturns
 	fake.recordInvocation("Create", []interface{}{arg1, arg2, arg3})
 	fake.createMutex.Unlock()
-	if fake.CreateStub != nil {
-		return fake.CreateStub(arg1, arg2, arg3)
+	if stub != nil {
+		return stub(arg1, arg2, arg3)
 	}
 	if specificReturn {
 		return ret.result1, ret.result2
 	}
-	fakeReturns := fake.createReturns
 	return fakeReturns.result1, fakeReturns.result2
 }
 

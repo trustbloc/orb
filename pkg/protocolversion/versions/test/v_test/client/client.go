@@ -7,14 +7,14 @@ SPDX-License-Identifier: Apache-2.0
 package client
 
 import (
-	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
-	"github.com/trustbloc/sidetree-core-go/pkg/compression"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/doccomposer"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/doctransformer/didtransformer"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/docvalidator/didvalidator"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/operationapplier"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/operationparser"
-	"github.com/trustbloc/sidetree-core-go/pkg/versions/1_0/txnprovider"
+	"github.com/trustbloc/sidetree-go/pkg/api/protocol"
+	"github.com/trustbloc/sidetree-go/pkg/versions/1_0/doccomposer"
+	"github.com/trustbloc/sidetree-go/pkg/versions/1_0/doctransformer/didtransformer"
+	"github.com/trustbloc/sidetree-go/pkg/versions/1_0/docvalidator/didvalidator"
+	"github.com/trustbloc/sidetree-go/pkg/versions/1_0/operationapplier"
+	"github.com/trustbloc/sidetree-go/pkg/versions/1_0/operationparser"
+	"github.com/trustbloc/sidetree-svc-go/pkg/compression"
+	"github.com/trustbloc/sidetree-svc-go/pkg/versions/1_0/txnprovider"
 
 	"github.com/trustbloc/orb/pkg/config"
 	"github.com/trustbloc/orb/pkg/context/common"

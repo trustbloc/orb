@@ -20,7 +20,8 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/mock/storage"
 	"github.com/stretchr/testify/require"
 	"github.com/trustbloc/logutil-go/pkg/log"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-go/pkg/api/operation"
+	svcoperation "github.com/trustbloc/sidetree-svc-go/pkg/api/operation"
 
 	servicemocks "github.com/trustbloc/orb/pkg/activitypub/service/mocks"
 	"github.com/trustbloc/orb/pkg/anchor/multierror"
@@ -219,7 +220,7 @@ func TestQueue(t *testing.T) {
 }
 
 func TestQueue_Error(t *testing.T) {
-	op1 := &operation.QueuedOperation{UniqueSuffix: "op1"}
+	op1 := &svcoperation.QueuedOperation{UniqueSuffix: "op1"}
 	op1.Properties = append(op1.Properties, operation.Property{
 		Key:   propCreatePublished,
 		Value: true,
@@ -410,7 +411,7 @@ func TestQueue_Error(t *testing.T) {
 		q.Start()
 		defer q.Stop()
 
-		op := &operation.QueuedOperation{
+		op := &svcoperation.QueuedOperation{
 			OperationRequest: []byte("request"),
 			UniqueSuffix:     "suffix1",
 			Namespace:        "ns1",
@@ -418,7 +419,7 @@ func TestQueue_Error(t *testing.T) {
 
 		opMsg := &OperationMessage{
 			ID: uuid.New().String(),
-			Operation: &operation.QueuedOperationAtTime{
+			Operation: &svcoperation.QueuedOperationAtTime{
 				QueuedOperation: *op,
 				ProtocolVersion: 1,
 			},
@@ -610,13 +611,13 @@ func TestMain(m *testing.M) {
 }
 
 type processedOperation struct {
-	op        *operation.QueuedOperation
+	op        *svcoperation.QueuedOperation
 	processed bool
 }
 
 type processedOperations map[string]*processedOperation
 
-func (po processedOperations) setProcessed(t *testing.T, ops operation.QueuedOperationsAtTime) {
+func (po processedOperations) setProcessed(t *testing.T, ops svcoperation.QueuedOperationsAtTime) {
 	t.Helper()
 
 	for _, op := range ops {
@@ -635,7 +636,7 @@ func newProcessedOperations(n int) processedOperations {
 	ops := make(processedOperations, n)
 
 	for i := 0; i < n; i++ {
-		op := &operation.QueuedOperation{UniqueSuffix: fmt.Sprintf("op%d", i)}
+		op := &svcoperation.QueuedOperation{UniqueSuffix: fmt.Sprintf("op%d", i)}
 		op.Properties = append(op.Properties, operation.Property{
 			Key:   propCreatePublished,
 			Value: true,

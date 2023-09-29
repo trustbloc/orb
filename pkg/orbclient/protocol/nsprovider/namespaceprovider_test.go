@@ -10,15 +10,16 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
-	coremocks "github.com/trustbloc/sidetree-core-go/pkg/mocks"
+	"github.com/trustbloc/sidetree-go/pkg/api/protocol"
+	svcprotocol "github.com/trustbloc/sidetree-svc-go/pkg/api/protocol"
+	"github.com/trustbloc/sidetree-svc-go/pkg/mocks"
 
 	"github.com/trustbloc/orb/pkg/orbclient/protocol/verprovider"
 )
 
 const ns = "did:orb"
 
-//go:generate counterfeiter -o ./../mocks/clientversionprovider.gen.go --fake-name ClientVersionProvider . ClientVersionProvider
+//go:generate counterfeiter -o ./../../mocks/clientversionprovider.gen.go --fake-name ClientVersionProvider . ClientVersionProvider
 
 func TestNew(t *testing.T) {
 	p := New()
@@ -26,13 +27,13 @@ func TestNew(t *testing.T) {
 }
 
 func TestClientProvider_ForNamespace(t *testing.T) {
-	v1_0 := &coremocks.ProtocolVersion{}
+	v1_0 := &mocks.ProtocolVersion{}
 	v1_0.ProtocolReturns(protocol.Protocol{
 		GenesisTime:       0,
 		MaxOperationCount: 10,
 	})
 
-	versions := []protocol.Version{v1_0}
+	versions := []svcprotocol.Version{v1_0}
 
 	p := New()
 	require.NotNil(t, p)

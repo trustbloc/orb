@@ -10,13 +10,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/protocol"
-	coremocks "github.com/trustbloc/sidetree-core-go/pkg/mocks"
+	"github.com/trustbloc/sidetree-go/pkg/api/protocol"
+	svcprotocol "github.com/trustbloc/sidetree-svc-go/pkg/api/protocol"
+	svcmocks "github.com/trustbloc/sidetree-svc-go/pkg/mocks"
 )
 
 func TestNew(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		v1_0 := &coremocks.ProtocolVersion{}
+		v1_0 := &svcmocks.ProtocolVersion{}
 		v1_0.ProtocolReturns(protocol.Protocol{
 			GenesisTime:         1,
 			MultihashAlgorithms: []uint{18},
@@ -24,7 +25,7 @@ func TestNew(t *testing.T) {
 			MaxOperationCount:   10000,
 		})
 
-		vp, err := New([]protocol.Version{v1_0})
+		vp, err := New([]svcprotocol.Version{v1_0})
 		require.NotNil(t, vp)
 		require.NoError(t, err)
 	})
@@ -38,7 +39,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestClient_Current(t *testing.T) {
-	v1_0 := &coremocks.ProtocolVersion{}
+	v1_0 := &svcmocks.ProtocolVersion{}
 	v1_0.VersionReturns("1.0")
 	v1_0.ProtocolReturns(protocol.Protocol{
 		GenesisTime:         1,
@@ -47,7 +48,7 @@ func TestClient_Current(t *testing.T) {
 		MaxOperationCount:   10000,
 	})
 
-	v0_1 := &coremocks.ProtocolVersion{}
+	v0_1 := &svcmocks.ProtocolVersion{}
 	v0_1.VersionReturns("0.1")
 	v0_1.ProtocolReturns(protocol.Protocol{
 		GenesisTime:         0,
@@ -57,7 +58,7 @@ func TestClient_Current(t *testing.T) {
 	})
 
 	t.Run("success - default", func(t *testing.T) {
-		versions := []protocol.Version{v1_0, v0_1}
+		versions := []svcprotocol.Version{v1_0, v0_1}
 
 		vp, err := New(versions)
 		require.NotNil(t, vp)
@@ -69,7 +70,7 @@ func TestClient_Current(t *testing.T) {
 	})
 
 	t.Run("success - with current protocol version", func(t *testing.T) {
-		versions := []protocol.Version{v0_1, v1_0}
+		versions := []svcprotocol.Version{v0_1, v1_0}
 
 		vp, err := New(versions, WithCurrentProtocolVersion("0.1"))
 		require.NotNil(t, vp)
@@ -82,7 +83,7 @@ func TestClient_Current(t *testing.T) {
 }
 
 func TestClientVersionProvider_Get(t *testing.T) {
-	v1_0 := &coremocks.ProtocolVersion{}
+	v1_0 := &svcmocks.ProtocolVersion{}
 	v1_0.VersionReturns("1.0")
 	v1_0.ProtocolReturns(protocol.Protocol{
 		GenesisTime:         1,
@@ -91,7 +92,7 @@ func TestClientVersionProvider_Get(t *testing.T) {
 		MaxOperationCount:   10000,
 	})
 
-	v0_1 := &coremocks.ProtocolVersion{}
+	v0_1 := &svcmocks.ProtocolVersion{}
 	v0_1.VersionReturns("0.1")
 	v0_1.ProtocolReturns(protocol.Protocol{
 		GenesisTime:         0,
@@ -100,7 +101,7 @@ func TestClientVersionProvider_Get(t *testing.T) {
 		MaxOperationCount:   100,
 	})
 
-	versions := []protocol.Version{v1_0, v0_1}
+	versions := []svcprotocol.Version{v1_0, v0_1}
 
 	vp, err := New(versions)
 	require.NoError(t, err)

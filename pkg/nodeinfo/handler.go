@@ -12,7 +12,7 @@ import (
 	"net/http"
 
 	"github.com/trustbloc/logutil-go/pkg/log"
-	"github.com/trustbloc/sidetree-core-go/pkg/restapi/common"
+	"github.com/trustbloc/sidetree-svc-go/pkg/restapi/common"
 )
 
 const internalServerErrorResponse = "Internal Server Error.\n"

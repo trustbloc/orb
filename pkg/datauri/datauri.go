@@ -16,7 +16,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/trustbloc/sidetree-core-go/pkg/canonicalizer"
+	"github.com/trustbloc/sidetree-go/pkg/canonicalizer"
 )
 
 // MediaType defines a type of encoding for content embedded within a data URI.

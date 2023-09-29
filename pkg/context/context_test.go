@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/batch/opqueue"
+	"github.com/trustbloc/sidetree-svc-go/pkg/batch/opqueue"
 )
 
 func TestNew(t *testing.T) {

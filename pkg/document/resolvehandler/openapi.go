@@ -7,7 +7,7 @@ SPDX-License-Identifier: Apache-2.0
 package resolvehandler
 
 import (
-	"github.com/trustbloc/sidetree-core-go/pkg/document"
+	"github.com/trustbloc/sidetree-go/pkg/document"
 )
 
 // swagger:parameters identifiersReq

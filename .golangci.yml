@@ -12,7 +12,7 @@ run:
   tests: true
   build-tags: [""]
   skip-dirs:  [""]
-  go: '1.19'
+  go: '1.21'
 
 output:
   format: colored-line-number

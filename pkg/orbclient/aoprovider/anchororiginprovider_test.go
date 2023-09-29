@@ -15,8 +15,8 @@ import (
 	"github.com/hyperledger/aries-framework-go/pkg/doc/util"
 	"github.com/hyperledger/aries-framework-go/pkg/doc/verifiable"
 	"github.com/stretchr/testify/require"
-	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
-	coremocks "github.com/trustbloc/sidetree-core-go/pkg/mocks"
+	stoperation "github.com/trustbloc/sidetree-go/pkg/api/operation"
+	svcmocks "github.com/trustbloc/sidetree-svc-go/pkg/mocks"
 
 	"github.com/trustbloc/orb/pkg/activitypub/vocab"
 	"github.com/trustbloc/orb/pkg/anchor/anchorlinkset"
@@ -34,14 +34,14 @@ const testDID = "did"
 
 func TestNew(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
-		client, err := New("did:orb", coremocks.NewMockCasClient(nil),
+		client, err := New("did:orb", svcmocks.NewMockCasClient(nil),
 			WithPublicKeyFetcher(pubKeyFetcherFnc),
 			WithJSONLDDocumentLoader(testutil.GetLoader(t)))
 		require.NoError(t, err)
 		require.NotNil(t, client)
 	})
 	t.Run("success - with protocol versions", func(t *testing.T) {
-		client, err := New("did:orb", coremocks.NewMockCasClient(nil),
+		client, err := New("did:orb", svcmocks.NewMockCasClient(nil),
 			WithPublicKeyFetcher(pubKeyFetcherFnc),
 			WithJSONLDDocumentLoader(testutil.GetLoader(t)),
 			WithProtocolVersions([]string{v1}),
@@ -50,7 +50,7 @@ func TestNew(t *testing.T) {
 		require.NotNil(t, client)
 	})
 	t.Run("error - protocol version not supported", func(t *testing.T) {
-		client, err := New("did:orb", coremocks.NewMockCasClient(nil),
+		client, err := New("did:orb", svcmocks.NewMockCasClient(nil),
 			WithPublicKeyFetcher(pubKeyFetcherFnc),
 			WithJSONLDDocumentLoader(testutil.GetLoader(t)),
 			WithProtocolVersions([]string{"0.1"}))
@@ -59,7 +59,7 @@ func TestNew(t *testing.T) {
 		require.Contains(t, err.Error(), "client version factory for version [0.1] not found")
 	})
 	t.Run("error - protocol versions not provided", func(t *testing.T) {
-		client, err := New("did:orb", coremocks.NewMockCasClient(nil),
+		client, err := New("did:orb", svcmocks.NewMockCasClient(nil),
 			WithPublicKeyFetcher(pubKeyFetcherFnc),
 			WithJSONLDDocumentLoader(testutil.GetLoader(t)),
 			WithProtocolVersions([]string{}))
@@ -86,7 +86,7 @@ func TestGetAnchorOrigin(t *testing.T) {
 		linksetBytes, err := json.Marshal(newMockAnchorLinkset(t, &payload))
 		require.NoError(t, err)
 
-		casClient := coremocks.NewMockCasClient(nil)
+		casClient := svcmocks.NewMockCasClient(nil)
 
 		cid, err := casClient.Write(linksetBytes)
 		require.NoError(t, err)
@@ -96,18 +96,18 @@ func TestGetAnchorOrigin(t *testing.T) {
 			WithJSONLDDocumentLoader(testutil.GetLoader(t)))
 		require.NoError(t, err)
 
-		createOp := &operation.AnchoredOperation{
+		createOp := &stoperation.AnchoredOperation{
 			AnchorOrigin: "testOrigin",
 			UniqueSuffix: testDID,
-			Type:         operation.TypeCreate,
+			Type:         stoperation.TypeCreate,
 		}
 
-		ops := []*operation.AnchoredOperation{createOp}
+		ops := []*stoperation.AnchoredOperation{createOp}
 
-		opsProvider := &coremocks.OperationProvider{}
+		opsProvider := &svcmocks.OperationProvider{}
 		opsProvider.GetTxnOperationsReturns(ops, nil)
 
-		clientVer := &coremocks.ProtocolVersion{}
+		clientVer := &svcmocks.ProtocolVersion{}
 		clientVer.OperationProviderReturns(opsProvider)
 
 		clientVerProvider := &mocks.ClientVersionProvider{}
@@ -139,7 +139,7 @@ func TestGetAnchorOrigin(t *testing.T) {
 		linksetBytes, err := json.Marshal(newMockAnchorLinkset(t, &payload))
 		require.NoError(t, err)
 
-		casClient := coremocks.NewMockCasClient(nil)
+		casClient := svcmocks.NewMockCasClient(nil)
 
 		cid, err := casClient.Write(linksetBytes)
 		require.NoError(t, err)
@@ -149,18 +149,18 @@ func TestGetAnchorOrigin(t *testing.T) {
 			WithJSONLDDocumentLoader(testutil.GetLoader(t)))
 		require.NoError(t, err)
 
-		updateOp := &operation.AnchoredOperation{
+		updateOp := &stoperation.AnchoredOperation{
 			AnchorOrigin: "testOrigin",
 			UniqueSuffix: testDID,
-			Type:         operation.TypeUpdate,
+			Type:         stoperation.TypeUpdate,
 		}
 
-		ops := []*operation.AnchoredOperation{updateOp}
+		ops := []*stoperation.AnchoredOperation{updateOp}
 
-		opsProvider := &coremocks.OperationProvider{}
+		opsProvider := &svcmocks.OperationProvider{}
 		opsProvider.GetTxnOperationsReturns(ops, nil)
 
-		clientVer := &coremocks.ProtocolVersion{}
+		clientVer := &svcmocks.ProtocolVersion{}
 		clientVer.OperationProviderReturns(opsProvider)
 
 		clientVerProvider := &mocks.ClientVersionProvider{}
@@ -190,7 +190,7 @@ func TestGetAnchorOrigin(t *testing.T) {
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		casClient := coremocks.NewMockCasClient(nil)
+		casClient := svcmocks.NewMockCasClient(nil)
 
 		cid, err := casClient.Write(testutil.MarshalCanonical(t, newMockAnchorLinkset(t, &payload)))
 		require.NoError(t, err)
@@ -200,8 +200,8 @@ func TestGetAnchorOrigin(t *testing.T) {
 			WithJSONLDDocumentLoader(testutil.GetLoader(t)))
 		require.NoError(t, err)
 
-		clientVer := &coremocks.ProtocolVersion{}
-		clientVer.OperationProviderReturns(&coremocks.OperationProvider{})
+		clientVer := &svcmocks.ProtocolVersion{}
+		clientVer.OperationProviderReturns(&svcmocks.OperationProvider{})
 
 		clientVerProvider := &mocks.ClientVersionProvider{}
 		clientVerProvider.GetReturns(clientVer, nil)
@@ -230,7 +230,7 @@ func TestGetAnchorOrigin(t *testing.T) {
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		casClient := coremocks.NewMockCasClient(nil)
+		casClient := svcmocks.NewMockCasClient(nil)
 
 		cid, err := casClient.Write(testutil.MarshalCanonical(t, newMockAnchorLinkset(t, &payload)))
 		require.NoError(t, err)
@@ -259,7 +259,7 @@ func TestGetAnchorOrigin(t *testing.T) {
 			PreviousAnchors: previousDIDTxns,
 		}
 
-		casClient := coremocks.NewMockCasClient(nil)
+		casClient := svcmocks.NewMockCasClient(nil)
 
 		cid, err := casClient.Write(testutil.MarshalCanonical(t, newMockAnchorLinkset(t, &payload)))
 		require.NoError(t, err)
@@ -276,7 +276,7 @@ func TestGetAnchorOrigin(t *testing.T) {
 	})
 
 	t.Run("error - anchor (cid) not found", func(t *testing.T) {
-		casClient := coremocks.NewMockCasClient(nil)
+		casClient := svcmocks.NewMockCasClient(nil)
 
 		client, err := New("did:orb", casClient)
 		require.NoError(t, err)

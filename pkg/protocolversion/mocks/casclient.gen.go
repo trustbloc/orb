@@ -4,7 +4,7 @@ package mocks
 import (
 	"sync"
 
-	"github.com/trustbloc/sidetree-core-go/pkg/api/cas"
+	"github.com/trustbloc/sidetree-svc-go/pkg/api/cas"
 )
 
 type CasClient struct {

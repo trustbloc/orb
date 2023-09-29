@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/trustbloc/sidetree-core-go/pkg/api/operation"
-	"github.com/trustbloc/sidetree-core-go/pkg/observer"
+	"github.com/trustbloc/sidetree-go/pkg/api/operation"
+	"github.com/trustbloc/sidetree-svc-go/pkg/observer"
 )
 
 // MockOpStoreProvider is a mock operation store provider.
