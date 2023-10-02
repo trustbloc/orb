@@ -662,7 +662,7 @@ func TestClient_GetDIDPublicKey(t *testing.T) {
 		privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		require.NoError(t, err)
 
-		pubKey := elliptic.Marshal(elliptic.P256(), privKey.PublicKey.X, privKey.PublicKey.Y)
+		pubKey := elliptic.Marshal(elliptic.P256(), privKey.PublicKey.X, privKey.PublicKey.Y) //nolint:staticcheck
 
 		c := New(Config{}, &mocks.HTTPTransport{},
 			func(issuerID, keyID string) (*verifier.PublicKey, error) {

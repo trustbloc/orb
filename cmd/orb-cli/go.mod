@@ -12,8 +12,8 @@ require (
 	github.com/btcsuite/btcutil v1.0.3-0.20201208143702-a53e38424cce
 	github.com/google/uuid v1.3.0
 	github.com/hyperledger/aries-framework-go v0.3.3-0.20230901120639-e17eddd3ad3e
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc5.0.20230612123444-d285f3c85595
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc4.0.20230612123444-d285f3c85595
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc5.0.20231002134513-a3b96bcbb37c
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc4.0.20231002134513-a3b96bcbb37c
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20230901120639-e17eddd3ad3e
 	github.com/ipfs/go-ipfs-api v0.2.0
 	github.com/ipfs/go-ipfs-files v0.0.8
@@ -22,7 +22,7 @@ require (
 	github.com/spf13/cobra v1.5.0
 	github.com/stretchr/testify v1.8.2
 	github.com/trustbloc/logutil-go v1.0.0-rc1
-	github.com/trustbloc/orb v1.0.0-rc7
+	github.com/trustbloc/orb v1.0.1-0.20230929144409-1e0e7e685841
 	github.com/trustbloc/sidetree-go v0.0.0-20230928172705-30e78b6b6ddd
 	github.com/trustbloc/vct v1.0.0
 )
@@ -51,7 +51,7 @@ require (
 	github.com/google/tink/go v1.7.0 // indirect
 	github.com/google/trillian v1.3.14-0.20210520152752-ceda464a95a3 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
-	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220615170242-cda5092b4faf // indirect
+	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20231002134513-a3b96bcbb37c // indirect
 	github.com/hyperledger/aries-framework-go/component/kmscrypto v0.0.0-20230901120639-e17eddd3ad3e // indirect
 	github.com/hyperledger/aries-framework-go/component/log v0.0.0-20230901120639-e17eddd3ad3e // indirect
 	github.com/hyperledger/aries-framework-go/component/models v0.0.0-20230901120639-e17eddd3ad3e // indirect
@@ -99,7 +99,6 @@ require (
 	github.com/tidwall/match v1.1.1 // indirect
 	github.com/tidwall/pretty v1.2.0 // indirect
 	github.com/tidwall/sjson v1.1.4 // indirect
-	github.com/trustbloc/sidetree-core-go v1.0.0-rc5.0.20230609191801-793cbea60692 // indirect
 	github.com/trustbloc/sidetree-svc-go v0.0.0-20230928215925-11c8459cb32d // indirect
 	github.com/whyrusleeping/tar-utils v0.0.0-20180509141711-8c6c8ba81d5c // indirect
 	github.com/x448/float16 v0.8.4 // indirect

@@ -45,7 +45,7 @@ func TestLogRetriever_Handler(t *testing.T) {
 		require.NotNil(t, logRetriever)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, endpoint, nil)
+		req := httptest.NewRequest(http.MethodGet, endpoint, http.NoBody)
 
 		logRetriever.handle(rw, req)
 
@@ -69,7 +69,7 @@ func TestLogRetriever_Handler(t *testing.T) {
 		require.NotNil(t, logRetriever)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, endpoint, nil)
+		req := httptest.NewRequest(http.MethodGet, endpoint, http.NoBody)
 
 		logRetriever.handle(rw, req)
 
@@ -86,7 +86,7 @@ func TestLogRetriever_Handler(t *testing.T) {
 		require.NotNil(t, logRetriever)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, endpoint, nil)
+		req := httptest.NewRequest(http.MethodGet, endpoint, http.NoBody)
 
 		logRetriever.handle(rw, req)
 
@@ -108,7 +108,7 @@ func TestLogRetriever_Handler(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, endpoint, nil)
+		req := httptest.NewRequest(http.MethodGet, endpoint, http.NoBody)
 
 		logRetriever.handle(rw, req)
 

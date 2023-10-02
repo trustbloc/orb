@@ -39,7 +39,7 @@ func TestActivate(t *testing.T) {
 		require.NotNil(t, handler)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte(activatePayload)))
+		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBufferString(activatePayload))
 
 		handler.handle(rw, req)
 
@@ -77,7 +77,7 @@ func TestActivate(t *testing.T) {
 		require.NotNil(t, handler)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte(activatePayload)))
+		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBufferString(activatePayload))
 
 		errExpected := fmt.Errorf("injected unmarshal error")
 
@@ -123,7 +123,7 @@ func TestActivate(t *testing.T) {
 		require.NotNil(t, handler)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte(activatePayload)))
+		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBufferString(activatePayload))
 
 		handler.handle(rw, req)
 
@@ -144,7 +144,7 @@ func TestDeactivate(t *testing.T) {
 		require.NotNil(t, handler)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte(deactivatePayload)))
+		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBufferString(deactivatePayload))
 
 		handler.handle(rw, req)
 
@@ -203,7 +203,7 @@ func TestDeactivate(t *testing.T) {
 		require.NotNil(t, handler)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte(deactivatePayload)))
+		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBufferString(deactivatePayload))
 
 		handler.handle(rw, req)
 
@@ -224,7 +224,7 @@ func TestActivateAndDeactivate(t *testing.T) {
 		require.NotNil(t, handler)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte(testPayload)))
+		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBufferString(testPayload))
 
 		handler.handle(rw, req)
 

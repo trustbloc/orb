@@ -38,7 +38,7 @@ func TestPolicyRetriever_Handler(t *testing.T) {
 		require.NotNil(t, policyRetriever)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, endpoint, nil)
+		req := httptest.NewRequest(http.MethodGet, endpoint, http.NoBody)
 
 		policyRetriever.handle(rw, req)
 
@@ -62,7 +62,7 @@ func TestPolicyRetriever_Handler(t *testing.T) {
 		require.NotNil(t, policyRetriever)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, endpoint, nil)
+		req := httptest.NewRequest(http.MethodGet, endpoint, http.NoBody)
 
 		policyRetriever.handle(rw, req)
 
@@ -79,7 +79,7 @@ func TestPolicyRetriever_Handler(t *testing.T) {
 		require.NotNil(t, policyRetriever)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, endpoint, nil)
+		req := httptest.NewRequest(http.MethodGet, endpoint, http.NoBody)
 
 		policyRetriever.handle(rw, req)
 

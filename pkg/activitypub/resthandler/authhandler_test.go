@@ -46,7 +46,7 @@ func TestNewAuthHandler(t *testing.T) {
 		)
 		require.NotNil(t, h)
 
-		req := httptest.NewRequest(http.MethodPost, inboxURL, nil)
+		req := httptest.NewRequest(http.MethodPost, inboxURL, http.NoBody)
 		req.Header[authHeader] = []string{tokenPrefix + "ADMIN_TOKEN"}
 
 		ok, actorIRI, err := h.Authorize(req)
@@ -65,7 +65,7 @@ func TestNewAuthHandler(t *testing.T) {
 		)
 		require.NotNil(t, h)
 
-		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, inboxURL, http.NoBody)
 		req.Header[authHeader] = []string{tokenPrefix + "READ_TOKEN"}
 
 		ok, actorIRI, err := h.Authorize(req)
@@ -85,7 +85,7 @@ func TestNewAuthHandler(t *testing.T) {
 		)
 		require.NotNil(t, h)
 
-		req := httptest.NewRequest(http.MethodPost, inboxURL, nil)
+		req := httptest.NewRequest(http.MethodPost, inboxURL, http.NoBody)
 		req.Header[authHeader] = []string{tokenPrefix + "INVALID_TOKEN"}
 
 		ok, actorIRI, err := h.Authorize(req)
@@ -108,7 +108,7 @@ func TestNewAuthHandler(t *testing.T) {
 		)
 		require.NotNil(t, h)
 
-		req := httptest.NewRequest(http.MethodPost, inboxURL, nil)
+		req := httptest.NewRequest(http.MethodPost, inboxURL, http.NoBody)
 
 		ok, actorIRI, err := h.Authorize(req)
 		require.NoError(t, err)
@@ -131,7 +131,7 @@ func TestNewAuthHandler(t *testing.T) {
 		)
 		require.NotNil(t, h)
 
-		req := httptest.NewRequest(http.MethodPost, inboxURL, nil)
+		req := httptest.NewRequest(http.MethodPost, inboxURL, http.NoBody)
 
 		ok, actorIRI, err := h.Authorize(req)
 		require.NoError(t, err)
@@ -169,7 +169,7 @@ func TestNewAuthHandler(t *testing.T) {
 		)
 		require.NotNil(t, h)
 
-		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, inboxURL, http.NoBody)
 
 		ok, actorIRI, err := h.Authorize(req)
 		require.NoError(t, err)
@@ -193,7 +193,7 @@ func TestNewAuthHandler(t *testing.T) {
 		)
 		require.NotNil(t, h)
 
-		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, inboxURL, http.NoBody)
 
 		ok, actorIRI, err := h.Authorize(req)
 		require.Error(t, err)
@@ -218,7 +218,7 @@ func TestNewAuthHandler(t *testing.T) {
 		)
 		require.NotNil(t, h)
 
-		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, inboxURL, http.NoBody)
 
 		ok, actorIRI, err := h.Authorize(req)
 		require.Error(t, err)

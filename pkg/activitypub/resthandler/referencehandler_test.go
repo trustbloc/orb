@@ -134,7 +134,7 @@ func TestFollowers_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, followersURL, nil)
+		req := httptest.NewRequest(http.MethodGet, followersURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -160,7 +160,7 @@ func TestFollowers_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, followersURL, nil)
+		req := httptest.NewRequest(http.MethodGet, followersURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -180,7 +180,7 @@ func TestFollowers_Handler(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, followersURL, nil)
+		req := httptest.NewRequest(http.MethodGet, followersURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -200,7 +200,7 @@ func TestFollowers_Handler(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, outboxURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -222,7 +222,7 @@ func TestFollowers_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, followersURL, nil)
+		req := httptest.NewRequest(http.MethodGet, followersURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -242,7 +242,7 @@ func TestFollowers_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, followersURL, nil)
+		req := httptest.NewRequest(http.MethodGet, followersURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -318,7 +318,7 @@ func TestFollowers_PageHandler(t *testing.T) {
 		defer restorePaging()
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, followersURL, nil)
+		req := httptest.NewRequest(http.MethodGet, followersURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -347,7 +347,7 @@ func TestFollowers_PageHandler(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, followersURL, nil)
+		req := httptest.NewRequest(http.MethodGet, followersURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -484,7 +484,7 @@ func handleRequest(t *testing.T, h *handler, handle http.HandlerFunc, page, page
 	defer restorePaging()
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "https://example.com/services/orb", nil)
+	req := httptest.NewRequest(http.MethodGet, "https://example.com/services/orb", http.NoBody)
 
 	handle(rw, req)
 

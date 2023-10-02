@@ -207,7 +207,7 @@ func GetPublicKeyFromKMS(cmd *cobra.Command, keyIDFlagName, keyIDEnvKey string,
 			kms.ECDSAP521IEEEP1363: elliptic.P521(),
 		}
 		crv := curves[kt]
-		x, y := elliptic.Unmarshal(crv, keyBytes)
+		x, y := elliptic.Unmarshal(crv, keyBytes) //nolint:staticcheck
 
 		return &ecdsa.PublicKey{
 			Curve: crv,

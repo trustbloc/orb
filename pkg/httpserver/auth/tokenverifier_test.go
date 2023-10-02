@@ -39,7 +39,7 @@ func TestTokenVerifier(t *testing.T) {
 		v := NewTokenVerifier(&apmocks.AuthTokenMgr{}, http.MethodPost, "/services/orb/outbox")
 		require.NotNil(t, v)
 
-		req := httptest.NewRequest(http.MethodPost, "/services/orb/outbox", nil)
+		req := httptest.NewRequest(http.MethodPost, "/services/orb/outbox", http.NoBody)
 		req.Header[authHeader] = []string{tokenPrefix + "ADMIN_TOKEN"}
 
 		require.True(t, v.Verify(req))
@@ -52,7 +52,7 @@ func TestTokenVerifier(t *testing.T) {
 		v := NewTokenVerifier(tm, http.MethodGet, "/services/orb/outbox")
 		require.NotNil(t, v)
 
-		req := httptest.NewRequest(http.MethodGet, "/services/orb/outbox", nil)
+		req := httptest.NewRequest(http.MethodGet, "/services/orb/outbox", http.NoBody)
 
 		require.False(t, v.Verify(req))
 	})
@@ -64,7 +64,7 @@ func TestTokenVerifier(t *testing.T) {
 		v := NewTokenVerifier(tm, http.MethodGet, "/services/orb/outbox")
 		require.NotNil(t, v)
 
-		req := httptest.NewRequest(http.MethodGet, "/services/orb/outbox", nil)
+		req := httptest.NewRequest(http.MethodGet, "/services/orb/outbox", http.NoBody)
 		req.Header[authHeader] = []string{tokenPrefix + "INVALID_TOKEN"}
 
 		require.False(t, v.Verify(req))
@@ -74,7 +74,7 @@ func TestTokenVerifier(t *testing.T) {
 		v := NewTokenVerifier(&apmocks.AuthTokenMgr{}, http.MethodGet, "/services/orb/outbox")
 		require.NotNil(t, v)
 
-		req := httptest.NewRequest(http.MethodGet, "/services/orb/outbox", nil)
+		req := httptest.NewRequest(http.MethodGet, "/services/orb/outbox", http.NoBody)
 
 		require.True(t, v.Verify(req))
 	})

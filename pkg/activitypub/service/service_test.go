@@ -947,7 +947,7 @@ func newServiceWithMocks(t *testing.T, endpoint string, serviceIRI *url.URL) (*S
 	privKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
 
-	pubKey := elliptic.Marshal(elliptic.P256(), privKey.PublicKey.X, privKey.PublicKey.Y)
+	pubKey := elliptic.Marshal(elliptic.P256(), privKey.PublicKey.X, privKey.PublicKey.Y) //nolint:staticcheck
 
 	pemBytes := pem.EncodeToMemory(&pem.Block{
 		Type:  "P-256",

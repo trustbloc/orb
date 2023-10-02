@@ -42,7 +42,7 @@ func TestHandler(t *testing.T) {
 		require.NotNil(t, policyConfigurator)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte(testPolicy)))
+		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBufferString(testPolicy))
 
 		policyConfigurator.handle(rw, req)
 
@@ -85,7 +85,7 @@ func TestHandler(t *testing.T) {
 		require.NotNil(t, policyConfigurator)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte("InvalidPolicy")))
+		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBufferString("InvalidPolicy"))
 
 		policyConfigurator.handle(rw, req)
 
@@ -107,7 +107,7 @@ func TestHandler(t *testing.T) {
 		require.NotNil(t, policyConfigurator)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte(testPolicy)))
+		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBufferString(testPolicy))
 
 		policyConfigurator.handle(rw, req)
 

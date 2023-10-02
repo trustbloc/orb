@@ -101,7 +101,7 @@ func TestNewHandlerError(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, "https://example.com/nodeinfo", nil)
+		req := httptest.NewRequest(http.MethodGet, "https://example.com/nodeinfo", http.NoBody)
 
 		h.handle(rw, req)
 
@@ -128,7 +128,7 @@ func testHandler(t *testing.T, version Version, nodeInfo *NodeInfo, expected str
 	require.NotNil(t, h)
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "https://example.com/nodeinfo", nil)
+	req := httptest.NewRequest(http.MethodGet, "https://example.com/nodeinfo", http.NoBody)
 
 	h.handle(rw, req)
 

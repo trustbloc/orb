@@ -26,7 +26,7 @@ func TestHandlerWrapper(t *testing.T) {
 		require.NotNil(t, w)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, "/services/orb/outbox", nil)
+		req := httptest.NewRequest(http.MethodPost, "/services/orb/outbox", http.NoBody)
 		req.Header[authHeader] = []string{tokenPrefix + "ADMIN_TOKEN"}
 
 		w.Handler()(rw, req)
@@ -47,7 +47,7 @@ func TestHandlerWrapper(t *testing.T) {
 		require.NotNil(t, w)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, "/services/orb/outbox", nil)
+		req := httptest.NewRequest(http.MethodPost, "/services/orb/outbox", http.NoBody)
 
 		w.Handler()(rw, req)
 

@@ -2878,7 +2878,7 @@ func TestClient_GetPublicKey(t *testing.T) {
 	t.Run("error - no public key", func(t *testing.T) {
 		vctClient := vct.New(testLog, vct.WithHTTPClient(httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
-				Body:       io.NopCloser(bytes.NewBuffer([]byte("{}"))),
+				Body:       io.NopCloser(bytes.NewBufferString("{}")),
 				StatusCode: http.StatusOK,
 			}, nil
 		})))

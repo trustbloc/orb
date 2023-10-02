@@ -38,7 +38,7 @@ func TestLogLevels(t *testing.T) {
 		require.Equal(t, http.MethodPost, hw.Method())
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, logSpecURL, bytes.NewBuffer([]byte(spec)))
+		req := httptest.NewRequest(http.MethodPost, logSpecURL, bytes.NewBufferString(spec))
 
 		hw.handlePost(rw, req)
 
@@ -77,7 +77,7 @@ func TestLogLevels(t *testing.T) {
 		require.NotNil(t, h.Handler())
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, logSpecURL, bytes.NewBuffer([]byte("module2:INFO")))
+		req := httptest.NewRequest(http.MethodPost, logSpecURL, bytes.NewBufferString("module2:INFO"))
 
 		h.handlePost(rw, req)
 
@@ -97,7 +97,7 @@ func TestLogLevels(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, logSpecURL, bytes.NewBuffer([]byte(`INFO`)))
+		req := httptest.NewRequest(http.MethodPost, logSpecURL, bytes.NewBufferString(`INFO`))
 
 		h.handlePost(rw, req)
 

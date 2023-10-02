@@ -196,7 +196,7 @@ func TestActivities_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, inboxURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -222,7 +222,7 @@ func TestActivities_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, inboxURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -242,7 +242,7 @@ func TestActivities_Handler(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, inboxURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -263,7 +263,7 @@ func TestActivities_Handler(t *testing.T) {
 			}
 
 			rw := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
+			req := httptest.NewRequest(http.MethodGet, inboxURL, http.NoBody)
 
 			h.handle(rw, req)
 
@@ -280,7 +280,7 @@ func TestActivities_Handler(t *testing.T) {
 			}
 
 			rw := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
+			req := httptest.NewRequest(http.MethodGet, inboxURL, http.NoBody)
 
 			h.handle(rw, req)
 
@@ -301,7 +301,7 @@ func TestActivities_Handler(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, inboxURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -323,7 +323,7 @@ func TestActivities_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, inboxURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -343,7 +343,7 @@ func TestActivities_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, inboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, inboxURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -406,7 +406,7 @@ func TestActivities_PageHandler(t *testing.T) {
 		defer restorePaging()
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, outboxURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -434,7 +434,7 @@ func TestActivities_PageHandler(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, outboxURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -475,7 +475,7 @@ func TestReadOutbox_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, outboxURL, http.NoBody)
 
 		h.handleOutbox(rw, req)
 
@@ -502,7 +502,7 @@ func TestReadOutbox_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, outboxURL, http.NoBody)
 
 		h.handleOutbox(rw, req)
 
@@ -529,7 +529,7 @@ func TestReadOutbox_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+		req := httptest.NewRequest(http.MethodGet, outboxURL, http.NoBody)
 
 		h.handleOutbox(rw, req)
 
@@ -575,7 +575,7 @@ func TestShares_Handler(t *testing.T) {
 		defer restore()
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, sharesURL, nil)
+		req := httptest.NewRequest(http.MethodGet, sharesURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -631,7 +631,7 @@ func TestShares_PageHandler(t *testing.T) {
 		defer restore()
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, sharesURL, nil)
+		req := httptest.NewRequest(http.MethodGet, sharesURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -658,7 +658,7 @@ func TestShares_PageHandler(t *testing.T) {
 		defer restore()
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, sharesURL, nil)
+		req := httptest.NewRequest(http.MethodGet, sharesURL, http.NoBody)
 
 		h.handle(rw, req)
 
@@ -744,7 +744,7 @@ func TestActivity_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), http.NoBody)
 
 		restoreID := setIDParam(id)
 		defer restoreID()
@@ -768,7 +768,7 @@ func TestActivity_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), http.NoBody)
 
 		h.handle(rw, req)
 
@@ -782,7 +782,7 @@ func TestActivity_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), http.NoBody)
 
 		restoreID := setIDParam("123")
 		defer restoreID()
@@ -802,7 +802,7 @@ func TestActivity_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), http.NoBody)
 
 		restoreID := setIDParam(id)
 		defer restoreID()
@@ -825,7 +825,7 @@ func TestActivity_Handler(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), http.NoBody)
 
 		restoreID := setIDParam(id)
 		defer restoreID()
@@ -856,7 +856,7 @@ func TestActivity_Handler(t *testing.T) {
 
 		t.Run("Non-public activity -> unauthorized", func(t *testing.T) {
 			rw := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+			req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), http.NoBody)
 
 			restoreID := setIDParam(id)
 			defer restoreID()
@@ -870,7 +870,7 @@ func TestActivity_Handler(t *testing.T) {
 
 		t.Run("Public activity -> success", func(t *testing.T) {
 			rw := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+			req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), http.NoBody)
 
 			restoreID := setIDParam(publicID)
 			defer restoreID()
@@ -899,7 +899,7 @@ func TestActivity_Handler(t *testing.T) {
 			require.NotNil(t, h)
 
 			rw := httptest.NewRecorder()
-			req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+			req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), http.NoBody)
 
 			restoreID := setIDParam(id)
 			defer restoreID()
@@ -963,7 +963,7 @@ func handleActivitiesRequest(t *testing.T, serviceIRI *url.URL, as spi.Store, pa
 	defer restorePaging()
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, outboxURL, nil)
+	req := httptest.NewRequest(http.MethodGet, outboxURL, http.NoBody)
 
 	h.handle(rw, req)
 
