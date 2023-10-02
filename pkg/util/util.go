@@ -35,7 +35,7 @@ func EncodePublicKeyToPEM(pubKeyBytes []byte, keyType kms.KeyType) ([]byte, erro
 			return nil, fmt.Errorf("parse PKIX public key: %w", err)
 		}
 
-		//nolint:forcetypeassert
+		//nolint:forcetypeassert,staticcheck
 		keyBytes = elliptic.Marshal(curveMap[pemKeyType], key.(*ecdsa.PublicKey).X,
 			key.(*ecdsa.PublicKey).Y)
 	}

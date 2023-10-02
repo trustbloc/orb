@@ -91,7 +91,7 @@ func TestAcceptListWriter_Handler(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, acceptListURL, bytes.NewBuffer([]byte(`[]`)))
+		req := httptest.NewRequest(http.MethodPost, acceptListURL, bytes.NewBufferString(`[]`))
 
 		h.handlePost(rw, req)
 
@@ -111,7 +111,7 @@ func TestAcceptListWriter_Handler(t *testing.T) {
 
 		rw := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, acceptListURL,
-			bytes.NewBuffer([]byte(`[{"type":"follow","add":["https://domain1.com/services/orb"]}]`)))
+			bytes.NewBufferString(`[{"type":"follow","add":["https://domain1.com/services/orb"]}]`))
 
 		h.handlePost(rw, req)
 
@@ -157,7 +157,7 @@ func TestAcceptListReader_Handler(t *testing.T) {
 		require.NotNil(t, h.Handler())
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, acceptListURL, nil)
+		req := httptest.NewRequest(http.MethodGet, acceptListURL, http.NoBody)
 
 		restoreType := setTypeParam("follow")
 		defer restoreType()
@@ -199,7 +199,7 @@ func TestAcceptListReader_Handler(t *testing.T) {
 		require.NotNil(t, h.Handler())
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, acceptListURL, nil)
+		req := httptest.NewRequest(http.MethodGet, acceptListURL, http.NoBody)
 
 		h.handleGet(rw, req)
 
@@ -225,7 +225,7 @@ func TestAcceptListReader_Handler(t *testing.T) {
 		require.NotNil(t, h.Handler())
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, acceptListURL, nil)
+		req := httptest.NewRequest(http.MethodGet, acceptListURL, http.NoBody)
 
 		restoreType := setTypeParam("follow")
 		defer restoreType()
@@ -247,7 +247,7 @@ func TestAcceptListReader_Handler(t *testing.T) {
 		require.NotNil(t, h.Handler())
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, acceptListURL, nil)
+		req := httptest.NewRequest(http.MethodGet, acceptListURL, http.NoBody)
 
 		h.handleGet(rw, req)
 
@@ -270,7 +270,7 @@ func TestAcceptListReader_Handler(t *testing.T) {
 		h.marshal = func(v interface{}) ([]byte, error) { return nil, errExpected }
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, acceptListURL, nil)
+		req := httptest.NewRequest(http.MethodGet, acceptListURL, http.NoBody)
 
 		restoreType := setTypeParam("follow")
 		defer restoreType()
@@ -302,7 +302,7 @@ func TestAcceptListReader_Handler(t *testing.T) {
 		h.marshal = func(v interface{}) ([]byte, error) { return nil, errExpected }
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, acceptListURL, nil)
+		req := httptest.NewRequest(http.MethodGet, acceptListURL, http.NoBody)
 
 		h.handleGet(rw, req)
 
@@ -324,7 +324,7 @@ func testPostBadRequest(t *testing.T, desc, request string) {
 		require.NotNil(t, h.Handler())
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, acceptListURL, bytes.NewBuffer([]byte(request)))
+		req := httptest.NewRequest(http.MethodPost, acceptListURL, bytes.NewBufferString(request))
 
 		h.handlePost(rw, req)
 

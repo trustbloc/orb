@@ -17,7 +17,7 @@ import (
 
 // New returns new random selector.
 func New() *Selector {
-	rand.Seed(time.Now().UnixNano())
+	rand.Seed(time.Now().UnixNano()) //nolint:staticcheck
 
 	return &Selector{}
 }

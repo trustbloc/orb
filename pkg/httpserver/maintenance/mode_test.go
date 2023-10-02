@@ -29,7 +29,7 @@ func TestHandlerWrapper(t *testing.T) {
 		require.Equal(t, http.MethodPost, w.Method())
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, "/services/orb/inbox", nil)
+		req := httptest.NewRequest(http.MethodPost, "/services/orb/inbox", http.NoBody)
 
 		w.Handler()(rw, req)
 

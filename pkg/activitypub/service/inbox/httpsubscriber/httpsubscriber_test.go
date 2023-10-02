@@ -70,7 +70,7 @@ func TestSubscriber_HandleAck(t *testing.T) {
 	}()
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, endpoint, nil)
+	req := httptest.NewRequest(http.MethodPost, endpoint, http.NoBody)
 
 	s.handleMessage(rw, req)
 
@@ -102,7 +102,7 @@ func TestSubscriber_HandleNack(t *testing.T) {
 	}()
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, endpoint, nil)
+	req := httptest.NewRequest(http.MethodPost, endpoint, http.NoBody)
 
 	s.handleMessage(rw, req)
 
@@ -189,7 +189,7 @@ func TestSubscriber_Close(t *testing.T) {
 		require.NoError(t, err)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, endpoint, nil)
+		req := httptest.NewRequest(http.MethodPost, endpoint, http.NoBody)
 
 		var wg sync.WaitGroup
 
@@ -226,7 +226,7 @@ func TestSubscriber_Close(t *testing.T) {
 		require.NoError(t, err)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, endpoint, nil)
+		req := httptest.NewRequest(http.MethodPost, endpoint, http.NoBody)
 
 		go func() {
 			time.Sleep(10 * time.Millisecond)
@@ -265,7 +265,7 @@ func TestSubscriber_InvalidHTTPSignature(t *testing.T) {
 	}()
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, endpoint, nil)
+	req := httptest.NewRequest(http.MethodPost, endpoint, http.NoBody)
 
 	s.handleMessage(rw, req)
 
@@ -299,7 +299,7 @@ func TestSubscriber_HTTPSignatureError(t *testing.T) {
 	}()
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, endpoint, nil)
+	req := httptest.NewRequest(http.MethodPost, endpoint, http.NoBody)
 
 	s.handleMessage(rw, req)
 
@@ -328,7 +328,7 @@ func TestSubscriber_NoHTTPSignatureRequired(t *testing.T) {
 	}()
 
 	rw := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, endpoint, nil)
+	req := httptest.NewRequest(http.MethodPost, endpoint, http.NoBody)
 
 	s.handleMessage(rw, req)
 

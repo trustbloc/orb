@@ -38,7 +38,7 @@ func TestLogRetriever(t *testing.T) {
 		})
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, endpoint, nil)
+		req := httptest.NewRequest(http.MethodGet, endpoint, http.NoBody)
 
 		handler.handle(rw, req)
 
@@ -62,7 +62,7 @@ func TestLogRetriever(t *testing.T) {
 		handler := NewRetriever(&mockLogMonitorStore{ActiveLogs: []*logmonitor.LogMonitor{{Log: "https://vct.com/log"}}})
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, endpoint+"?status=active", nil)
+		req := httptest.NewRequest(http.MethodGet, endpoint+"?status=active", http.NoBody)
 
 		handler.handle(rw, req)
 
@@ -85,7 +85,7 @@ func TestLogRetriever(t *testing.T) {
 		handler := NewRetriever(&mockLogMonitorStore{InactiveLogs: []*logmonitor.LogMonitor{{Log: "https://vct.com/log"}}})
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, endpoint+"?status=inactive", nil)
+		req := httptest.NewRequest(http.MethodGet, endpoint+"?status=inactive", http.NoBody)
 
 		handler.handle(rw, req)
 
@@ -108,7 +108,7 @@ func TestLogRetriever(t *testing.T) {
 		handler := NewRetriever(&mockLogMonitorStore{InactiveLogs: []*logmonitor.LogMonitor{{Log: "https://vct.com/log"}}})
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, endpoint+"?status=invalid", nil)
+		req := httptest.NewRequest(http.MethodGet, endpoint+"?status=invalid", http.NoBody)
 
 		handler.handle(rw, req)
 
@@ -126,7 +126,7 @@ func TestLogRetriever(t *testing.T) {
 		handler := NewRetriever(&mockLogMonitorStore{Err: orberrors.ErrContentNotFound})
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, endpoint+"?status=active", nil)
+		req := httptest.NewRequest(http.MethodGet, endpoint+"?status=active", http.NoBody)
 
 		handler.handle(rw, req)
 
@@ -144,7 +144,7 @@ func TestLogRetriever(t *testing.T) {
 		handler := NewRetriever(&mockLogMonitorStore{Err: orberrors.ErrContentNotFound})
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, endpoint+"?status=inactive", nil)
+		req := httptest.NewRequest(http.MethodGet, endpoint+"?status=inactive", http.NoBody)
 
 		handler.handle(rw, req)
 
@@ -162,7 +162,7 @@ func TestLogRetriever(t *testing.T) {
 		handler := NewRetriever(&mockLogMonitorStore{ActiveLogs: []*logmonitor.LogMonitor{{Log: "https://vct.com/log"}}})
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, endpoint+"?status=active", nil)
+		req := httptest.NewRequest(http.MethodGet, endpoint+"?status=active", http.NoBody)
 
 		errExpected := fmt.Errorf("injected unmarshal error")
 

@@ -82,7 +82,7 @@ func TestServices_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), http.NoBody)
 
 		h.handle(rw, req)
 
@@ -109,7 +109,7 @@ func TestServices_Handler(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), http.NoBody)
 
 		h.handle(rw, req)
 
@@ -132,7 +132,7 @@ func TestServices_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), http.NoBody)
 
 		h.handle(rw, req)
 
@@ -155,7 +155,7 @@ func TestPublicKeys_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), http.NoBody)
 
 		restoreID := setIDParam(MainKeyID)
 		defer restoreID()
@@ -179,7 +179,7 @@ func TestPublicKeys_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), http.NoBody)
 
 		h.handlePublicKey(rw, req)
 
@@ -193,7 +193,7 @@ func TestPublicKeys_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), http.NoBody)
 
 		restoreID := setIDParam("invalid-key")
 		defer restoreID()
@@ -216,7 +216,7 @@ func TestPublicKeys_Handler(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), http.NoBody)
 
 		restoreID := setIDParam(MainKeyID)
 		defer restoreID()
@@ -242,7 +242,7 @@ func TestPublicKeys_Handler(t *testing.T) {
 		require.NotNil(t, h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), nil)
+		req := httptest.NewRequest(http.MethodGet, serviceIRI.String(), http.NoBody)
 
 		restoreID := setIDParam(MainKeyID)
 		defer restoreID()

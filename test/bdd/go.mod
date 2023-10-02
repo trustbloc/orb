@@ -16,10 +16,10 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/greenpau/go-calculator v1.0.1
 	github.com/hyperledger/aries-framework-go v0.3.3-0.20230901120639-e17eddd3ad3e
-	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20220428163625-96d8261511e1
-	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20220615170242-cda5092b4faf
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc5.0.20230612123444-d285f3c85595
-	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc4.0.20230612123444-d285f3c85595
+	github.com/hyperledger/aries-framework-go-ext/component/storage/couchdb v0.0.0-20231002134513-a3b96bcbb37c
+	github.com/hyperledger/aries-framework-go-ext/component/storage/mongodb v0.0.0-20231002134513-a3b96bcbb37c
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/orb v1.0.0-rc5.0.20231002134513-a3b96bcbb37c
+	github.com/hyperledger/aries-framework-go-ext/component/vdr/sidetree v1.0.0-rc4.0.20231002134513-a3b96bcbb37c
 	github.com/hyperledger/aries-framework-go/component/storageutil v0.0.0-20230427134832-0c9969493bd3
 	github.com/hyperledger/aries-framework-go/spi v0.0.0-20230901120639-e17eddd3ad3e
 	github.com/igor-pavlenko/httpsignatures-go v0.0.23
@@ -27,7 +27,7 @@ require (
 	github.com/mr-tron/base58 v1.2.0
 	github.com/sirupsen/logrus v1.8.1
 	github.com/tidwall/gjson v1.14.3
-	github.com/trustbloc/orb v1.0.0-rc7
+	github.com/trustbloc/orb v1.0.1-0.20230929144409-1e0e7e685841
 	github.com/trustbloc/sidetree-go v0.0.0-20230928172705-30e78b6b6ddd
 )
 

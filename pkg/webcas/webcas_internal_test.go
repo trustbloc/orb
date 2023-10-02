@@ -52,7 +52,7 @@ func TestWriteResponseFailures(t *testing.T) {
 				&apmocks.AuthTokenMgr{})
 
 			rw := &failingResponseWriter{}
-			req := httptest.NewRequest(http.MethodGet, "/cas", nil)
+			req := httptest.NewRequest(http.MethodGet, "/cas", http.NoBody)
 
 			webCAS.Handler()(rw, req)
 		})
@@ -65,7 +65,7 @@ func TestWriteResponseFailures(t *testing.T) {
 				&apmocks.AuthTokenMgr{})
 
 			rw := &failingResponseWriter{}
-			req := httptest.NewRequest(http.MethodGet, "/cas", nil)
+			req := httptest.NewRequest(http.MethodGet, "/cas", http.NoBody)
 
 			webCAS.Handler()(rw, req)
 		})
@@ -79,7 +79,7 @@ func TestWriteResponseFailures(t *testing.T) {
 			&apmocks.AuthTokenMgr{})
 
 		rw := &failingResponseWriter{}
-		req := httptest.NewRequest(http.MethodGet, "/cas", nil)
+		req := httptest.NewRequest(http.MethodGet, "/cas", http.NoBody)
 
 		webCAS.Handler()(rw, req)
 	})

@@ -100,7 +100,7 @@ func TestSignatureHashAlgorithm_Verify(t *testing.T) {
 	require.NoError(t, err)
 
 	data := []byte("data")
-	pubKey := elliptic.Marshal(elliptic.P256(), privKey.PublicKey.X, privKey.PublicKey.Y)
+	pubKey := elliptic.Marshal(elliptic.P256(), privKey.PublicKey.X, privKey.PublicKey.Y) //nolint:staticcheck
 	s := ecsigner.New(privKey, "ES256", uuid.NewString())
 
 	signature, err := s.Sign(data)

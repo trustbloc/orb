@@ -132,7 +132,7 @@ build-orb-cli-binaries:
 	@docker run -i --rm \
 		-v $(abspath .):/opt/workspace/orb \
 		--entrypoint "/opt/workspace/orb/scripts/build-cli.sh" \
-		ghcr.io/gythialy/golang-cross:go-1.18
+		ghcr.io/gythialy/golang-cross:1.21.1
 
 .PHONY: extract-orb-cli-binaries
 extract-orb-cli-binaries:

@@ -72,7 +72,7 @@ const (
 		" Alternatively, this can be set with the following environment variable: " + recoveryKeyEnvKey
 
 	recoveryKeyFileFlagName  = "recoverykey-file"
-	recoveryKeyFileEnvKey    = "ORB_CLI_RECOVERYKEY_FILE"
+	recoveryKeyFileEnvKey    = "ORB_CLI_RECOVERYKEY_FILE" //nolint:gosec
 	recoveryKeyFileFlagUsage = "The file that contains the public key PEM used for recovery of the document." +
 		" Alternatively, this can be set with the following environment variable: " + recoveryKeyFileEnvKey
 

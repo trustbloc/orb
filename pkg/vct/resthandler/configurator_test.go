@@ -46,7 +46,7 @@ func TestHandler(t *testing.T) {
 		require.NotNil(t, logConfigurator)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte(testLogURL)))
+		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBufferString(testLogURL))
 
 		logConfigurator.handle(rw, req)
 
@@ -68,7 +68,7 @@ func TestHandler(t *testing.T) {
 		require.NotNil(t, logConfigurator)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte("")))
+		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBufferString(""))
 
 		logConfigurator.handle(rw, req)
 
@@ -112,7 +112,7 @@ func TestHandler(t *testing.T) {
 		require.NotNil(t, logConfigurator)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte(":InvalidURL")))
+		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBufferString(":InvalidURL"))
 
 		logConfigurator.handle(rw, req)
 
@@ -134,7 +134,7 @@ func TestHandler(t *testing.T) {
 		require.NotNil(t, logConfigurator)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte(testLogURL)))
+		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBufferString(testLogURL))
 
 		logConfigurator.handle(rw, req)
 
@@ -161,7 +161,7 @@ func TestHandler(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte(testLogURL)))
+		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBufferString(testLogURL))
 
 		logConfigurator.handle(rw, req)
 
@@ -183,7 +183,7 @@ func TestHandler(t *testing.T) {
 		require.NotNil(t, logConfigurator)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer([]byte(testLogURL)))
+		req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBufferString(testLogURL))
 
 		logConfigurator.handle(rw, req)
 

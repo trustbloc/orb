@@ -70,7 +70,7 @@ func (c *httpClient) GetWithSignature(url, domain string) (*httpResponse, error)
 
 	url = c.resolveURL(url)
 
-	httpReq, err := http.NewRequest(http.MethodGet, url, nil)
+	httpReq, err := http.NewRequest(http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, err
 	}

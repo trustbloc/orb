@@ -391,7 +391,7 @@ func (e *StressSteps) createVerificationMethod(keyType string, pubKey []byte, ki
 
 	switch keyType {
 	case P256KeyType:
-		x, y := elliptic.Unmarshal(elliptic.P256(), pubKey)
+		x, y := elliptic.Unmarshal(elliptic.P256(), pubKey) //nolint:staticcheck
 
 		jwk, err = jwksupport.JWKFromKey(&ecdsa.PublicKey{X: x, Y: y, Curve: elliptic.P256()})
 		if err != nil {

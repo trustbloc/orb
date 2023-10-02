@@ -156,7 +156,7 @@ func TestOutbox_Handler(t *testing.T) {
 		h := NewPostOutbox(cfg, ob, activityStore, verifier, tm)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, outboxURL, nil)
+		req := httptest.NewRequest(http.MethodPost, outboxURL, http.NoBody)
 
 		h.handlePost(rw, req)
 

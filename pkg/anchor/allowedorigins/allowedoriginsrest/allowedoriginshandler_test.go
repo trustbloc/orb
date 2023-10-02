@@ -75,7 +75,7 @@ func TestWriter_Handler(t *testing.T) {
 		}
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, allowedOriginsURL, bytes.NewBuffer([]byte(`[]`)))
+		req := httptest.NewRequest(http.MethodPost, allowedOriginsURL, bytes.NewBufferString("[]"))
 
 		h.handlePost(rw, req)
 
@@ -95,7 +95,7 @@ func TestWriter_Handler(t *testing.T) {
 
 		rw := httptest.NewRecorder()
 		req := httptest.NewRequest(http.MethodPost, allowedOriginsURL,
-			bytes.NewBuffer([]byte(`{"add":["https://domain1.com/services/orb"]}`)))
+			bytes.NewBufferString(`{"add":["https://domain1.com/services/orb"]}`))
 
 		h.handlePost(rw, req)
 
@@ -135,7 +135,7 @@ func TestReader_Handler(t *testing.T) {
 		require.NotNil(t, h.Handler())
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, allowedOriginsURL, nil)
+		req := httptest.NewRequest(http.MethodGet, allowedOriginsURL, http.NoBody)
 
 		h.handleGet(rw, req)
 
@@ -161,7 +161,7 @@ func TestReader_Handler(t *testing.T) {
 		require.NotNil(t, h.Handler())
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, allowedOriginsURL, nil)
+		req := httptest.NewRequest(http.MethodGet, allowedOriginsURL, http.NoBody)
 
 		h.handleGet(rw, req)
 
@@ -184,7 +184,7 @@ func TestReader_Handler(t *testing.T) {
 		h.marshal = func(v interface{}) ([]byte, error) { return nil, errExpected }
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodGet, allowedOriginsURL, nil)
+		req := httptest.NewRequest(http.MethodGet, allowedOriginsURL, http.NoBody)
 
 		h.handleGet(rw, req)
 
@@ -202,7 +202,7 @@ func testPostBadRequest(t *testing.T, desc, request string) {
 		require.NotNil(t, h.Handler())
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest(http.MethodPost, allowedOriginsURL, bytes.NewBuffer([]byte(request)))
+		req := httptest.NewRequest(http.MethodPost, allowedOriginsURL, bytes.NewBufferString(request))
 
 		h.handlePost(rw, req)
 

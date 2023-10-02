@@ -274,7 +274,7 @@ func TestClient_ResolveLog(t *testing.T) {
 		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				Body: io.NopCloser(
-					bytes.NewBufferString(string(respBytes)),
+					bytes.NewBuffer(respBytes),
 				),
 				StatusCode: http.StatusOK,
 			}, nil
@@ -308,7 +308,7 @@ func TestClient_ResolveLog(t *testing.T) {
 		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				Body: io.NopCloser(
-					bytes.NewBufferString(string(respBytes)),
+					bytes.NewBuffer(respBytes),
 				),
 				StatusCode: http.StatusOK,
 			}, nil
@@ -374,7 +374,7 @@ func TestClient_ResolveLog(t *testing.T) {
 		httpClient := httpMock(func(req *http.Request) (*http.Response, error) {
 			return &http.Response{
 				Body: io.NopCloser(
-					bytes.NewBufferString(string(respBytes)),
+					bytes.NewBuffer(respBytes),
 				),
 				StatusCode: http.StatusOK,
 			}, nil

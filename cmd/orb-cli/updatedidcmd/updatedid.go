@@ -76,7 +76,7 @@ const (
 		" Alternatively, this can be set with the following environment variable: " + addPublicKeyFileEnvKey
 
 	addServiceFileFlagName = "add-service-file"
-	addServiceFileEnvKey   = "ORB_CLI_ADD_SERVICE_FILE"
+	addServiceFileEnvKey   = "ORB_CLI_ADD_SERVICE_FILE" //nolint:gosec
 	addServiceFlagUsage    = "publickey file include services to be added for Orb DID " +
 		" Alternatively, this can be set with the following environment variable: " + addServiceFileEnvKey
 
@@ -114,7 +114,7 @@ const (
 		" Alternatively, this can be set with the following environment variable: " + nextUpdateKeyFileEnvKey
 
 	nextUpdateKeyIDFlagName  = "nextupdatekey-id"
-	nextUpdateKeyIDEnvKey    = "ORB_CLI_NEXTUPDATEKEY_ID"
+	nextUpdateKeyIDEnvKey    = "ORB_CLI_NEXTUPDATEKEY_ID" //nolint:gosec
 	nextUpdateKeyIDFlagUsage = "The key id in kms" +
 		" used for validating the signature of the next update of the document. " +
 		" Alternatively, this can be set with the following environment variable: " + nextUpdateKeyIDEnvKey
