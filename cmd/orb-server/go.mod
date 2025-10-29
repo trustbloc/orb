@@ -4,9 +4,7 @@
 
 module github.com/trustbloc/orb/cmd/orb-server
 
-go 1.21
-
-toolchain go1.21.0
+go 1.25.3
 
 require (
 	github.com/ThreeDotsLabs/watermill v1.2.0-rc.7
@@ -129,7 +127,7 @@ require (
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/crypto v0.1.0 // indirect
 	golang.org/x/net v0.1.0 // indirect
-	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
