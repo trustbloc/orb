@@ -66,7 +66,7 @@ func TestStandardFields(t *testing.T) {
 			WithNumActivitiesSynced(123), WithRecordsProcessed(23),
 		)
 
-		t.Logf(stdOut.String())
+		t.Logf("%s", stdOut.String())
 		l := unmarshalLogData(t, stdOut.Bytes())
 
 		require.Equal(t, `Some message`, l.Msg)
