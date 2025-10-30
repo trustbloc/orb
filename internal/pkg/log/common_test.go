@@ -28,7 +28,7 @@ func TestCommonLogs(t *testing.T) {
 
 		InvalidParameterValue(logger, "param1", errors.New("invalid integer"))
 
-		t.Logf(stdErr.String())
+		t.Logf("%s", stdErr.String())
 
 		require.Contains(t, stdErr.Buffer.String(), `Invalid parameter value`)
 		require.Contains(t, stdErr.Buffer.String(), `"service": "myservice"`)

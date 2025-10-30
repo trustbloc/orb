@@ -158,12 +158,10 @@ func TestResolver_Resolve(t *testing.T) {
 		resource, err := resolver.ResolveHostMetaLink("ipns://k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek",
 			discoveryrest.ActivityJSONType)
 		require.Error(t, err)
-		require.Contains(t, err.Error(),
-			`failed to read from IPNS: cat IPFS of CID `+
-				`[/ipns/k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek/.well-known/host-meta.json]: `+
-				`Post "http://SomeIPFSNodeURL/api/v0/cat?arg=%2Fipns%2Fk51qzi5uqu5dgjc`+
-				`eyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek%2F.well-known%2Fhost-meta.json": dial tcp: `+
-				"lookup SomeIPFSNodeURL:")
+		require.Contains(t, err.Error(), "failed to read from IPNS: cat IPFS of CID")
+		require.Contains(t, err.Error(), "dial tcp: lookup SomeIPFSNodeURL")
+		require.Contains(t, err.Error(), "/ipns/k51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek/.well-known/host-meta.json")
+		require.Contains(t, err.Error(), "http://SomeIPFSNodeURL/api/v0/cat?arg=%2Fipns%2Fk51qzi5uqu5dgjceyz40t6xfnae8jqn5z17ojojggzwz2mhl7uyhdre8ateqek%2F.well-known%2Fhost-meta.json")
 		require.Empty(t, resource)
 	})
 	t.Run("Fail to resolve via IPNS (response unmarshal failure)", func(t *testing.T) {

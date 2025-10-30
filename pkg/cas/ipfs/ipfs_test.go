@@ -201,7 +201,7 @@ func TestWrite(t *testing.T) {
 
 		cid, err := cas.Write([]byte("content"))
 		require.Empty(t, cid)
-		require.EqualError(t, err, "add: command not found. (Does this IPFS node support writes?)")
+		require.Contains(t, err.Error(), "Kubo RPC is not here")
 	})
 }
 

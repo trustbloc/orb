@@ -4,6 +4,8 @@
 
 module github.com/trustbloc/orb
 
+go 1.25.3
+
 require (
 	github.com/ThreeDotsLabs/watermill v1.2.0-rc.7
 	github.com/ThreeDotsLabs/watermill-amqp/v2 v2.0.6
@@ -132,7 +134,7 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/crypto v0.1.0 // indirect
-	golang.org/x/sync v0.0.0-20220601150217-0de741cfad7f // indirect
+	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
 	golang.org/x/sys v0.5.0 // indirect
 	golang.org/x/text v0.4.0 // indirect
 	google.golang.org/genproto v0.0.0-20220222213610-43724f9ea8cf // indirect
@@ -141,5 +143,3 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-go 1.21
